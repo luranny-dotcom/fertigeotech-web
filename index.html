@@ -33,13 +33,14 @@ input,textarea,button{font-family:'DM Sans',sans-serif}
 <body>
 <div id="root"></div>
 <script>
-// ── Recipe Parser ──────────────────────────────────────────────
+
+// -- Recipe Parser ----------------------------------------------
 const PDB={
-  // ── Corretores de pH ──
+  // -- Corretores de pH --
   'acido citrico':'PH','ácido cítrico':'PH','ph down':'PH','ph minus':'PH','ph up':'PH',
   'aquafix':'PH','buffer':'PH','redutor de ph':'PH','bicarbonato':'PH','condicionador':'PH','sequestran':'PH',
   'acido fosforico':'PH','ácido fosfórico':'PH','acido acetico':'PH',
-  // ── Pós Molháveis / Granulados WP/WG ──
+  // -- Pós Molháveis / Granulados WP/WG --
   'mancozebe':'WP','mancozeb':'WP','dithane':'WP','dithane nt':'WP','manzate':'WP','manzate wg':'WP',
   'persist':'WP','unizeb':'WP','oxicloreto':'WP','cuproxat':'WP','kocide':'WP','champion':'WP',
   'calda bordalesa':'WP','cupravi':'WP','captan':'WP','captana':'WP','enxofre':'WP','kumulus':'WP',
@@ -56,7 +57,7 @@ const PDB={
   'ametrina 800 wg chds':'WP','acefato fersol 750 sp':'WP','trigard 750 wp':'WP','aradya':'WP',
   'abamectin nortox 400 wg':'WP','acetamiprid nortox 200 sp':'WP','garra 450 wp':'WP',
   'ametrina 800 wg rainbow':'WP','acefato 750 tide':'WP','tridium':'WP','trifloxystrobin 500 wg':'WP',
-  // ── Suspensões SC ──
+  // -- Suspensões SC --
   'priori xtra':'SC','priori':'SC','priori top':'SC','azoxistrobina':'SC','piraclostrobina':'SC',
   'opera':'SC','orkestra':'SC','abamectina':'SC','vertimec':'SC','kraft':'SC','belt':'SC','folicur':'SC',
   'tebuconazol':'SC','propiconazol':'SC','ciproconazol':'SC','nativo':'SC','tilt':'SC',
@@ -86,102 +87,102 @@ const PDB={
   'rebron':'SC','revus':'SC','savivo':'SC','score':'SC','score flexi':'SC','spectro':'SC',
   'sponta':'SC','tecto':'SC','truzon':'SC','vantigo':'SC','verdadero':'SC','verdavis':'SC',
   'volubilis':'SC','zagrone':'SC',
-  'acetamiprid synwill':'SC','aceway':'SC','acrobat mz':'SC','acronis':'SC','acronis ubs':'SC','across':'SC','actellic- lambda':'SC','acuthon':'SC'
-  'aderis':'SC','adiconstar':'SC','agtecmmon 6':'SC','agtrimmon':'SC','airone':'SC','ajaax':'SC','akito':'SC','álaabo':'SC'
-  'alade':'SC','alchemy':'SC','aliette':'SC','allora':'SC','almada':'SC','alon':'SC','alpes chds':'SC','altima':'SC'
-  'alto100':'SC','alto elite':'SC','alvofix':'SC','amanzi':'SC','amblus':'SC','ametista':'SC','ampligo pro':'SC','animus':'SC'
-  'apaleo':'SC','applaud 250':'SC','approve':'SC','aproach power 9':'SC','aproach prima':'SC','apron rfc':'SC','arcade':'SC','arceus':'SC'
-  'argenfrut rv':'SC','argento':'SC','ariete':'SC','armatto':'SC','armero':'SC','atabron ultra':'SC','ataplan 11':'SC','atexzo ant-f':'SC'
-  'atialy':'SC','ativum':'SC','atom':'SC','atroverde 77':'SC','attila':'SC','auba':'SC','audaz':'SC','auge':'SC'
-  'augory':'SC','auin':'SC','auin ce':'SC','aumenax':'SC','autentico br':'SC','avatar':'SC','aveo ez':'SC','avert':'SC'
-  'avert max':'SC','ávidobr':'SC','avizon':'SC','azamax':'SC','azimut':'SC','azoxistrobin nortox':'SC','azoxistrobin 200 ciprocona- zole80 ccab':'SC','bio pegasus':'SC'
-  'bio release':'SC','bio solubilize':'SC','bio tramo':'SC','bio tribal':'SC','bio venci':'SC','bio-four':'SC','bio-imune':'SC','bioagross andorinha':'SC'
-  'bioagross seriema':'SC','bioatena':'SC','biobac t':'SC','biobaci':'SC','biobev':'SC','bioboost':'SC','biobrev full':'SC','biocash':'SC'
-  'bioddam':'SC','biodoble':'SC','bioentri':'SC','bioessence drive':'SC','bioexos plus':'SC','biofence':'SC','biofoll':'SC','biofoll duo':'SC'
-  'biogreat':'SC','biogrun':'SC','bioharmer':'SC','bioisa':'SC','biokato':'SC','bioking':'SC','biolucro':'SC','biomagno':'SC'
-  'biomerhi':'SC','biomtz':'SC','bs inox':'SC','bs tricho duo':'SC','bt guard':'SC','bt protection':'SC','bt top':'SC','bt vertum':'SC'
-  'bt-citrus plus':'SC','bt turbo max':'SC','btcontrol':'SC','btfert':'SC','bton':'SC','btp 076-20':'SC','btp 078-20':'SC','btp 177-21':'SC'
-  'buffon':'SC','buick evo':'SC','buran':'SC','bushi':'SC','buzz':'SC','cablar':'SC','calezar':'SC','cabrio top':'SC'
-  'cadac':'SC','cadilac':'SC','calitá':'SC','calypso':'SC','canario':'SC','cantus':'SC','capataz':'SC','capex':'SC'
-  'capsialil':'SC','captive':'SC','captor':'SC','caramba 90':'SC','caravan':'SC','carion':'SC','carnadine':'SC','cartap br 500':'SC'
-  'cartarys':'SC','cartugen':'SC','cartugen max':'SC','caterwin sf':'SC','cefanol':'SC','cefanol gold':'SC','cekat':'SC','celtic':'SC'
-  'censor':'SC','centric':'SC','ceramax 30':'SC','cerimônia':'SC','cernis':'SC','certero':'SC','certeza n':'SC','cetrix 200':'SC'
-  'challenger':'SC','chancella':'SC','charge':'SC','chettak gold':'SC','chevelle':'SC','chiave sup':'SC','chlorocil':'SC','chrysogen':'SC'
-  'ciblock':'SC','cifrão':'SC','cigaral':'SC','cignus':'SC','cimox':'SC','cipermetrina nortox':'SC','cipertrin':'SC','ciproconazole nortox':'SC'
-  'clopanto':'SC','clorfenapir nortox':'SC','clorotalonil 720 sino-agri':'SC','clorotalonil nortox':'SC','comprenil mixx':'SC','confidor supra':'SC','congregga':'SC','congregga pro':'SC'
-  'connect':'SC','consento':'SC','constel':'SC','control-t':'SC','controller nt':'SC','convicto':'SC','copa':'SC','copsuper':'SC'
-  'coragen 36':'SC','coraza':'SC','cordial 100':'SC','coregis':'SC','corsica max':'SC','cosavet':'SC','cotesia - controbil':'SC','cotesia - jlg':'SC'
-  'cotesia flavips mcp':'SC','cotesia tecnobil':'SC','cougar':'SC','counter 150 g':'SC','cricen':'SC','criso vit':'SC','criso vit ii':'SC','cronnos':'SC'
-  'cropbio biohellmax':'SC','cropbio biometa':'SC','cropbio biosecurity':'SC','cropstar':'SC','cruzanto':'SC','crupital 700':'SC','cuprogarb 350':'SC','cuprogarb 500':'SC'
-  'cupronil':'SC','cuprozeb':'SC','curacron':'SC','curado':'SC','curanza pro':'SC','curathane':'SC','curatis':'SC','cureforce':'SC'
-  'curzate':'SC','cutlass':'SC','cyptrin 250 ce':'SC','cyptrin prime':'SC','daconil 500':'SC','daniato':'SC','dart':'SC','dart pro':'SC'
-  'davos':'SC','decision':'SC','defender':'SC','defenser':'SC','defensus':'SC','delan':'SC','delros':'SC','dermacor':'SC'
-  'dermacor br':'SC','dermavale':'SC','destrez':'SC','destroyer sf':'SC','detroit':'SC','diador':'SC','diafentiurom nortox':'SC','diamantebr':'SC'
-  'difere':'SC','dissara':'SC','disseminate':'SC','ditor 250 tm':'SC','dividend supreme':'SC','dobbel':'SC','domark excell':'SC','domeron':'SC'
-  'dotte':'SC','dulia pro':'SC','edegal':'SC','efficon':'SC','eficax':'SC','eficaz':'SC','egide':'SC','elagesk ci':'SC'
-  'elagesk sf':'SC','elatus trio':'SC','eleitto':'SC','eleve':'SC','ellect':'SC','eluney':'SC','emerald':'SC','eminent gold':'SC'
-  'emzeb platina':'SC','engeo':'SC','ensis-turbo':'SC','entigris':'SC','envidor':'SC','envoy':'SC','epingle 100':'SC','equation':'SC'
-  'eredita':'SC','erradicur':'SC','erradicur max tm':'SC','erradik':'SC','espirodiclofen nortox':'SC','essencial br':'SC','esteio':'SC','estrela':'SC'
-  'ethrole':'SC','evedar':'SC','eventra':'SC','evolin':'SC','evolut duo':'SC','evolution':'SC','evolvance':'SC','evos':'SC'
-  'exalt':'SC','fipronil 800 sino- agri':'SC','fipronil nortox max':'SC','fitoneem':'SC','flasher':'SC','flasher chds':'SC','flexin':'SC','fumi-cel 55':'SC'
-  'fumitoxin':'SC','funginil':'SC','fungiouro':'SC','funguran verde':'SC','furatrop':'SC','furioso':'SC','fx protection':'SC','gaia control trich':'SC'
-  'galapus sb':'SC','galben-m':'SC','galeão':'SC','gales':'SC','galgotrin':'SC','galloi bug':'SC','galloi-vit':'SC','game':'SC'
-  'ganador':'SC','gastoxin b-57':'SC','gauss':'SC','generalbr':'SC','gift':'SC','glove':'SC','glove nortox':'SC','hope tsi':'SC'
-  'hoprole':'SC','horos':'SC','ichiban':'SC','ilevo':'SC','imidacloprid nortox':'SC','imidafol':'SC','imparbr':'SC','imunit':'SC'
-  'incitro':'SC','indoxacarb 150 sino agri':'SC','infinito':'SC','ingestak bt':'SC','inlayon':'SC','juno':'SC','k-obiol 2 p':'SC','k-othrine 2p':'SC'
-  'kaiso max':'SC','kaligreen pro':'SC','kalivar':'SC','kanopus':'SC','kasumin':'SC','keepdry org':'SC','keyra':'SC','killigan':'SC'
-  'kilymos':'SC','kingprido xtra':'SC','kingstar xtra':'SC','kitter':'SC','klinner':'SC','koji':'SC','koyam':'SC','kromstar':'SC'
-  'krypto':'SC','kumulus df':'SC','lake':'SC','lalnix resist':'SC','lalstop organics ds':'SC','lambda cialotrin':'SC','lambda- 71 cialotrina nortox':'SC','lanceiro':'SC'
-  'lanfor pro':'SC','lannate br':'SC','laphy protection':'SC','lascar 97 df':'SC','lastro':'SC','legacy':'SC','legado':'SC','legion':'SC'
-  'leprotect s.f.':'SC','lepthure 72':'SC','levero':'SC','limuzinam':'SC','littovir':'SC','loopovir':'SC','lorens':'SC','lormelo':'SC'
-  'lost':'SC','lumialza':'SC','lyra':'SC','macan':'SC','macro tricho':'SC','magic':'SC','magnevus':'SC','magnun':'SC'
-  'magtoxin':'SC','mainspring flora':'SC','malathion ccab 1170 ul':'SC','malathion ul':'SC','mancozebe 800 sino-agri':'SC','mancozeb nortox':'SC','mansi':'SC','manzate 800':'SC'
-  'maplee':'SC','marechal':'SC','marshal':'SC','marshal star':'SC','marujo':'SC','maxim xl':'SC','maxim xl professional':'SC','maximus':'SC'
-  'maxsan':'SC','mb control':'SC','mbyo meta':'SC','mbyo tric':'SC','melyra':'SC','menthar':'SC','mettaplus':'SC','mettus org':'SC'
-  'mibelya':'SC','midas br':'SC','migiwa':'SC','milarum':'SC','milbeknock':'SC','mitekill':'SC','mofotil':'SC','moncut':'SC'
-  'moshy':'SC','moxyfen':'SC','multi guard':'SC','muneo':'SC','mythos':'SC','nillus':'SC','nimaxxa':'SC','nirvana':'SC'
-  'nodubionema':'SC','noduderma':'SC','nodumix':'SC','noduvel':'SC','nomolt 150':'SC','notávelbr':'SC','notório':'SC','now active':'SC'
-  'now bolt':'SC','now guard':'SC','now lock':'SC','now pulse':'SC','now react':'SC','nx easy tharz':'SC','obny':'SC','oca':'SC'
-  'octagon':'SC','octane':'SC','ofek-turbo':'SC','offensive':'SC','ohayo':'SC','okay':'SC','onceres':'SC','onipax':'SC'
-  'onix og':'SC','onmeta':'SC','onprotect n':'SC','onsuva':'SC','ontrich':'SC','openeem brutus':'SC','openeem valente':'SC','opera ultra':'SC'
-  'opta 88':'SC','opteraspectra':'SC','oranis':'SC','orbis':'SC','orix':'SC','orondis flexi':'SC','orondis opti':'SC','orsa':'SC'
-  'orthene 750 br':'SC','orthocide 500':'SC','ospo vi55':'SC','ourotricx 89':'SC','oxi 0111 bf (d2)':'SC','oxi 0095 bf (clone a)':'SC','oxi 0111 bf (d1)':'SC','oxi 104 bf (d1)':'SC'
-  'oxi 104 bf (d2)':'SC','oxicloreto de cobre nortox':'SC','ozean':'SC','paladyo':'SC','parachute':'SC','pardella':'SC','parrudobr':'SC','passerelle':'SC'
-  'patriota':'SC','peregrino':'SC','perenion':'SC','pergado mz':'SC','perimeter':'SC','perovar':'SC','perseus duo':'SC','pestoxin':'SC'
-  'phosal':'SC','phostek':'SC','phostoxin':'SC','physcion 92':'SC','picus':'SC','pilarich':'SC','pilarshield nano':'SC','pilartime':'SC'
-  'pilartrobin':'SC','pilarvant':'SC','pingbr':'SC','piraclostrobin nortox':'SC','pirate':'SC','pireo':'SC','piriproxifen nortox':'SC','pizin xtra':'SC'
-  'pladius':'SC','plust':'SC','poderus':'SC','podisi-vit':'SC','podisibug':'SC','polestar xtra':'SC','polyram df':'SC','pontual':'SC'
-  'possante':'SC','potenza sinon':'SC','pottente max':'SC','power bac bt':'SC','power bac inductor':'SC','powerfung':'SC','pratico':'SC','predador neo':'SC'
-  'predatox':'SC','preet':'SC','premier':'SC','premier plus':'SC','premio':'SC','premio star':'SC','premis':'SC','presence full':'SC'
-  'pretiobug':'SC','pretorian':'SC','preventis':'SC','prever':'SC','previnil max':'SC','prez':'SC','prilan duo':'SC','primordim':'SC'
-  'primum':'SC','prisma plus':'SC','privilege':'SC','proclaim 50':'SC','profair':'SC','profix':'SC','rainzeb':'SC','rancona t':'SC'
-  'ranman':'SC','rapel':'SC','raubtier':'SC','ravel':'SC','reconil rft':'SC','recop':'SC','record':'SC','redigo':'SC'
-  'redshield 750':'SC','reference':'SC','regalia maxx':'SC','regalo':'SC','regent 20 gr':'SC','regent duo':'SC','reinus':'SC','reli3ver':'SC'
-  'rephon':'SC','resil':'SC','restrict':'SC','resuris':'SC','reverb':'SC','revers':'SC','revolux':'SC','revus opti':'SC'
-  'ridomil gold bravo':'SC','ridomil gold mz':'SC','rikolto':'SC','rimon supra':'SC','rizo turbo':'SC','rizoderma':'SC','rizoderma tsi':'SC','rizos og':'SC'
-  'rizoveria bio inseticida':'SC','rocale':'SC','rocks':'SC','romesar':'SC','rovisar':'SC','rovral':'SC','row-vispo':'SC','royalprezor':'SC'
-  'rubephos 33':'SC','ruffex':'SC','ruler':'SC','rustban 104':'SC','rustop':'SC','s- control':'SC','safety':'SC','saggio':'SC'
-  'salibro':'SC','samurai':'SC','sankari':'SC','saori':'SC','sectia 350':'SC','seeker':'SC','seiv':'SC','seltima':'SC'
-  'semevin 350':'SC','sensei':'SC','serquibioderma':'SC','seven':'SC','shaman':'SC','shelby':'SC','shelter':'SC','shieldshock':'SC'
-  'shocker':'SC','skupa-mite':'SC','smite':'SC','soil safe':'SC','solecor':'SC','solenza':'SC','stiva':'SC','stratiomip':'SC'
-  'submax':'SC','sucess 0,02 cb':'SC','sugoy':'SC','sultan':'SC','sulvari':'SC','sumério':'SC','sumério mtp':'SC','sumirody 300':'SC'
-  'supera':'SC','superguard':'SC','superguard liq':'SC','superguard pro':'SC','supershield':'SC','supershield liq':'SC','supershield pro':'SC','support':'SC'
-  'surface':'SC','surtivo soja':'SC','swat':'SC','t-77':'SC','tabor life':'SC','tacap':'SC','taegro':'SC','tagger':'SC'
-  'taj':'SC','takotrop':'SC','talisman':'SC','talladega':'SC','talstar 400':'SC','tamiz':'SC','tanus':'SC','tebas':'SC'
-  'tebuco a nortox':'SC','tebuco t nortox':'SC','tebuconazole 430 sino-agri':'SC','tebuconazole chd s':'SC','tebufort':'SC','teburaz':'SC','tebuzol':'SC','teciso':'SC'
-  'tecnus':'SC','teikko':'SC','temible':'SC','tenox':'SC','terminate nortox':'SC','terminus':'SC','terra forte':'SC','terra forte nf':'SC'
-  'tetraduo-vit':'SC','texx':'SC','tezpetix beauve':'SC','thea':'SC','therno':'SC','thiobel 500':'SC','thuricide':'SC','thydra':'SC'
-  'tillez':'SC','tilsis':'SC','tiofanato nortox':'SC','tiotalonil nortox':'SC','tivra':'SC','tordpic xtra':'SC','torero':'SC','trudor':'SC'
-  'trulymax':'SC','trunemco':'SC','tryba':'SC','tuit florestal':'SC','tutavir':'SC','tutor':'SC','twixx a':'SC','typhoon nortox':'SC'
-  'unanimebr':'SC','unidos':'SC','union methamil':'SC','union trichomil':'SC','unique':'SC','unizeb glory':'SC','unizeb gold':'SC','veldara':'SC'
-  'velez':'SC','veraneio':'SC','verango prime':'SC','verdiva':'SC','verimark':'SC','verismo':'SC','verpavex':'SC','versatilis':'SC'
-  'verso':'SC','vessarya':'SC','vesuve':'SC','victrato':'SC','vigga':'SC','vigold':'SC','vilora':'SC','vinemco':'SC'
-  'vinquo':'SC','viovan':'SC','vir protection':'SC','xivanta smart':'SC','yang':'SC','yazi':'SC','yeldana':'SC','yeti gold':'SC'
-  'zagrone ts':'SC','zampro':'SC','zapper n':'SC','zarpal 132':'SC','zebu':'SC','zenit':'SC','zetanil':'SC','zeus':'SC'
+  'acetamiprid synwill':'SC','aceway':'SC','acrobat mz':'SC','acronis':'SC','acronis ubs':'SC','across':'SC','actellic- lambda':'SC','acuthon':'SC',
+  'aderis':'SC','adiconstar':'SC','agtecmmon 6':'SC','agtrimmon':'SC','airone':'SC','ajaax':'SC','akito':'SC','álaabo':'SC',
+  'alade':'SC','alchemy':'SC','aliette':'SC','allora':'SC','almada':'SC','alon':'SC','alpes chds':'SC','altima':'SC',
+  'alto100':'SC','alto elite':'SC','alvofix':'SC','amanzi':'SC','amblus':'SC','ametista':'SC','ampligo pro':'SC','animus':'SC',
+  'apaleo':'SC','applaud 250':'SC','approve':'SC','aproach power 9':'SC','aproach prima':'SC','apron rfc':'SC','arcade':'SC','arceus':'SC',
+  'argenfrut rv':'SC','argento':'SC','ariete':'SC','armatto':'SC','armero':'SC','atabron ultra':'SC','ataplan 11':'SC','atexzo ant-f':'SC',
+  'atialy':'SC','ativum':'SC','atom':'SC','atroverde 77':'SC','attila':'SC','auba':'SC','audaz':'SC','auge':'SC',
+  'augory':'SC','auin':'SC','auin ce':'SC','aumenax':'SC','autentico br':'SC','avatar':'SC','aveo ez':'SC','avert':'SC',
+  'avert max':'SC','ávidobr':'SC','avizon':'SC','azamax':'SC','azimut':'SC','azoxistrobin nortox':'SC','azoxistrobin 200 ciprocona- zole80 ccab':'SC','bio pegasus':'SC',
+  'bio release':'SC','bio solubilize':'SC','bio tramo':'SC','bio tribal':'SC','bio venci':'SC','bio-four':'SC','bio-imune':'SC','bioagross andorinha':'SC',
+  'bioagross seriema':'SC','bioatena':'SC','biobac t':'SC','biobaci':'SC','biobev':'SC','bioboost':'SC','biobrev full':'SC','biocash':'SC',
+  'bioddam':'SC','biodoble':'SC','bioentri':'SC','bioessence drive':'SC','bioexos plus':'SC','biofence':'SC','biofoll':'SC','biofoll duo':'SC',
+  'biogreat':'SC','biogrun':'SC','bioharmer':'SC','bioisa':'SC','biokato':'SC','bioking':'SC','biolucro':'SC','biomagno':'SC',
+  'biomerhi':'SC','biomtz':'SC','bs inox':'SC','bs tricho duo':'SC','bt guard':'SC','bt protection':'SC','bt top':'SC','bt vertum':'SC',
+  'bt-citrus plus':'SC','bt turbo max':'SC','btcontrol':'SC','btfert':'SC','bton':'SC','btp 076-20':'SC','btp 078-20':'SC','btp 177-21':'SC',
+  'buffon':'SC','buick evo':'SC','buran':'SC','bushi':'SC','buzz':'SC','cablar':'SC','calezar':'SC','cabrio top':'SC',
+  'cadac':'SC','cadilac':'SC','calitá':'SC','calypso':'SC','canario':'SC','cantus':'SC','capataz':'SC','capex':'SC',
+  'capsialil':'SC','captive':'SC','captor':'SC','caramba 90':'SC','caravan':'SC','carion':'SC','carnadine':'SC','cartap br 500':'SC',
+  'cartarys':'SC','cartugen':'SC','cartugen max':'SC','caterwin sf':'SC','cefanol':'SC','cefanol gold':'SC','cekat':'SC','celtic':'SC',
+  'censor':'SC','centric':'SC','ceramax 30':'SC','cerimônia':'SC','cernis':'SC','certero':'SC','certeza n':'SC','cetrix 200':'SC',
+  'challenger':'SC','chancella':'SC','charge':'SC','chettak gold':'SC','chevelle':'SC','chiave sup':'SC','chlorocil':'SC','chrysogen':'SC',
+  'ciblock':'SC','cifrão':'SC','cigaral':'SC','cignus':'SC','cimox':'SC','cipermetrina nortox':'SC','cipertrin':'SC','ciproconazole nortox':'SC',
+  'clopanto':'SC','clorfenapir nortox':'SC','clorotalonil 720 sino-agri':'SC','clorotalonil nortox':'SC','comprenil mixx':'SC','confidor supra':'SC','congregga':'SC','congregga pro':'SC',
+  'connect':'SC','consento':'SC','constel':'SC','control-t':'SC','controller nt':'SC','convicto':'SC','copa':'SC','copsuper':'SC',
+  'coragen 36':'SC','coraza':'SC','cordial 100':'SC','coregis':'SC','corsica max':'SC','cosavet':'SC','cotesia - controbil':'SC','cotesia - jlg':'SC',
+  'cotesia flavips mcp':'SC','cotesia tecnobil':'SC','cougar':'SC','counter 150 g':'SC','cricen':'SC','criso vit':'SC','criso vit ii':'SC','cronnos':'SC',
+  'cropbio biohellmax':'SC','cropbio biometa':'SC','cropbio biosecurity':'SC','cropstar':'SC','cruzanto':'SC','crupital 700':'SC','cuprogarb 350':'SC','cuprogarb 500':'SC',
+  'cupronil':'SC','cuprozeb':'SC','curacron':'SC','curado':'SC','curanza pro':'SC','curathane':'SC','curatis':'SC','cureforce':'SC',
+  'curzate':'SC','cutlass':'SC','cyptrin 250 ce':'SC','cyptrin prime':'SC','daconil 500':'SC','daniato':'SC','dart':'SC','dart pro':'SC',
+  'davos':'SC','decision':'SC','defender':'SC','defenser':'SC','defensus':'SC','delan':'SC','delros':'SC','dermacor':'SC',
+  'dermacor br':'SC','dermavale':'SC','destrez':'SC','destroyer sf':'SC','detroit':'SC','diador':'SC','diafentiurom nortox':'SC','diamantebr':'SC',
+  'difere':'SC','dissara':'SC','disseminate':'SC','ditor 250 tm':'SC','dividend supreme':'SC','dobbel':'SC','domark excell':'SC','domeron':'SC',
+  'dotte':'SC','dulia pro':'SC','edegal':'SC','efficon':'SC','eficax':'SC','eficaz':'SC','egide':'SC','elagesk ci':'SC',
+  'elagesk sf':'SC','elatus trio':'SC','eleitto':'SC','eleve':'SC','ellect':'SC','eluney':'SC','emerald':'SC','eminent gold':'SC',
+  'emzeb platina':'SC','engeo':'SC','ensis-turbo':'SC','entigris':'SC','envidor':'SC','envoy':'SC','epingle 100':'SC','equation':'SC',
+  'eredita':'SC','erradicur':'SC','erradicur max tm':'SC','erradik':'SC','espirodiclofen nortox':'SC','essencial br':'SC','esteio':'SC','estrela':'SC',
+  'ethrole':'SC','evedar':'SC','eventra':'SC','evolin':'SC','evolut duo':'SC','evolution':'SC','evolvance':'SC','evos':'SC',
+  'exalt':'SC','fipronil 800 sino- agri':'SC','fipronil nortox max':'SC','fitoneem':'SC','flasher':'SC','flasher chds':'SC','flexin':'SC','fumi-cel 55':'SC',
+  'fumitoxin':'SC','funginil':'SC','fungiouro':'SC','funguran verde':'SC','furatrop':'SC','furioso':'SC','fx protection':'SC','gaia control trich':'SC',
+  'galapus sb':'SC','galben-m':'SC','galeão':'SC','gales':'SC','galgotrin':'SC','galloi bug':'SC','galloi-vit':'SC','game':'SC',
+  'ganador':'SC','gastoxin b-57':'SC','gauss':'SC','generalbr':'SC','gift':'SC','glove':'SC','glove nortox':'SC','hope tsi':'SC',
+  'hoprole':'SC','horos':'SC','ichiban':'SC','ilevo':'SC','imidacloprid nortox':'SC','imidafol':'SC','imparbr':'SC','imunit':'SC',
+  'incitro':'SC','indoxacarb 150 sino agri':'SC','infinito':'SC','ingestak bt':'SC','inlayon':'SC','juno':'SC','k-obiol 2 p':'SC','k-othrine 2p':'SC',
+  'kaiso max':'SC','kaligreen pro':'SC','kalivar':'SC','kanopus':'SC','kasumin':'SC','keepdry org':'SC','keyra':'SC','killigan':'SC',
+  'kilymos':'SC','kingprido xtra':'SC','kingstar xtra':'SC','kitter':'SC','klinner':'SC','koji':'SC','koyam':'SC','kromstar':'SC',
+  'krypto':'SC','kumulus df':'SC','lake':'SC','lalnix resist':'SC','lalstop organics ds':'SC','lambda cialotrin':'SC','lambda- 71 cialotrina nortox':'SC','lanceiro':'SC',
+  'lanfor pro':'SC','lannate br':'SC','laphy protection':'SC','lascar 97 df':'SC','lastro':'SC','legacy':'SC','legado':'SC','legion':'SC',
+  'leprotect s.f.':'SC','lepthure 72':'SC','levero':'SC','limuzinam':'SC','littovir':'SC','loopovir':'SC','lorens':'SC','lormelo':'SC',
+  'lost':'SC','lumialza':'SC','lyra':'SC','macan':'SC','macro tricho':'SC','magic':'SC','magnevus':'SC','magnun':'SC',
+  'magtoxin':'SC','mainspring flora':'SC','malathion ccab 1170 ul':'SC','malathion ul':'SC','mancozebe 800 sino-agri':'SC','mancozeb nortox':'SC','mansi':'SC','manzate 800':'SC',
+  'maplee':'SC','marechal':'SC','marshal':'SC','marshal star':'SC','marujo':'SC','maxim xl':'SC','maxim xl professional':'SC','maximus':'SC',
+  'maxsan':'SC','mb control':'SC','mbyo meta':'SC','mbyo tric':'SC','melyra':'SC','menthar':'SC','mettaplus':'SC','mettus org':'SC',
+  'mibelya':'SC','midas br':'SC','migiwa':'SC','milarum':'SC','milbeknock':'SC','mitekill':'SC','mofotil':'SC','moncut':'SC',
+  'moshy':'SC','moxyfen':'SC','multi guard':'SC','muneo':'SC','mythos':'SC','nillus':'SC','nimaxxa':'SC','nirvana':'SC',
+  'nodubionema':'SC','noduderma':'SC','nodumix':'SC','noduvel':'SC','nomolt 150':'SC','notávelbr':'SC','notório':'SC','now active':'SC',
+  'now bolt':'SC','now guard':'SC','now lock':'SC','now pulse':'SC','now react':'SC','nx easy tharz':'SC','obny':'SC','oca':'SC',
+  'octagon':'SC','octane':'SC','ofek-turbo':'SC','offensive':'SC','ohayo':'SC','okay':'SC','onceres':'SC','onipax':'SC',
+  'onix og':'SC','onmeta':'SC','onprotect n':'SC','onsuva':'SC','ontrich':'SC','openeem brutus':'SC','openeem valente':'SC','opera ultra':'SC',
+  'opta 88':'SC','opteraspectra':'SC','oranis':'SC','orbis':'SC','orix':'SC','orondis flexi':'SC','orondis opti':'SC','orsa':'SC',
+  'orthene 750 br':'SC','orthocide 500':'SC','ospo vi55':'SC','ourotricx 89':'SC','oxi 0111 bf (d2)':'SC','oxi 0095 bf (clone a)':'SC','oxi 0111 bf (d1)':'SC','oxi 104 bf (d1)':'SC',
+  'oxi 104 bf (d2)':'SC','oxicloreto de cobre nortox':'SC','ozean':'SC','paladyo':'SC','parachute':'SC','pardella':'SC','parrudobr':'SC','passerelle':'SC',
+  'patriota':'SC','peregrino':'SC','perenion':'SC','pergado mz':'SC','perimeter':'SC','perovar':'SC','perseus duo':'SC','pestoxin':'SC',
+  'phosal':'SC','phostek':'SC','phostoxin':'SC','physcion 92':'SC','picus':'SC','pilarich':'SC','pilarshield nano':'SC','pilartime':'SC',
+  'pilartrobin':'SC','pilarvant':'SC','pingbr':'SC','piraclostrobin nortox':'SC','pirate':'SC','pireo':'SC','piriproxifen nortox':'SC','pizin xtra':'SC',
+  'pladius':'SC','plust':'SC','poderus':'SC','podisi-vit':'SC','podisibug':'SC','polestar xtra':'SC','polyram df':'SC','pontual':'SC',
+  'possante':'SC','potenza sinon':'SC','pottente max':'SC','power bac bt':'SC','power bac inductor':'SC','powerfung':'SC','pratico':'SC','predador neo':'SC',
+  'predatox':'SC','preet':'SC','premier':'SC','premier plus':'SC','premio':'SC','premio star':'SC','premis':'SC','presence full':'SC',
+  'pretiobug':'SC','pretorian':'SC','preventis':'SC','prever':'SC','previnil max':'SC','prez':'SC','prilan duo':'SC','primordim':'SC',
+  'primum':'SC','prisma plus':'SC','privilege':'SC','proclaim 50':'SC','profair':'SC','profix':'SC','rainzeb':'SC','rancona t':'SC',
+  'ranman':'SC','rapel':'SC','raubtier':'SC','ravel':'SC','reconil rft':'SC','recop':'SC','record':'SC','redigo':'SC',
+  'redshield 750':'SC','reference':'SC','regalia maxx':'SC','regalo':'SC','regent 20 gr':'SC','regent duo':'SC','reinus':'SC','reli3ver':'SC',
+  'rephon':'SC','resil':'SC','restrict':'SC','resuris':'SC','reverb':'SC','revers':'SC','revolux':'SC','revus opti':'SC',
+  'ridomil gold bravo':'SC','ridomil gold mz':'SC','rikolto':'SC','rimon supra':'SC','rizo turbo':'SC','rizoderma':'SC','rizoderma tsi':'SC','rizos og':'SC',
+  'rizoveria bio inseticida':'SC','rocale':'SC','rocks':'SC','romesar':'SC','rovisar':'SC','rovral':'SC','row-vispo':'SC','royalprezor':'SC',
+  'rubephos 33':'SC','ruffex':'SC','ruler':'SC','rustban 104':'SC','rustop':'SC','s- control':'SC','safety':'SC','saggio':'SC',
+  'salibro':'SC','samurai':'SC','sankari':'SC','saori':'SC','sectia 350':'SC','seeker':'SC','seiv':'SC','seltima':'SC',
+  'semevin 350':'SC','sensei':'SC','serquibioderma':'SC','seven':'SC','shaman':'SC','shelby':'SC','shelter':'SC','shieldshock':'SC',
+  'shocker':'SC','skupa-mite':'SC','smite':'SC','soil safe':'SC','solecor':'SC','solenza':'SC','stiva':'SC','stratiomip':'SC',
+  'submax':'SC','sucess 0,02 cb':'SC','sugoy':'SC','sultan':'SC','sulvari':'SC','sumério':'SC','sumério mtp':'SC','sumirody 300':'SC',
+  'supera':'SC','superguard':'SC','superguard liq':'SC','superguard pro':'SC','supershield':'SC','supershield liq':'SC','supershield pro':'SC','support':'SC',
+  'surface':'SC','surtivo soja':'SC','swat':'SC','t-77':'SC','tabor life':'SC','tacap':'SC','taegro':'SC','tagger':'SC',
+  'taj':'SC','takotrop':'SC','talisman':'SC','talladega':'SC','talstar 400':'SC','tamiz':'SC','tanus':'SC','tebas':'SC',
+  'tebuco a nortox':'SC','tebuco t nortox':'SC','tebuconazole 430 sino-agri':'SC','tebuconazole chd s':'SC','tebufort':'SC','teburaz':'SC','tebuzol':'SC','teciso':'SC',
+  'tecnus':'SC','teikko':'SC','temible':'SC','tenox':'SC','terminate nortox':'SC','terminus':'SC','terra forte':'SC','terra forte nf':'SC',
+  'tetraduo-vit':'SC','texx':'SC','tezpetix beauve':'SC','thea':'SC','therno':'SC','thiobel 500':'SC','thuricide':'SC','thydra':'SC',
+  'tillez':'SC','tilsis':'SC','tiofanato nortox':'SC','tiotalonil nortox':'SC','tivra':'SC','tordpic xtra':'SC','torero':'SC','trudor':'SC',
+  'trulymax':'SC','trunemco':'SC','tryba':'SC','tuit florestal':'SC','tutavir':'SC','tutor':'SC','twixx a':'SC','typhoon nortox':'SC',
+  'unanimebr':'SC','unidos':'SC','union methamil':'SC','union trichomil':'SC','unique':'SC','unizeb glory':'SC','unizeb gold':'SC','veldara':'SC',
+  'velez':'SC','veraneio':'SC','verango prime':'SC','verdiva':'SC','verimark':'SC','verismo':'SC','verpavex':'SC','versatilis':'SC',
+  'verso':'SC','vessarya':'SC','vesuve':'SC','victrato':'SC','vigga':'SC','vigold':'SC','vilora':'SC','vinemco':'SC',
+  'vinquo':'SC','viovan':'SC','vir protection':'SC','xivanta smart':'SC','yang':'SC','yazi':'SC','yeldana':'SC','yeti gold':'SC',
+  'zagrone ts':'SC','zampro':'SC','zapper n':'SC','zarpal 132':'SC','zebu':'SC','zenit':'SC','zetanil':'SC','zeus':'SC',
   'ziano':'SC','zignal':'SC','zigurat':'SC','zipper':'SC','zoom':'SC','zutron':'SC',
   'adage 350 fs':'SC','airone scudo':'SC','alto 400 sc':'SC','ankara 350 sc':'SC','appalus 200 sc':'SC','atrazina 500 sc alamos':'SC','atrazina 500 sc crotect':'SC','atrazina 500 sc rainbow':'SC','atrazina ccab 500 sc':'SC','atrazina fersol 500 sc':'SC','atrazina nortox 500 sc':'SC','atrazina sd 500 sc':'SC','avguron extra sc':'SC','avicta 500 fs':'SC','avicta 500 fs pro':'SC','azox 250 sc':'SC','azoxistro- bina ccab 250 sc':'SC','azoxy + cypro 280 sc proventis':'SC','btp 066-20 sc':'SC','calizi top 500 sc':'SC','capaz 500 sc':'SC','captan sc':'SC','carimbo 306 cs':'SC','cartaz 500 sc':'SC','charrua 430 sc':'SC','charrua max sc':'SC','chlorotha- lonil 720 sc yonon':'SC','chust 250 cs':'SC','clomazone nortox 360 cs':'SC','clorfenapir ccab 240 sc':'SC','clorotalonil 720 sc crotect':'SC','clorotalonil c 720 sc perterra':'SC','clorotalonil r 720 sc perterra':'SC','convence fs':'SC','cruiser 350 fs':'SC','cruiser 600 fs':'SC','cultar 250 sc':'SC','curanza 600 fs pro':'SC','curbix 200 sc':'SC','curbix 200 sc a':'SC','diafentiuron 500 sc proventis':'SC','diafentiuron ccab 500 sc':'SC','difluben 240 sc':'SC','diflubenzuron 240 sc crop':'SC','diuron 500 sc rainbow':'SC','diuron ccab 500 sc':'SC','diuron nortox 500 sc':'SC','dropp ultra sc':'SC','elegance 500 sc':'SC','elestal 300 sc':'SC','emeritus max 720 sc':'SC','enelan 500 sc':'SC','ethiprole 200 sc yonon':'SC','fipronil 250 fs agcn':'SC','fipronil alta 250 fs':'SC','fipronil ccab 250 fs':'SC','fluazinam 500 sc agcn':'SC','fluazinam 500 sc proventis':'SC','fluazinam ccab 500 sc':'SC','fluazinam nortox 500 sc':'SC','flumioxazim 500 sc lier':'SC','flumyzin 500 sc':'SC','galil sc':'SC','gamit 360 cs':'SC','ganis 400 sc':'SC','gaucho fs':'SC','gesagard 500 sc':'SC','gigante 360 cs':'SC','glider 720 sc':'SC','hizocoop sc 64':'SC','imidacloprid 600 fs hailir':'SC','impact 125 sc':'SC','impactus cs':'SC','indoxacarb 15 sc gharda':'SC','indoxacarb ccab 150 sc':'SC','kaiso 250 cs':'SC','karate zeon 250 cs':'SC','karate zeon 50 cs':'SC','kyron 40 sc':'SC','lalstop i32 sc':'SC','lamper 480 sc':'SC','lasting cs':'SC','leale sc':'SC','limuzina sc':'SC','lisor 500 sc':'SC','livenko 500 sc':'SC','maestro fs':'SC','magma 500 sc':'SC','magneto sc':'SC','mancozeb 75 nortox sc':'SC','markab 350 fs':'SC','marlox fs':'SC','8m0 etoxifenozide r 240 sc perterra':'SC','metribuzim 480 sc agroimport':'SC','metribuzin tide 480 sc':'SC','metrimex 500 sc':'SC','monceren 250 sc':'SC','much 600 fs':'SC','nominee 400 sc':'SC','odin 430 sc':'SC','olasoja 500 sc':'SC','olasul 500 sc':'SC','origan 500 sc':'SC','orkestra sc':'SC','ortus 50 sc':'SC','pledge sc':'SC','polo 500 sc':'SC','primatop sc':'SC','primeplus 125 sc 96':'SC','primeval 50 sc':'SC','produtop 500 sc':'SC','rainil fs':'SC','rajada sc':'SC','ralbuzin 480 sc':'SC','rancona 450 fs':'SC','reator 360 cs':'SC','revus top sc':'SC','romeo sc':'SC','rovral sc':'SC','rugby 200 cs':'SC','sanson 40 sc':'SC','scoter 105':'SC','scorpion':'SC','scout':'SC','scudeiro nortox':'SC','sevin 480 sc':'SC','shaw 240 sc':'SC','shenzi 200 sc':'SC','skip 125 sc':'SC','smilodon 50 sc':'SC','sulfentrazone ccab 500 sc':'SC','sulfentrazone 500 sc':'SC','sulfentrazone 500 sc perterra':'SC','sumisoya 500 sc':'SC','summit 250 fs':'SC','sumizyn 500 sc':'SC','survey 250 fs':'SC','take over 200 sc':'SC','takumi sc':'SC','tebuco 430 sc nortox':'SC','tecto sc':'SC','tenaz 250 sc':'SC','terrad o r 339 sc':'SC','thiophanate methyl 500 sc yonon':'SC','thuricide sc':'SC','timber 500 sc':'SC','tiofanato 500 sc proventis':'SC','tiofanato ccab 500 sc':'SC','tiofanil fs':'SC','trovati 360 cs':'SC','ultimato sc':'SC','verter sc':'SC','vincit 50 sc':'SC','yamato sc':'SC','zapret fs':'SC','zelig 360 cs':'SC','zelig cs':'SC',
   'plethora br':'SC','aptur pf':'SC','ametrina alta 500 sc':'SC','gardeon':'SC','80 fluroxipyr meptilico 80 picloram ccab me':'SC','ametrina ccab 500 sc':'SC','azoxistrobin 200 ciproconazol 80 ccab sc':'SC','azoxistrobina ccab 250 sc':'SC','tricobio sc':'SC','trigger 240 sc':'SC','dorai max':'SC','crystal':'SC','trifluralina h nortox':'SC','ametrina 500 sc rainbow':'SC','tricosphera':'SC','azoxystrobin 250 sc yonon':'SC',
-  // ── Emulsões EC/EW ──
+  // -- Emulsões EC/EW --
   'dual gold':'EC','fastac':'EC','goal':'EC','hero':'EC','capture':'EC','fury':'EC',
   'talstar':'EC','brigade':'EC','rifit':'EC','aramo':'EC','nimitz':'EC','mavrik':'EC',
   'orius':'EC','rimon':'EC','battlefront':'EC','trifluralin':'EC','danitol':'EC',
@@ -193,7 +194,7 @@ const PDB={
   'polytrin':'EC','primoleo':'EC','sequence':'EC','topik':'EC',
   'actellic 500 ec':'EC','aurora 400 ec':'EC','bs protec':'EC','capture 400 ec':'EC','cenário 100 ec':'EC','chaser ew':'EC','chlorpyrifós 480 ec agcn':'EC','cipermetrin 250 ec ccab':'EC','cipermetrina 250 ec ccab':'EC','cipermetrina ec prentiss':'EC','cipermetrina nortox 250 ec':'EC','clormax 480 ec':'EC','clorpiri 480 ec':'EC','clorpirifos 48 ec gharda':'EC','clorpirifós 480 ec luba':'EC','converge 400 ec':'EC','cordial ew':'EC','curigen ec':'EC','curyom 550 ec':'EC','cyper copa 250 ec':'EC','cypress 400 ec':'EC','dalneem ec':'EC','danimen 300 ec':'EC','dazin 480 ec':'EC','decis 25 ec':'EC','difcor 250 ec':'EC','difenoconazol ccab 250 ec':'EC','difenoconazol nortox 250 ec':'EC','domark 100 ec':'EC','eminent 125 ew':'EC','epingle ew':'EC','fluroxipir 200 ec perterra':'EC','fusão ec':'EC','galigan 240 ec':'EC','incar 480 ec':'EC','inlayon eco':'EC','k-obiol 25 ec':'EC','kantor 1000 ec':'EC','klorpan 480 ec':'EC','koltar 240 ec':'EC','kraken 240 ec':'EC','kraton 100 ec':'EC','lactofem 240 ec agrilean':'EC','leme 960 ec':'EC','lufenuron 50 ec perterra':'EC','lufenuron nortox 100 ec':'EC','malathion 1000 ec fmc':'EC','malathion ccab 1000 ec':'EC','maragato 500 ec':'EC','mitrion ec':'EC','mustang 350 ec':'EC','nincopec':'EC','nimitz ec':'EC','nomu-protec':'EC','ohkami 10 ew':'EC','olatazon 400 ec':'EC','omite 720 ec':'EC','orsa 400 ec':'EC','peao 200 ec':'EC','penbotec 400 sc':'EC','percy duo ec':'EC','permetrina ccab 384 ec':'EC','permetrina fersol 384 ec':'EC','pertag 384 ec':'EC','pirephos ec':'EC','piriproxifem ccab 100 ec':'EC','platform 400 ec':'EC','podium ew':'EC','porcel 100 ec':'EC','potenza sinon plus 36 ec':'EC','premerlin 600 ec':'EC','proeza 480 ec':'EC','rival 200 ec':'EC','rizotec':'EC','s-metolachlor agrogill 960 ec':'EC','s- metolachlor ccab 960 ec':'EC','s- metolaclor 960 ec perterra':'EC','s- metolaclor 960 ec proventis':'EC','sanmite ew':'EC','seizer 100 ec':'EC','select 240 ec':'EC','sevare 250 ec':'EC','shar-teb 200 ec':'EC','shyper 250 ec':'EC','sumigran 500 ec':'EC','sumithion 500 ec':'EC','t-protec':'EC','tagzole 250 ec':'EC','talstar 100 ec':'EC','taura 200 ec':'EC','tebuconazole ccab 200 ec':'EC','tec catp 2.8':'EC','tec catp pro':'EC','tec finish':'EC','tec isaria':'EC','tec mint':'EC','tiger 100 ec':'EC','topik 240 ec':'EC','vertimec 18 ec':'EC','vertimec 84 sc':'EC','yaba125 ew':'EC','zorvec encantia':'EC','zorvec entido':'EC','133z orvec vinabel':'EC',
   'araddo':'EC','dorado':'EC','triclopir ccab 480 ec':'EC','garlon 480 br':'EC','cruzaro 480 ec':'EC','triclopir 480 ec maxunitech':'EC','abamectin 72 ec nortox':'EC','triclopir f nortox':'EC','triclopir nortox':'EC','trifluralina nortox gold':'EC','arbust':'EC','produtobr':'EC','triclopir 667 ec perterra':'EC','tora':'EC','triclopyr-butotyl 667':'EC','longar 480 ec':'EC','triclopir tide 480 ec':'EC','triclon':'EC','triclopyr 480 upl':'EC',
-  // ── Soluções SL ──
+  // -- Soluções SL --
   'glifosato':'SL','gliz':'SL','roundup':'SL','zapp':'SL','zapp qi':'SL','trop':'SL',
   '2,4-d':'SL','2.4-d':'SL','tordon':'SL','dicamba':'SL','banvel':'SL',
   'sivanto':'SL','gramoxone':'SL','reglone':'SL','engenia':'SL','lontrel':'SL',
@@ -201,70 +202,70 @@ const PDB={
   'stinger':'SL','panther':'SL','raptor':'SL',
   'fertiláqua':'SL','cultar':'SL','extravon':'SL','fitter':'SL','gopan':'SL',
   'influx':'SL','protecta':'SL','touchdown':'SL',
-  '2,4 d + picloram cac':'SL','2,4 d chds':'SL','2,4 d crop br':'SL','2,4 d agroimport':'SL','2,4 d copalliance':'SL','aclamado br':'SL','addit':'SL','adengo':'SL'
-  'alabama':'SL','alasca cropchem':'SL','albero':'SL','alia':'SL','alion pro':'SL','alkazar':'SL','allus 7':'SL','ally':'SL'
-  'amaiz':'SL','ameris':'SL','ametrina 500 c rainbow':'SL','ametryn 500 sino- agri':'SL','aminol 806':'SL','amplexus':'SL','amplo':'SL','ancosar 720':'SL'
-  'andromeda':'SL','antera':'SL','apice':'SL','aplic':'SL','apresa':'SL','arapoty':'SL','arcalis':'SL','arena':'SL'
-  'argos':'SL','arizona':'SL','arkeiro nortox':'SL','atectra':'SL','atesalor xtra':'SL','atol trio':'SL','atraforce':'SL','atrazina agro import':'SL'
-  'atrazina max chds':'SL','audace':'SL','aura 200':'SL','avati':'SL','azbany':'SL','azteca':'SL','bio raiz nortox':'SL','burner':'SL'
-  'burntop':'SL','butiron':'SL','calimax chds':'SL','camp d':'SL','campeon':'SL','capaz':'SL','capterra':'SL','cardeal':'SL'
-  'carfentrazone nortox':'SL','carpidora':'SL','cartago':'SL','celeris':'SL','chapter':'SL','cheval':'SL','chopper florestal':'SL','chutix':'SL'
-  'ciprian':'SL','clomazone nortox':'SL','clorim':'SL','clorimuron max nortox':'SL','clorimuron prentiss':'SL','compray full':'SL','concept':'SL','confiantebr':'SL'
-  'confidence':'SL','conscience':'SL','contain':'SL','convintro duo':'SL','cookie':'SL','coriscobr':'SL','coronelbr':'SL','crater':'SL'
-  'crescendo':'SL','creta':'SL','cross out':'SL','crossover':'SL','crucial':'SL','curavial':'SL','cytolin':'SL','daga':'SL'
-  'defensar 720':'SL','deflexo':'SL','demolidorbr':'SL','deoro':'SL','derrete':'SL','dez':'SL','disparo':'SL','disparo ultra s':'SL'
-  'distinto br':'SL','dizone':'SL','dk max':'SL','dk plus':'SL','dma 806 br':'SL','dominum':'SL','dominum xt':'SL','dominum xts':'SL'
-  'dontor':'SL','dontor ultra':'SL','dormex':'SL','draxx':'SL','eddus 46':'SL','egan':'SL','electro':'SL','elevore':'SL'
-  'eliack':'SL','eliminate':'SL','empiric':'SL','enlist colex d':'SL','enlistduo colex- d':'SL','entoar':'SL','entone':'SL','esfinge':'SL'
-  'esmero':'SL','esplanade':'SL','et-part':'SL','ethrel':'SL','ethrel 720':'SL','finish':'SL','fisiogen':'SL','flaxton':'SL'
-  'fexstar gt':'SL','fluente':'SL','flumi 500 agrogill':'SL','flumioxazin chds':'SL','flumioxazin nortox':'SL','flumyzin 500':'SL','fluroxipir nortox':'SL','fysium':'SL'
-  'galop m':'SL','galopeiro':'SL','gameover':'SL','gamit':'SL','gamit star':'SL','gamonium':'SL','garrotebr':'SL','gempox':'SL'
-  'germano':'SL','gesapax 500 ciba geigy':'SL','gesaprim 500 ciba geigy':'SL','gesaprim grda':'SL','gladium':'SL','gli ouro':'SL','gliall':'SL','glif-all':'SL'
-  'gliforte':'SL','glifosal':'SL','glifosato 480 citromax':'SL','glifosato chds':'SL','glifosato ipa 480 rainbow':'SL','59g lifosato ipa 480 sino agri':'SL','glifosato nortox ultra':'SL','glifosato max k':'SL'
-  'glifumax':'SL','glint':'SL','glint full':'SL','glister':'SL','glucare':'SL','glufair':'SL','gluforce':'SL','glufos-wyn 880':'SL'
-  'glufosinato 200 agroimport':'SL','glufosinato nortox':'SL','honizyn':'SL','hummer':'SL','hussar':'SL','imazaduo':'SL','imazaquim ultra nortox':'SL','imazetapir nortox':'SL'
-  'imazetapir prentiss':'SL','impala 65':'SL','impulse':'SL','inédito':'SL','ingrain':'SL','jumbo br 68':'SL','jump':'SL','juvix':'SL'
-  'k-zon':'SL','kairós':'SL','kaivana':'SL','kashmir':'SL','kennox':'SL','kicker':'SL','kifix':'SL','kyojin':'SL'
-  'lancet':'SL','lautus':'SL','lava 800':'SL','leopard':'SL','liberty':'SL','lifeline sync':'SL','limpa':'SL','limpeza':'SL'
-  'limuglufo':'SL','limuzato':'SL','limuzona':'SL','linear':'SL','listar':'SL','longar':'SL','loyant':'SL','loyer 200 tm':'SL'
-  'luxor':'SL','mademato':'SL','madison':'SL','magnusbr':'SL','maploato':'SL','maxizato':'SL','maxport':'SL','megabr':'SL'
-  'megatraz':'SL','melius':'SL','metraro':'SL','metribuzin nortox':'SL','metrik 500':'SL','metsulfuron nortox':'SL','metz':'SL','moddus neo':'SL'
-  'mojjave':'SL','montana dq':'SL','mourãobr':'SL','myrim':'SL','nicossulfurom 40 sino-agri':'SL','ninja':'SL','nippon 40':'SL','nisshin':'SL'
-  'nongrass':'SL','norton 86':'SL','nostri':'SL','nuevo':'SL','nufosate':'SL','nufuron':'SL','off road':'SL','olea':'SL'
-  'only':'SL','optibex':'SL','ordinal 250 tm':'SL','oriento':'SL','oris':'SL','osbar duo':'SL','outliner':'SL','pacto':'SL'
-  'padron':'SL','palace ultra':'SL','palanque':'SL','palmero':'SL','pampa':'SL','panoramic':'SL','panoramic ultra':'SL','pastejo':'SL'
-  'pastor':'SL','patrono':'SL','paxeo':'SL','pendulum aqua':'SL','perlan':'SL','pertinan':'SL','pilcoram cana nortox':'SL','picloram nortox':'SL'
-  'picloram nortox c':'SL','picloram yonon':'SL','pilarcloma':'SL','pilargold':'SL','pilarico':'SL','pilarsato':'SL','pistol':'SL','pix hc':'SL'
-  'planador':'SL','planador xt s':'SL','plateau':'SL','platon':'SL','ponteirobr':'SL','poquer':'SL','posmil':'SL','potensato':'SL'
-  'preciso xk':'SL','predecessor':'SL','prefer':'SL','pren-d 806':'SL','prevent gold':'SL','pri-mordial':'SL','primeplus br':'SL','primóleo':'SL'
-  'proeza duo':'SL','rainvel':'SL','raio':'SL','raisor':'SL','raker top':'SL','raptor 70 dg':'SL','rascal':'SL','raster':'SL'
-  'reinado':'SL','relicta':'SL','resource':'SL','resource 100':'SL','respector':'SL','retain 102':'SL','revel':'SL','ricepal':'SL'
-  'ricer':'SL','ridover':'SL','ridown full':'SL','riper':'SL','ritmo':'SL','ronstar 250 br':'SL','roundup original di':'SL','roundup original mais':'SL'
-  'roundup transorb r':'SL','roundup ultra':'SL','runner':'SL','rustler rhs':'SL','s- metolaclor nortox':'SL','sapek max':'SL','saudaris':'SL','sector':'SL'
-  'seculo':'SL','select force':'SL','select one pack':'SL','seletrina':'SL','sempra':'SL','sencor 480':'SL','sensus':'SL','shift':'SL'
-  'smartfresh':'SL','smartfresh inbox':'SL','smartfresh protabs':'SL','smartfresh smarttabs':'SL','sniper':'SL','snooker':'SL','soberan':'SL','solara 500':'SL'
-  'soldier':'SL','stimutrop premium':'SL','stone':'SL','stopper':'SL','stopper xt s':'SL','strike':'SL','sugarina plus':'SL','sulban':'SL'
-  'sulfenprime':'SL','sulfometuron nortox':'SL','sultrax':'SL','sumimax amt':'SL','sumô':'SL','sumizyn 500':'SL','sungain plus':'SL','sungain xtra':'SL'
-  'sunpax':'SL','sunphosate premier':'SL','sunward':'SL','supermix':'SL','surrena':'SL','tandera':'SL','tarbox':'SL','targa max ht':'SL'
-  'tebutiuron ccab 500 c':'SL','tebutiuron nortox':'SL','tecnup':'SL','tecnup premium':'SL','tecnup super 608':'SL','temicab xtra':'SL','tempest-e':'SL','templo':'SL'
-  'terbutilazina nortox':'SL','territory':'SL','texas':'SL','thunder':'SL','tibet':'SL','título':'SL','tocha d':'SL','toco':'SL'
-  'togar tb':'SL','topatudo':'SL','topinam':'SL','torban plus':'SL','tordon ultra s':'SL','tordon xt':'SL','tronador ultra s':'SL','trop max':'SL'
-  'tropero':'SL','trophy':'SL','tropicio':'SL','trueno xt':'SL','trueno xts':'SL','trunfo':'SL','truper':'SL','trusinate xtra':'SL'
-  'trytor':'SL','tucson':'SL','turuna':'SL','tuval':'SL','u 46 br':'SL','u 46 prime':'SL','velbow 126':'SL','velik':'SL'
-  'vellsan':'SL','venia br':'SL','venture max':'SL','verace':'SL','verdict r':'SL','verdict ultra':'SL','verlon':'SL','version':'SL'
-  'vezir 100':'SL','viana':'SL','viance':'SL','vindic':'SL','viper':'SL','xeque mate':'SL','xeque mate ht':'SL','xtendicam':'SL'
-  'zador':'SL','zafera':'SL','zapar':'SL','zaphir':'SL','zapp qi 620':'SL','zartan':'SL','zavit':'SL','zelone':'SL'
+  '2,4 d + picloram cac':'SL','2,4 d chds':'SL','2,4 d crop br':'SL','2,4 d agroimport':'SL','2,4 d copalliance':'SL','aclamado br':'SL','addit':'SL','adengo':'SL',
+  'alabama':'SL','alasca cropchem':'SL','albero':'SL','alia':'SL','alion pro':'SL','alkazar':'SL','allus 7':'SL','ally':'SL',
+  'amaiz':'SL','ameris':'SL','ametrina 500 c rainbow':'SL','ametryn 500 sino- agri':'SL','aminol 806':'SL','amplexus':'SL','amplo':'SL','ancosar 720':'SL',
+  'andromeda':'SL','antera':'SL','apice':'SL','aplic':'SL','apresa':'SL','arapoty':'SL','arcalis':'SL','arena':'SL',
+  'argos':'SL','arizona':'SL','arkeiro nortox':'SL','atectra':'SL','atesalor xtra':'SL','atol trio':'SL','atraforce':'SL','atrazina agro import':'SL',
+  'atrazina max chds':'SL','audace':'SL','aura 200':'SL','avati':'SL','azbany':'SL','azteca':'SL','bio raiz nortox':'SL','burner':'SL',
+  'burntop':'SL','butiron':'SL','calimax chds':'SL','camp d':'SL','campeon':'SL','capaz':'SL','capterra':'SL','cardeal':'SL',
+  'carfentrazone nortox':'SL','carpidora':'SL','cartago':'SL','celeris':'SL','chapter':'SL','cheval':'SL','chopper florestal':'SL','chutix':'SL',
+  'ciprian':'SL','clomazone nortox':'SL','clorim':'SL','clorimuron max nortox':'SL','clorimuron prentiss':'SL','compray full':'SL','concept':'SL','confiantebr':'SL',
+  'confidence':'SL','conscience':'SL','contain':'SL','convintro duo':'SL','cookie':'SL','coriscobr':'SL','coronelbr':'SL','crater':'SL',
+  'crescendo':'SL','creta':'SL','cross out':'SL','crossover':'SL','crucial':'SL','curavial':'SL','cytolin':'SL','daga':'SL',
+  'defensar 720':'SL','deflexo':'SL','demolidorbr':'SL','deoro':'SL','derrete':'SL','dez':'SL','disparo':'SL','disparo ultra s':'SL',
+  'distinto br':'SL','dizone':'SL','dk max':'SL','dk plus':'SL','dma 806 br':'SL','dominum':'SL','dominum xt':'SL','dominum xts':'SL',
+  'dontor':'SL','dontor ultra':'SL','dormex':'SL','draxx':'SL','eddus 46':'SL','egan':'SL','electro':'SL','elevore':'SL',
+  'eliack':'SL','eliminate':'SL','empiric':'SL','enlist colex d':'SL','enlistduo colex- d':'SL','entoar':'SL','entone':'SL','esfinge':'SL',
+  'esmero':'SL','esplanade':'SL','et-part':'SL','ethrel':'SL','ethrel 720':'SL','finish':'SL','fisiogen':'SL','flaxton':'SL',
+  'fexstar gt':'SL','fluente':'SL','flumi 500 agrogill':'SL','flumioxazin chds':'SL','flumioxazin nortox':'SL','flumyzin 500':'SL','fluroxipir nortox':'SL','fysium':'SL',
+  'galop m':'SL','galopeiro':'SL','gameover':'SL','gamit':'SL','gamit star':'SL','gamonium':'SL','garrotebr':'SL','gempox':'SL',
+  'germano':'SL','gesapax 500 ciba geigy':'SL','gesaprim 500 ciba geigy':'SL','gesaprim grda':'SL','gladium':'SL','gli ouro':'SL','gliall':'SL','glif-all':'SL',
+  'gliforte':'SL','glifosal':'SL','glifosato 480 citromax':'SL','glifosato chds':'SL','glifosato ipa 480 rainbow':'SL','59g lifosato ipa 480 sino agri':'SL','glifosato nortox ultra':'SL','glifosato max k':'SL',
+  'glifumax':'SL','glint':'SL','glint full':'SL','glister':'SL','glucare':'SL','glufair':'SL','gluforce':'SL','glufos-wyn 880':'SL',
+  'glufosinato 200 agroimport':'SL','glufosinato nortox':'SL','honizyn':'SL','hummer':'SL','hussar':'SL','imazaduo':'SL','imazaquim ultra nortox':'SL','imazetapir nortox':'SL',
+  'imazetapir prentiss':'SL','impala 65':'SL','impulse':'SL','inédito':'SL','ingrain':'SL','jumbo br 68':'SL','jump':'SL','juvix':'SL',
+  'k-zon':'SL','kairós':'SL','kaivana':'SL','kashmir':'SL','kennox':'SL','kicker':'SL','kifix':'SL','kyojin':'SL',
+  'lancet':'SL','lautus':'SL','lava 800':'SL','leopard':'SL','liberty':'SL','lifeline sync':'SL','limpa':'SL','limpeza':'SL',
+  'limuglufo':'SL','limuzato':'SL','limuzona':'SL','linear':'SL','listar':'SL','longar':'SL','loyant':'SL','loyer 200 tm':'SL',
+  'luxor':'SL','mademato':'SL','madison':'SL','magnusbr':'SL','maploato':'SL','maxizato':'SL','maxport':'SL','megabr':'SL',
+  'megatraz':'SL','melius':'SL','metraro':'SL','metribuzin nortox':'SL','metrik 500':'SL','metsulfuron nortox':'SL','metz':'SL','moddus neo':'SL',
+  'mojjave':'SL','montana dq':'SL','mourãobr':'SL','myrim':'SL','nicossulfurom 40 sino-agri':'SL','ninja':'SL','nippon 40':'SL','nisshin':'SL',
+  'nongrass':'SL','norton 86':'SL','nostri':'SL','nuevo':'SL','nufosate':'SL','nufuron':'SL','off road':'SL','olea':'SL',
+  'only':'SL','optibex':'SL','ordinal 250 tm':'SL','oriento':'SL','oris':'SL','osbar duo':'SL','outliner':'SL','pacto':'SL',
+  'padron':'SL','palace ultra':'SL','palanque':'SL','palmero':'SL','pampa':'SL','panoramic':'SL','panoramic ultra':'SL','pastejo':'SL',
+  'pastor':'SL','patrono':'SL','paxeo':'SL','pendulum aqua':'SL','perlan':'SL','pertinan':'SL','pilcoram cana nortox':'SL','picloram nortox':'SL',
+  'picloram nortox c':'SL','picloram yonon':'SL','pilarcloma':'SL','pilargold':'SL','pilarico':'SL','pilarsato':'SL','pistol':'SL','pix hc':'SL',
+  'planador':'SL','planador xt s':'SL','plateau':'SL','platon':'SL','ponteirobr':'SL','poquer':'SL','posmil':'SL','potensato':'SL',
+  'preciso xk':'SL','predecessor':'SL','prefer':'SL','pren-d 806':'SL','prevent gold':'SL','pri-mordial':'SL','primeplus br':'SL','primóleo':'SL',
+  'proeza duo':'SL','rainvel':'SL','raio':'SL','raisor':'SL','raker top':'SL','raptor 70 dg':'SL','rascal':'SL','raster':'SL',
+  'reinado':'SL','relicta':'SL','resource':'SL','resource 100':'SL','respector':'SL','retain 102':'SL','revel':'SL','ricepal':'SL',
+  'ricer':'SL','ridover':'SL','ridown full':'SL','riper':'SL','ritmo':'SL','ronstar 250 br':'SL','roundup original di':'SL','roundup original mais':'SL',
+  'roundup transorb r':'SL','roundup ultra':'SL','runner':'SL','rustler rhs':'SL','s- metolaclor nortox':'SL','sapek max':'SL','saudaris':'SL','sector':'SL',
+  'seculo':'SL','select force':'SL','select one pack':'SL','seletrina':'SL','sempra':'SL','sencor 480':'SL','sensus':'SL','shift':'SL',
+  'smartfresh':'SL','smartfresh inbox':'SL','smartfresh protabs':'SL','smartfresh smarttabs':'SL','sniper':'SL','snooker':'SL','soberan':'SL','solara 500':'SL',
+  'soldier':'SL','stimutrop premium':'SL','stone':'SL','stopper':'SL','stopper xt s':'SL','strike':'SL','sugarina plus':'SL','sulban':'SL',
+  'sulfenprime':'SL','sulfometuron nortox':'SL','sultrax':'SL','sumimax amt':'SL','sumô':'SL','sumizyn 500':'SL','sungain plus':'SL','sungain xtra':'SL',
+  'sunpax':'SL','sunphosate premier':'SL','sunward':'SL','supermix':'SL','surrena':'SL','tandera':'SL','tarbox':'SL','targa max ht':'SL',
+  'tebutiuron ccab 500 c':'SL','tebutiuron nortox':'SL','tecnup':'SL','tecnup premium':'SL','tecnup super 608':'SL','temicab xtra':'SL','tempest-e':'SL','templo':'SL',
+  'terbutilazina nortox':'SL','territory':'SL','texas':'SL','thunder':'SL','tibet':'SL','título':'SL','tocha d':'SL','toco':'SL',
+  'togar tb':'SL','topatudo':'SL','topinam':'SL','torban plus':'SL','tordon ultra s':'SL','tordon xt':'SL','tronador ultra s':'SL','trop max':'SL',
+  'tropero':'SL','trophy':'SL','tropicio':'SL','trueno xt':'SL','trueno xts':'SL','trunfo':'SL','truper':'SL','trusinate xtra':'SL',
+  'trytor':'SL','tucson':'SL','turuna':'SL','tuval':'SL','u 46 br':'SL','u 46 prime':'SL','velbow 126':'SL','velik':'SL',
+  'vellsan':'SL','venia br':'SL','venture max':'SL','verace':'SL','verdict r':'SL','verdict ultra':'SL','verlon':'SL','version':'SL',
+  'vezir 100':'SL','viana':'SL','viance':'SL','vindic':'SL','viper':'SL','xeque mate':'SL','xeque mate ht':'SL','xtendicam':'SL',
+  'zador':'SL','zafera':'SL','zapar':'SL','zaphir':'SL','zapp qi 620':'SL','zartan':'SL','zavit':'SL','zelone':'SL',
   'zethamaxx':'SL','zethamaxx evo':'SL','zetium':'SL','zonic':'SL',
   '2,4 d (240) + picloram (64) sl':'SL','aminopyralid + 2,4 d 360 sl yonon':'SL','amylo-x sl':'SL','atrivo sl':'SL','atulamina 806 sl':'SL','bunema 330 sl 27':'SL','campestre 240 sl':'SL','dharma100 sl':'SL','diquate 200 sl 43 alamos':'SL','diquate 200 sl crotect':'SL','elglysate 480 sl':'SL','ginete 212 sl':'SL','gli-up 480 sl':'SL','glifocopa 480 sl':'SL','gliforce sl':'SL','glifosato 480 sl alamos':'SL','glifosato 480 sl crotect':'SL','glifosato 480 sl perterra':'SL','glifosato ccab 620 sl':'SL','glifosato k 660 sl alamos':'SL','glifosato k 660 sl crotect':'SL','glifosato nortox sl':'SL','glifosato wynca 480 sl':'SL','glufos-wyn 200 sl':'SL','glufosinate- ammonium 200 sl yonon':'SL','glufosinate- ammonium 200 g/l sl':'SL','glufosinato 200 sl crotect':'SL','glufosinato 200 sl lier':'SL','glufosinato 200 sl perterra':'SL','glufosinato ccab 200 sl':'SL','glufosinato ynn 200 sl perterra':'SL','imazetapir ccab 106 sl':'SL','kick off 480 sl':'SL','krost 806 sl':'SL','krugar 250 sl':'SL','lacano 200 sl':'SL','loyer sl':'SL','lubaquat 200 sl':'SL','7m4 acroquat 200 sl':'SL','mol 2,4-d 806 sl':'SL','offer 200 sl':'SL','patriol sl':'SL','picloran ccab 240 sl':'SL','pique 240 sl':'SL','pocco 480 sl':'SL','randell 648 sl':'SL','rateio 200 sl':'SL','shadow 480 sl':'SL','stimulate sl 111':'SL','verlon sl':'SL','zeta 106 sl':'SL','zethapyr 106 sl':'SL','zura 806 sl':'SL',
   '2,4 d 806 sl agcn':'SL','2,4 d 806 sl alamos':'SL','2,4 d amina ccab 806 sl':'SL','2,4 d crop 806 sl':'SL','2,4 d 806 sl crotect':'SL','dorai':'SL','2,4 d r 806 sl perterra':'SL','torban':'SL','aminopyralid 2,4 d 360 sl yonon':'SL',
-  // ── Dispersantes (antes de WP e SC) ──
+  // -- Dispersantes (antes de WP e SC) --
   'agral':'DISP','silwet':'DISP','break thru':'DISP','energic':'DISP','haiten':'DISP',
-  // ── Óleos minerais/vegetais (sempre por último) ──
+  // -- Óleos minerais/vegetais (sempre por último) --
   'nimbus':'OIL','assist':'OIL','aureo':'OIL','áureo':'OIL',
   'dash':'OIL','oleo':'OIL','óleo':'OIL',
-  // ── Fertilizantes foliares ──
+  // -- Fertilizantes foliares --
   'nitrogênio':'FERT','boro':'FERT','zinco':'FERT','mapfert':'FERT','ureafert':'FERT',
-  // ── Biológicos ──
+  // -- Biológicos --
   'trichoderma':'BIO','bacillus':'BIO','beauveria':'BIO','metarhizium':'BIO',
   'serenade':'BIO','naturalis':'BIO','trico':'BIO','agrobio':'BIO','entrust':'BIO',
 }
@@ -322,10 +323,10 @@ function calcTotal(dose,area){
   let v=parseFloat(m[1])*area,u=m[2].toLowerCase()
   if(u==='ml'&&v>=1000){v/=1000;u='L'}
   if(u==='g'&&v>=1000){v/=1000;u='kg'}
-  return `${Number.isInteger(v)?v:v.toFixed(v<10?2:1)} ${u}`
+  var n=Number.isInteger(v)?v:v.toFixed(v<10?2:1); return n+' '+u
 }
 
-// ── Incompatibility Engine ─────────────────────────────────────
+// -- Incompatibility Engine -------------------------------------
 // Cada regra tem grupos (g). A regra dispara se TODOS os grupos
 // tiverem pelo menos 1 produto que bata algum padrão do grupo.
 const RULES=[
@@ -390,230 +391,19 @@ function detectIncompat(products){
   return alerts
 }
 
-// ── Water Evaluation ───────────────────────────────────────────
+// -- Water Evaluation -------------------------------------------
 function evalPH(ph){return ph>=5.5&&ph<=6.5?'OK':(ph>=4.5&&ph<5.5)||(ph>6.5&&ph<=7)?'Atenção':'Risco'}
 function evalTemp(t){return t>=10&&t<=25?'OK':(t>=5&&t<=30)?'Atenção':'Risco'}
 function evalCond(c){return !c?'OK':c<=200?'OK':c<=500?'Atenção':'Risco'}
 const EC={OK:'#4caf50',Atenção:'#ff9800',Risco:'#f44336'}
 const EB={OK:'#e8f5e9',Atenção:'#fff3e0',Risco:'#ffebee'}
 
-// ── Status ─────────────────────────────────────────────────────
+// -- Status -----------------------------------------------------
 const SO=['REQUESTED','WATER_OK','PREPARING','JAR_TEST','READY','APPLIED']
 const SL={REQUESTED:'Solicitada',WATER_OK:'Água OK',PREPARING:'Em Preparo',JAR_TEST:'Jar Test',READY:'Pronta',APPLIED:'Aplicada'}
 const SC2={REQUESTED:'bg-gray',WATER_OK:'bg-green',PREPARING:'bg-orange',JAR_TEST:'bg-orange',READY:'bg-green',APPLIED:'bg-gray'}
 
-// ── Timer (com ajuste de tempo) ────────────────────────────────
-function Timer({seconds:initSec}){
-  const[base,setBase]=useState(initSec)
-  const[rem,setRem]=useState(initSec)
-  const[running,setRunning]=useState(false)
-  const[done,setDone]=useState(false)
-  const ref=useRef(null)
-
-  useEffect(()=>{
-    if(running){
-      ref.current=setInterval(()=>setRem(p=>{
-        if(p<=1){clearInterval(ref.current);setRunning(false);setDone(true);return 0}
-        return p-1
-      }),1000)
-    } else clearInterval(ref.current)
-    return()=>clearInterval(ref.current)
-  },[running])
-
-  const adjust=(delta)=>{
-    if(running||done) return
-    const novo=Math.max(30,base+delta)
-    setBase(novo);setRem(novo)
-  }
-
-  const mm=Math.floor(rem/60),ss=rem%60
-  return(
-    <div style={{background:'#00313C',borderRadius:14,padding:16,marginTop:12}}>
-      {!running&&!done&&(
-        <div style={{display:'flex',justifyContent:'center',alignItems:'center',gap:12,marginBottom:10}}>
-          <button onClick={()=>adjust(-60)} style={{background:'rgba(255,255,255,.15)',border:'none',color:'#fff',borderRadius:20,padding:'4px 12px',cursor:'pointer',fontWeight:700,fontSize:13}}>−1min</button>
-          <button onClick={()=>adjust(-30)} style={{background:'rgba(255,255,255,.1)',border:'none',color:'#fff',borderRadius:20,padding:'4px 10px',cursor:'pointer',fontWeight:700,fontSize:12}}>−30s</button>
-          <button onClick={()=>adjust(30)} style={{background:'rgba(255,255,255,.1)',border:'none',color:'#fff',borderRadius:20,padding:'4px 10px',cursor:'pointer',fontWeight:700,fontSize:12}}>+30s</button>
-          <button onClick={()=>adjust(60)} style={{background:'rgba(255,255,255,.15)',border:'none',color:'#fff',borderRadius:20,padding:'4px 12px',cursor:'pointer',fontWeight:700,fontSize:13}}>+1min</button>
-        </div>
-      )}
-      <div style={{fontSize:44,fontWeight:900,color:'#fff',textAlign:'center',letterSpacing:3,fontVariantNumeric:'tabular-nums'}}>
-        {String(mm).padStart(2,'0')}:{String(ss).padStart(2,'0')}
-      </div>
-      <div style={{textAlign:'center',marginTop:10}}>
-        {!running&&!done&&<button className="btn" style={{width:'auto',padding:'8px 28px',fontSize:14}} onClick={()=>setRunning(true)}>▶ Iniciar Timer</button>}
-        {running&&<button onClick={()=>setRunning(false)} style={{background:'rgba(255,255,255,.15)',border:'none',color:'#fff',padding:'8px 24px',borderRadius:20,cursor:'pointer',fontWeight:700,fontSize:14}}>⏸ Pausar</button>}
-        {done&&<div style={{color:'#7EC8D8',fontWeight:800,fontSize:15}}>✅ Tempo concluído!</div>}
-      </div>
-    </div>
-  )
-}
-
-// ── Header ─────────────────────────────────────────────────────
-function Hdr({title,onBack,right}){
-  return(
-    <div style={{background:'#00313C',padding:'14px 16px',display:'flex',alignItems:'center',gap:12,flexShrink:0}}>
-      {onBack&&<button onClick={onBack} style={{background:'none',border:'none',color:'#7EC8D8',fontSize:26,fontWeight:900,cursor:'pointer',lineHeight:1,padding:'0 4px 0 0'}}>‹</button>}
-      <span style={{color:'#fff',fontWeight:800,fontSize:16,flex:1}}>{title}</span>
-      {right}
-    </div>
-  )
-}
-
-// ── FAB ────────────────────────────────────────────────────────
-function Fab({onClick}){
-  return(
-    <button onClick={onClick} style={{position:'absolute',bottom:16,right:16,width:54,height:54,background:'#00313C',borderRadius:'50%',border:'none',color:'#fff',fontSize:28,cursor:'pointer',boxShadow:'0 4px 14px rgba(0,49,60,.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:20}}>+</button>
-  )
-}
-
-// ═══════════════════════════════════════════════════════════════
-// SCREENS
-// ═══════════════════════════════════════════════════════════════
-
-function LoginScreen({onLogin}){
-  const[name,setName]=useState('')
-  const[role,setRole]=useState('')
-  const[company,setCompany]=useState('')
-  const[crea,setCrea]=useState('')
-  const[err,setErr]=useState('')
-  const ROLES=['Engenheiro Agrônomo','Técnico Agrícola','Operador Agrícola','Operador de Máquinas']
-  return(
-    <div style={{flex:1,display:'flex',flexDirection:'column',background:'#00313C',minHeight:'100vh'}}>
-      <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'32px 20px'}}>
-        <div style={{textAlign:'center',marginBottom:28}}>
-          <div style={{fontSize:34,fontWeight:900,color:'#fff',letterSpacing:-1}}>FertigeoTech</div>
-          <div style={{color:'#7EC8D8',fontSize:11,fontWeight:700,letterSpacing:3,marginTop:4,textTransform:'uppercase'}}>Qualidade de Calda</div>
-        </div>
-        <div style={{width:'100%',maxWidth:360,background:'#fff',borderRadius:20,padding:22,boxShadow:'0 20px 60px rgba(0,0,0,.4)'}}>
-          <div style={{fontWeight:800,fontSize:16,color:'#00313C',marginBottom:14}}>Identificação</div>
-          <label className="lbl">Nome *</label>
-          <input className="field" placeholder="Seu nome completo" value={name} onChange={e=>setName(e.target.value)} style={{marginBottom:12}}/>
-          <label className="lbl" style={{marginBottom:8}}>Função *</label>
-          <div style={{display:'flex',flexWrap:'wrap',gap:8,marginBottom:14}}>
-            {ROLES.map(r=>(
-              <button key={r} onClick={()=>setRole(r)} style={{padding:'7px 12px',borderRadius:20,border:'1.5px solid',fontSize:12,fontWeight:700,cursor:'pointer',background:role===r?'#00313C':'#fff',color:role===r?'#fff':'#555',borderColor:role===r?'#00313C':'#ddd'}}>
-                {r}
-              </button>
-            ))}
-          </div>
-          <label className="lbl">Empresa</label>
-          <input className="field" placeholder="(opcional)" value={company} onChange={e=>setCompany(e.target.value)} style={{marginBottom:12}}/>
-          <label className="lbl">CREA / CFTA</label>
-          <input className="field" placeholder="(opcional)" value={crea} onChange={e=>setCrea(e.target.value)} style={{marginBottom:14}}/>
-          {err&&<div style={{background:'#ffebee',color:'#c62828',padding:'8px 12px',borderRadius:8,fontSize:13,fontWeight:700,marginBottom:12}}>⚠️ {err}</div>}
-          <button className="btn" onClick={()=>{
-            if(!name.trim()){setErr('Informe seu nome');return}
-            if(!role){setErr('Selecione sua função');return}
-            onLogin({name:name.trim(),role,company:company.trim(),crea:crea.trim()})
-          }}>Entrar no FertigeoTech →</button>
-          <div style={{fontSize:11,color:'#9e9e9e',textAlign:'center',marginTop:10}}>💾 Dados salvos localmente no seu celular</div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function HomeScreen({op,onLogout,onNav,lots,onNew}){
-  const today=new Date().toDateString()
-  const phs=lots.filter(l=>l.last_ph).map(l=>l.last_ph)
-  const kpis=[
-    {icon:'📋',label:'Hoje',val:lots.filter(l=>new Date(l.created_at).toDateString()===today).length,c:'#006E85'},
-    {icon:'⏳',label:'Pendentes',val:lots.filter(l=>!['READY','APPLIED'].includes(l.status)).length,c:'#e65100'},
-    {icon:'🧪',label:'pH médio',val:phs.length?(phs.reduce((a,b)=>a+b,0)/phs.length).toFixed(1):'—',c:'#006E85'},
-    {icon:'⚠️',label:'Riscos pH',val:lots.filter(l=>l.last_ph&&(l.last_ph<5||l.last_ph>7)).length,c:'#c62828'},
-  ]
-  return(
-    <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden',position:'relative'}}>
-      <div style={{background:'#00313C',padding:'14px 16px 18px',flexShrink:0}}>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:10}}>
-          <div>
-            <div style={{fontSize:22,fontWeight:900,color:'#fff'}}>FertigeoTech</div>
-            <div style={{color:'#7EC8D8',fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase'}}>Qualidade de Calda</div>
-          </div>
-          <button onClick={onLogout} style={{background:'rgba(255,255,255,.15)',border:'none',color:'#fff',padding:'5px 12px',borderRadius:20,fontSize:12,fontWeight:700,cursor:'pointer'}}>Sair</button>
-        </div>
-        <div style={{background:'rgba(255,255,255,.1)',borderRadius:10,padding:'9px 13px'}}>
-          <div style={{color:'#fff',fontWeight:700,fontSize:13}}>{op.name}</div>
-          <div style={{color:'#7EC8D8',fontSize:11}}>{op.role}{op.company?' · '+op.company:''}</div>
-        </div>
-      </div>
-      <div className="sc" style={{flex:1,padding:12,paddingBottom:80}}>
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:14}}>
-          {kpis.map(k=>(
-            <div key={k.label} className="card" style={{textAlign:'center',marginBottom:0}}>
-              <div style={{fontSize:22,marginBottom:3}}>{k.icon}</div>
-              <div style={{fontSize:24,fontWeight:900,color:k.c}}>{k.val}</div>
-              <div style={{fontSize:11,color:'#777',fontWeight:600}}>{k.label}</div>
-            </div>
-          ))}
-        </div>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
-          <span style={{fontWeight:800,color:'#333',fontSize:14}}>Misturas recentes</span>
-          <button onClick={()=>onNav('lots')} style={{background:'none',border:'none',color:'#006E85',fontWeight:700,fontSize:13,cursor:'pointer'}}>Ver todas →</button>
-        </div>
-        {lots.length===0?(
-          <div className="card" style={{textAlign:'center',padding:'28px 16px'}}>
-            <div style={{fontSize:36,marginBottom:8}}>⚗️</div>
-            <div style={{color:'#9e9e9e',fontWeight:600,marginBottom:10}}>Nenhuma mistura ainda</div>
-            <button className="btn" style={{width:'auto',padding:'10px 24px',fontSize:14}} onClick={onNew}>+ Criar primeira mistura</button>
-          </div>
-        ):lots.slice(0,6).map(lot=>(
-          <div key={lot.id} className="card" onClick={()=>onNav('detail',lot)} style={{cursor:'pointer',display:'flex',alignItems:'center',gap:10,padding:'12px 14px',marginBottom:8}}>
-            <div style={{flex:1}}>
-              <div style={{fontWeight:800,fontSize:13}}>{lot.farm}</div>
-              <div style={{fontSize:11,color:'#777'}}>{lot.field} · {lot.volume_liters}L</div>
-            </div>
-            <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:3}}>
-              <span className={`badge ${SC2[lot.status]}`}>{SL[lot.status]}</span>
-              <span style={{fontSize:10,color:'#bbb'}}>{new Date(lot.created_at).toLocaleDateString('pt-BR')}</span>
-            </div>
-          </div>
-        ))}
-      </div>
-      <Fab onClick={onNew}/>
-    </div>
-  )
-}
-
-function LotsScreen({lots,onNav,onNew}){
-  const[filter,setFilter]=useState('ALL')
-  const[search,setSearch]=useState('')
-  const filtered=lots.filter(l=>
-    (filter==='ALL'||l.status===filter)&&
-    (!search||l.farm.toLowerCase().includes(search.toLowerCase())||l.field.toLowerCase().includes(search.toLowerCase()))
-  )
-  return(
-    <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden',position:'relative'}}>
-      <div style={{background:'#00313C',padding:'14px 16px 12px',flexShrink:0}}>
-        <div style={{color:'#fff',fontWeight:800,fontSize:16,marginBottom:10}}>⚗️ Misturas</div>
-        <input className="field" placeholder="Buscar fazenda ou talhão..." value={search} onChange={e=>setSearch(e.target.value)} style={{background:'rgba(255,255,255,.12)',border:'1px solid rgba(255,255,255,.2)',color:'#fff',fontSize:13}}/>
-      </div>
-      <div style={{display:'flex',gap:8,padding:'8px 12px',overflowX:'auto',background:'#fff',borderBottom:'1px solid #eee',flexShrink:0}}>
-        {['ALL',...Object.keys(SL)].map(s=>(
-          <button key={s} onClick={()=>setFilter(s)} style={{flexShrink:0,padding:'5px 12px',borderRadius:20,border:'1.5px solid',fontSize:11,fontWeight:700,cursor:'pointer',background:filter===s?'#00313C':'#fff',color:filter===s?'#fff':'#666',borderColor:filter===s?'#00313C':'#ddd',whiteSpace:'nowrap'}}>
-            {s==='ALL'?'Todas':SL[s]}
-          </button>
-        ))}
-      </div>
-      <div className="sc" style={{flex:1,padding:12,paddingBottom:80}}>
-        {filtered.length===0&&<div className="card" style={{textAlign:'center',padding:'28px'}}><div style={{fontSize:32,marginBottom:8}}>🔍</div><div style={{color:'#9e9e9e'}}>Nenhuma mistura encontrada</div></div>}
-        {filtered.map(lot=>(
-          <div key={lot.id} className="card" onClick={()=>onNav('detail',lot)} style={{cursor:'pointer',display:'flex',alignItems:'center',gap:10,padding:'12px 14px',marginBottom:8}}>
-            <div style={{flex:1}}>
-              <div style={{fontWeight:800,fontSize:13}}>{lot.farm}</div>
-              <div style={{fontSize:11,color:'#777'}}>{lot.field} · {lot.volume_liters}L · {new Date(lot.created_at).toLocaleDateString('pt-BR')}</div>
-              {lot.last_ph&&<div style={{fontSize:11,color:'#006E85',fontWeight:700,marginTop:1}}>pH {lot.last_ph.toFixed(1)}</div>}
-            </div>
-            <span className={`badge ${SC2[lot.status]}`}>{SL[lot.status]}</span>
-          </div>
-        ))}
-      </div>
-      <Fab onClick={onNew}/>
-    </div>
-  )
-}
-
+// -- Timer (com ajuste de tempo) --------------------------------
 
 </script>
 <script>
@@ -622,8 +412,212 @@ const useState = React.useState,
   useRef = React.useRef,
   useMemo = React.useMemo,
   useCallback = React.useCallback;
+function Timer({
+  seconds: initSec
+}) {
+  const [base, setBase] = useState(initSec);
+  const [rem, setRem] = useState(initSec);
+  const [running, setRunning] = useState(false);
+  const [done, setDone] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (running) {
+      ref.current = setInterval(() => setRem(p => {
+        if (p <= 1) {
+          clearInterval(ref.current);
+          setRunning(false);
+          setDone(true);
+          return 0;
+        }
+        return p - 1;
+      }), 1000);
+    } else clearInterval(ref.current);
+    return () => clearInterval(ref.current);
+  }, [running]);
+  const adjust = delta => {
+    if (running || done) return;
+    const novo = Math.max(30, base + delta);
+    setBase(novo);
+    setRem(novo);
+  };
+  const mm = Math.floor(rem / 60),
+    ss = rem % 60;
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: '#00313C',
+      borderRadius: 14,
+      padding: 16,
+      marginTop: 12
+    }
+  }, !running && !done && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      gap: 12,
+      marginBottom: 10
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => adjust(-60),
+    style: {
+      background: 'rgba(255,255,255,.15)',
+      border: 'none',
+      color: '#fff',
+      borderRadius: 20,
+      padding: '4px 12px',
+      cursor: 'pointer',
+      fontWeight: 700,
+      fontSize: 13
+    }
+  }, "\u22121min"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => adjust(-30),
+    style: {
+      background: 'rgba(255,255,255,.1)',
+      border: 'none',
+      color: '#fff',
+      borderRadius: 20,
+      padding: '4px 10px',
+      cursor: 'pointer',
+      fontWeight: 700,
+      fontSize: 12
+    }
+  }, "\u221230s"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => adjust(30),
+    style: {
+      background: 'rgba(255,255,255,.1)',
+      border: 'none',
+      color: '#fff',
+      borderRadius: 20,
+      padding: '4px 10px',
+      cursor: 'pointer',
+      fontWeight: 700,
+      fontSize: 12
+    }
+  }, "+30s"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => adjust(60),
+    style: {
+      background: 'rgba(255,255,255,.15)',
+      border: 'none',
+      color: '#fff',
+      borderRadius: 20,
+      padding: '4px 12px',
+      cursor: 'pointer',
+      fontWeight: 700,
+      fontSize: 13
+    }
+  }, "+1min")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 44,
+      fontWeight: 900,
+      color: '#fff',
+      textAlign: 'center',
+      letterSpacing: 3,
+      fontVariantNumeric: 'tabular-nums'
+    }
+  }, String(mm).padStart(2, '0'), ":", String(ss).padStart(2, '0')), /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: 'center',
+      marginTop: 10
+    }
+  }, !running && !done && /*#__PURE__*/React.createElement("button", {
+    className: "btn",
+    style: {
+      width: 'auto',
+      padding: '8px 28px',
+      fontSize: 14
+    },
+    onClick: () => setRunning(true)
+  }, "\u25B6 Iniciar Timer"), running && /*#__PURE__*/React.createElement("button", {
+    onClick: () => setRunning(false),
+    style: {
+      background: 'rgba(255,255,255,.15)',
+      border: 'none',
+      color: '#fff',
+      padding: '8px 24px',
+      borderRadius: 20,
+      cursor: 'pointer',
+      fontWeight: 700,
+      fontSize: 14
+    }
+  }, "\u23F8 Pausar"), done && /*#__PURE__*/React.createElement("div", {
+    style: {
+      color: '#7EC8D8',
+      fontWeight: 800,
+      fontSize: 15
+    }
+  }, "\u2705 Tempo conclu\xEDdo!")));
+}
 
-// ── LocalDB ────────────────────────────────────────────────────
+// -- Header -----------------------------------------------------
+function Hdr({
+  title,
+  onBack,
+  right
+}) {
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: '#00313C',
+      padding: '14px 16px',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12,
+      flexShrink: 0
+    }
+  }, onBack && /*#__PURE__*/React.createElement("button", {
+    onClick: onBack,
+    style: {
+      background: 'none',
+      border: 'none',
+      color: '#7EC8D8',
+      fontSize: 26,
+      fontWeight: 900,
+      cursor: 'pointer',
+      lineHeight: 1,
+      padding: '0 4px 0 0'
+    }
+  }, "\u2039"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: '#fff',
+      fontWeight: 800,
+      fontSize: 16,
+      flex: 1
+    }
+  }, title), right);
+}
+
+// -- FAB --------------------------------------------------------
+function Fab({
+  onClick
+}) {
+  return /*#__PURE__*/React.createElement("button", {
+    onClick: onClick,
+    style: {
+      position: 'absolute',
+      bottom: 16,
+      right: 16,
+      width: 54,
+      height: 54,
+      background: '#00313C',
+      borderRadius: '50%',
+      border: 'none',
+      color: '#fff',
+      fontSize: 28,
+      cursor: 'pointer',
+      boxShadow: '0 4px 14px rgba(0,49,60,.5)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 20
+    }
+  }, "+");
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SCREENS
+// ═══════════════════════════════════════════════════════════════
+
+
+// -- LocalDB ----------------------------------------------------
 function loadDB(k, def) {
   try {
     return JSON.parse(localStorage.getItem(k) || def);
@@ -662,7 +656,7 @@ async function dbSelect(table, filter) {
   return d.filter(r => Object.entries(filter).every(([k, v]) => r[k] === v));
 }
 
-// ── Product Picker ─────────────────────────────────────────────
+// -- Product Picker ---------------------------------------------
 const DOSE_UNITS = ['L/ha', 'mL/ha', 'kg/ha', 'g/ha', 'L/100L', 'mL/100L', 'g/100L', 'kg/100L', 'L/vc', 'mL/vc'];
 
 // Carrega produtos customizados do localStorage e mescla com PDB
@@ -2248,7 +2242,7 @@ function LotDetailScreen({
   };
   const incompats = lot.recipe_text ? detectIncompat(parseRecipe(lot.recipe_text)) : [];
 
-  // ── Modal de edição de receita inline ──────────────────────────
+  // -- Modal de edição de receita inline --------------------------
   const EditModal = () => {
     const parsed = useMemo(() => parseRecipe(lot.recipe_text || ''), []);
     const [prods, setProds] = useState(() => parsed.map(p => ({
@@ -3579,6 +3573,145 @@ function ManagerScreen({
 // MAIN APP
 // ═══════════════════════════════════════════════════════════════
 const MGROLES = ['Engenheiro Agrônomo', 'Técnico Agrícola'];
+
+function LoginScreen({
+  onLogin
+}) {
+  const [name, setName] = useState('');
+  const [role, setRole] = useState('');
+  const [company, setCompany] = useState('');
+  const [crea, setCrea] = useState('');
+  const [err, setErr] = useState('');
+  const ROLES = ['Engenheiro Agrônomo', 'Técnico Agrícola', 'Operador Agrícola', 'Operador de Máquinas'];
+  const go = () => {
+    if (!name.trim()) {
+      setErr('Informe seu nome');
+      return;
+    }
+    if (!role) {
+      setErr('Selecione sua função');
+      return;
+    }
+    onLogin({
+      name: name.trim(),
+      role,
+      company: company.trim(),
+      crea: crea.trim()
+    });
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      display: 'flex',
+      flexDirection: 'column',
+      background: '#00313C',
+      minHeight: '100vh'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '32px 24px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: 'center',
+      marginBottom: 32
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 36,
+      fontWeight: 900,
+      color: '#fff',
+      letterSpacing: -1
+    }
+  }, "FertigeoTech"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 14,
+      color: '#A2B34C',
+      fontWeight: 600,
+      marginTop: 4
+    }
+  }, "Controle de Qualidade de Caldas")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: '100%',
+      maxWidth: 360,
+      background: 'rgba(255,255,255,.07)',
+      borderRadius: 20,
+      padding: '28px 24px'
+    }
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "lbl",
+    style: {
+      color: '#D6CCA6'
+    }
+  }, "Nome *"), /*#__PURE__*/React.createElement("input", {
+    className: "field",
+    placeholder: "Seu nome completo",
+    value: name,
+    onChange: e => setName(e.target.value),
+    style: {
+      marginBottom: 12
+    }
+  }), /*#__PURE__*/React.createElement("label", {
+    className: "lbl",
+    style: {
+      color: '#D6CCA6'
+    }
+  }, "Fun\xE7\xE3o *"), /*#__PURE__*/React.createElement("select", {
+    className: "field",
+    value: role,
+    onChange: e => setRole(e.target.value),
+    style: {
+      marginBottom: 12
+    }
+  }, /*#__PURE__*/React.createElement("option", {
+    value: ""
+  }, "Selecione..."), ROLES.map(r => /*#__PURE__*/React.createElement("option", {
+    key: r,
+    value: r
+  }, r))), /*#__PURE__*/React.createElement("label", {
+    className: "lbl",
+    style: {
+      color: '#D6CCA6'
+    }
+  }, "Empresa"), /*#__PURE__*/React.createElement("input", {
+    className: "field",
+    placeholder: "(opcional)",
+    value: company,
+    onChange: e => setCompany(e.target.value),
+    style: {
+      marginBottom: 12
+    }
+  }), /*#__PURE__*/React.createElement("label", {
+    className: "lbl",
+    style: {
+      color: '#D6CCA6'
+    }
+  }, "CREA / CFTA"), /*#__PURE__*/React.createElement("input", {
+    className: "field",
+    placeholder: "(opcional)",
+    value: crea,
+    onChange: e => setCrea(e.target.value),
+    style: {
+      marginBottom: 16
+    }
+  }), err && /*#__PURE__*/React.createElement("div", {
+    style: {
+      color: '#ef9a9a',
+      fontSize: 13,
+      marginBottom: 8,
+      fontWeight: 600
+    }
+  }, err), /*#__PURE__*/React.createElement("button", {
+    className: "btn",
+    onClick: go
+  }, "Entrar"))));
+}
+
 function App() {
   const [op, setOp] = useState(() => {
     try {
@@ -3624,7 +3757,7 @@ function App() {
     onLogin: login
   });
 
-  // ── Telas modais (sobre as abas) ──────────────────────────────
+  // -- Telas modais (sobre as abas) ------------------------------
   if (screen === 'new') return /*#__PURE__*/React.createElement(NewLotScreen, {
     onBack: () => setScreen('tabs'),
     onSaved: (lot, goWater) => {
@@ -3671,7 +3804,7 @@ function App() {
     onBack: () => nav('detail', ctx.lot, ctx.telem, ctx.jar)
   });
 
-  // ── Tela principal com abas ───────────────────────────────────
+  // -- Tela principal com abas -----------------------------------
   const isManager = MGROLES.includes(op?.role);
   const TABS = [{
     id: 'home',
@@ -3727,6 +3860,6 @@ function App() {
 }
 ReactDOM.createRoot(document.getElementById('root')).render(/*#__PURE__*/React.createElement(App, null));
 
-</script>
-</body>
+
+</script></body>
 </html>
