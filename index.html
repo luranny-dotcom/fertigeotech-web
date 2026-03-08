@@ -8,7 +8,6 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 body{font-family:'DM Sans',sans-serif;background:#0a1628;display:flex;justify-content:center;min-height:100vh}
@@ -46,7 +45,7 @@ const PDB={
   'calda bordalesa':'WP','cupravi':'WP','captan':'WP','captana':'WP','enxofre':'WP','kumulus':'WP',
   'thiovit':'WP','cobox':'WP','cuprofix':'WP','saaf':'WP','heat':'WP','cabrio':'WP',
   'delegate':'WP','rexade':'WP','transform':'WP','authority':'WP','altacor':'WP','ulala':'WP',
-  'asataf':'WP','safari':'WP',"terrad'or":'WP',
+  'asataf':'WP','safari':'WP','terrador':'WP',
   'nova pekacid':'WP','actara 250':'WP','actend':'WP','actigard':'WP','bion':'WP','chess':'WP',
   'desali':'WP','envoke':'WP','fulfill':'WP','invict':'WP','krismat wg':'WP','ridomil gold':'WP',
   'switch':'WP','trigard':'WP','unix':'WP','zapp wg':'WP',
@@ -617,1195 +616,3117 @@ function LotsScreen({lots,onNav,onNew}){
 
 
 </script>
-<script type="text/babel" data-presets="react">
-const{useState,useEffect,useRef,useMemo,useCallback}=React
-
-
-const{useState,useEffect,useRef,useMemo,useCallback}=React
+<script>
+const useState = React.useState,
+  useEffect = React.useEffect,
+  useRef = React.useRef,
+  useMemo = React.useMemo,
+  useCallback = React.useCallback;
 
 // ── LocalDB ────────────────────────────────────────────────────
-function loadDB(k,def){try{return JSON.parse(localStorage.getItem(k)||def)}catch{return JSON.parse(def)}}
-function saveDB(k,d){localStorage.setItem(k,JSON.stringify(d))}
-function uid(){return Date.now()+'-'+Math.random().toString(36).slice(2,6)}
-
-async function dbInsert(table,row){
-  const key='ft_'+table
-  const d=loadDB(key,'[]')
-  d.unshift(row)
-  saveDB(key,d)
+function loadDB(k, def) {
+  try {
+    return JSON.parse(localStorage.getItem(k) || def);
+  } catch {
+    return JSON.parse(def);
+  }
 }
-const insert=dbInsert
-async function dbUpdate(table,id,patch){
-  const key='ft_'+table
-  const d=loadDB(key,'[]')
-  const i=d.findIndex(r=>r.id===id)
-  if(i>-1){d[i]={...d[i],...patch};saveDB(key,d)}
+function saveDB(k, d) {
+  localStorage.setItem(k, JSON.stringify(d));
 }
-async function dbSelect(table,filter){
-  const d=loadDB('ft_'+table,'[]')
-  if(!filter) return d
-  return d.filter(r=>Object.entries(filter).every(([k,v])=>r[k]===v))
+function uid() {
+  return Date.now() + '-' + Math.random().toString(36).slice(2, 6);
+}
+async function dbInsert(table, row) {
+  const key = 'ft_' + table;
+  const d = loadDB(key, '[]');
+  d.unshift(row);
+  saveDB(key, d);
+}
+const insert = dbInsert;
+async function dbUpdate(table, id, patch) {
+  const key = 'ft_' + table;
+  const d = loadDB(key, '[]');
+  const i = d.findIndex(r => r.id === id);
+  if (i > -1) {
+    d[i] = {
+      ...d[i],
+      ...patch
+    };
+    saveDB(key, d);
+  }
+}
+async function dbSelect(table, filter) {
+  const d = loadDB('ft_' + table, '[]');
+  if (!filter) return d;
+  return d.filter(r => Object.entries(filter).every(([k, v]) => r[k] === v));
 }
 
 // ── Product Picker ─────────────────────────────────────────────
-const DOSE_UNITS=['L/ha','mL/ha','kg/ha','g/ha','L/100L','mL/100L','g/100L','kg/100L','L/vc','mL/vc']
+const DOSE_UNITS = ['L/ha', 'mL/ha', 'kg/ha', 'g/ha', 'L/100L', 'mL/100L', 'g/100L', 'kg/100L', 'L/vc', 'mL/vc'];
 
 // Carrega produtos customizados do localStorage e mescla com PDB
-function loadCustomProducts(){
-  try{return JSON.parse(localStorage.getItem('ft_custom_products')||'[]')}catch{return[]}
+function loadCustomProducts() {
+  try {
+    return JSON.parse(localStorage.getItem('ft_custom_products') || '[]');
+  } catch {
+    return [];
+  }
 }
-function saveCustomProduct(p){
-  const list=loadCustomProducts()
-  if(!list.find(x=>x.nameKey===p.nameKey)){list.push(p);localStorage.setItem('ft_custom_products',JSON.stringify(list))}
+function saveCustomProduct(p) {
+  const list = loadCustomProducts();
+  if (!list.find(x => x.nameKey === p.nameKey)) {
+    list.push(p);
+    localStorage.setItem('ft_custom_products', JSON.stringify(list));
+  }
 }
-function getAllProducts(){
-  const base=Object.entries(PDB).map(([name,type])=>({
-    name:name.charAt(0).toUpperCase()+name.slice(1),nameKey:name,type,custom:false
-  }))
-  const custom=loadCustomProducts().map(p=>({...p,custom:true}))
-  const merged=[...base]
-  custom.forEach(cp=>{if(!merged.find(b=>b.nameKey===cp.nameKey))merged.push(cp)})
-  return merged.sort((a,b)=>a.name.localeCompare(b.name))
+function getAllProducts() {
+  const base = Object.entries(PDB).map(([name, type]) => ({
+    name: name.charAt(0).toUpperCase() + name.slice(1),
+    nameKey: name,
+    type,
+    custom: false
+  }));
+  const custom = loadCustomProducts().map(p => ({
+    ...p,
+    custom: true
+  }));
+  const merged = [...base];
+  custom.forEach(cp => {
+    if (!merged.find(b => b.nameKey === cp.nameKey)) merged.push(cp);
+  });
+  return merged.sort((a, b) => a.name.localeCompare(b.name));
 }
 
 // Dicas de tipo por palavra-chave no nome
-const TYPE_HINTS=[
-  {keys:['fungicida','fungic','azox','piraclost','tebucon','propiconaz','ciproconaz','mancoz','dithane','oxiclor','enxofre','cobre','cupr'],type:'SC',label:'Fungicida'},
-  {keys:['herbicida','herbic','glifos','2,4-d','dicamba','atrazina','ametrina','paraquat','diquat','metolachlor'],type:'SL',label:'Herbicida'},
-  {keys:['inseticida','insetic','abamect','cloran','spinosad','cipermet','deltametrina','lambdacial','bifentr','imidacloprid','tiameto'],type:'SC',label:'Inseticida'},
-  {keys:['dispersante','espalhante','adesivo','agral','silwet','break thru','energic','haiten'],type:'DISP',label:'Dispersante'},
-  {keys:['adjuvante','nimbus','assist','aureo','oleo','óleo','mineral','vegetal','dash'],type:'OIL',label:'Óleo Mineral'},
-  {keys:['biológico','biologico','bio','trichoderma','bacillus','beauveria','metarhizium','spinosyn'],type:'BIO',label:'Biológico'},
-  {keys:['fertilizante','fertil','boro','zinco','manganes','cálcio','calcio','nitrogênio','nitrogenio','fósforo','fosforo','potássio','potassio'],type:'FERT',label:'Fertilizante'},
-  {keys:['ph','ácido','acido','buffer','aquafix','bicarbonato','corretor'],type:'PH',label:'Corretor pH'},
-]
-function guessType(name){
-  const n=nrm(name)
-  for(const h of TYPE_HINTS){if(h.keys.some(k=>n.includes(k)))return h.type}
+const TYPE_HINTS = [{
+  keys: ['fungicida', 'fungic', 'azox', 'piraclost', 'tebucon', 'propiconaz', 'ciproconaz', 'mancoz', 'dithane', 'oxiclor', 'enxofre', 'cobre', 'cupr'],
+  type: 'SC',
+  label: 'Fungicida'
+}, {
+  keys: ['herbicida', 'herbic', 'glifos', '2,4-d', 'dicamba', 'atrazina', 'ametrina', 'paraquat', 'diquat', 'metolachlor'],
+  type: 'SL',
+  label: 'Herbicida'
+}, {
+  keys: ['inseticida', 'insetic', 'abamect', 'cloran', 'spinosad', 'cipermet', 'deltametrina', 'lambdacial', 'bifentr', 'imidacloprid', 'tiameto'],
+  type: 'SC',
+  label: 'Inseticida'
+}, {
+  keys: ['dispersante', 'espalhante', 'adesivo', 'agral', 'silwet', 'break thru', 'energic', 'haiten'],
+  type: 'DISP',
+  label: 'Dispersante'
+}, {
+  keys: ['adjuvante', 'nimbus', 'assist', 'aureo', 'oleo', 'óleo', 'mineral', 'vegetal', 'dash'],
+  type: 'OIL',
+  label: 'Óleo Mineral'
+}, {
+  keys: ['biológico', 'biologico', 'bio', 'trichoderma', 'bacillus', 'beauveria', 'metarhizium', 'spinosyn'],
+  type: 'BIO',
+  label: 'Biológico'
+}, {
+  keys: ['fertilizante', 'fertil', 'boro', 'zinco', 'manganes', 'cálcio', 'calcio', 'nitrogênio', 'nitrogenio', 'fósforo', 'fosforo', 'potássio', 'potassio'],
+  type: 'FERT',
+  label: 'Fertilizante'
+}, {
+  keys: ['ph', 'ácido', 'acido', 'buffer', 'aquafix', 'bicarbonato', 'corretor'],
+  type: 'PH',
+  label: 'Corretor pH'
+}];
+function guessType(name) {
+  const n = nrm(name);
+  for (const h of TYPE_HINTS) {
+    if (h.keys.some(k => n.includes(k))) return h.type;
+  }
   // por sufixo de formulação no nome
-  if(/\b(sc|fs|cs|od)\b/.test(n))return'SC'
-  if(/\b(wp|wg|wdg|sp|sg)\b/.test(n))return'WP'
-  if(/\b(ec|ew)\b/.test(n))return'EC'
-  if(/\b(sl|dc)\b/.test(n))return'SL'
-  return''
+  if (/\b(sc|fs|cs|od)\b/.test(n)) return 'SC';
+  if (/\b(wp|wg|wdg|sp|sg)\b/.test(n)) return 'WP';
+  if (/\b(ec|ew)\b/.test(n)) return 'EC';
+  if (/\b(sl|dc)\b/.test(n)) return 'SL';
+  return '';
 }
 
 // Modal para cadastrar novo produto — manual rápido
-function NewProductModal({productName, onSave, onClose}){
-  const[name,setName]=useState(productName||'')
-  const[type,setType]=useState(()=>guessType(productName||''))
-  const[classe,setClasse]=useState('')
+function NewProductModal({
+  productName,
+  onSave,
+  onClose
+}) {
+  const [name, setName] = useState(productName || '');
+  const [type, setType] = useState(() => guessType(productName || ''));
+  const [classe, setClasse] = useState('');
 
   // Tenta adivinhar o tipo conforme o nome muda
-  const handleName=(v)=>{
-    setName(v)
-    const g=guessType(v)
-    if(g) setType(g)
-  }
-
-  const salvar=()=>{
-    const finalName=name.trim()
-    const finalType=type||'SC'
-    const p={name:finalName,nameKey:finalName.toLowerCase(),type:finalType,custom:true,classe}
-    saveCustomProduct(p)
-    onSave(p)
-  }
-
-  const tipos=Object.keys(FL).filter(t=>t!=='?')
+  const handleName = v => {
+    setName(v);
+    const g = guessType(v);
+    if (g) setType(g);
+  };
+  const salvar = () => {
+    const finalName = name.trim();
+    const finalType = type || 'SC';
+    const p = {
+      name: finalName,
+      nameKey: finalName.toLowerCase(),
+      type: finalType,
+      custom: true,
+      classe
+    };
+    saveCustomProduct(p);
+    onSave(p);
+  };
+  const tipos = Object.keys(FL).filter(t => t !== '?');
 
   // Descrição rápida de cada tipo para ajudar na escolha
-  const TDesc={
-    PH:'Corretores de pH (ácidos, buffers)',
-    WP:'Pós e granulados (WP, WG, SP)',
-    SC:'Suspensões concentradas (SC, FS)',
-    EC:'Emulsões (EC, EW)',
-    SL:'Soluções líquidas (SL)',
-    FERT:'Fertilizantes foliares',
-    DISP:'Dispersante/espalhante (antes de WP e SC)',
-    OIL:'Óleo mineral/vegetal (sempre por último)',
-    BIO:'Produtos biológicos',
-  }
-
-  return(
-    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.6)',zIndex:999,display:'flex',alignItems:'flex-end',justifyContent:'center'}}>
-      <div style={{background:'#fff',borderRadius:'20px 20px 0 0',width:'100%',maxWidth:480,padding:'20px 16px 32px',maxHeight:'90vh',overflowY:'auto'}}>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
-          <div style={{fontWeight:900,fontSize:16,color:'#00313C'}}>➕ Cadastrar produto</div>
-          <button onClick={onClose} style={{background:'none',border:'none',fontSize:22,color:'#bbb',cursor:'pointer'}}>✕</button>
-        </div>
-
-        <label className="lbl">Nome do produto *</label>
-        <input className="field" placeholder="Ex: Kaiso Sorbie" value={name} onChange={e=>handleName(e.target.value)} style={{marginBottom:10}}/>
-
-        <label className="lbl">Classe (opcional)</label>
-        <input className="field" placeholder="Ex: Fungicida, Inseticida, Herbicida..." value={classe} onChange={e=>setClasse(e.target.value)} style={{marginBottom:14}}/>
-
-        <label className="lbl">Tipo de formulação * <span style={{color:'#A2B34C',fontWeight:600,textTransform:'none'}}>{type?`— ${TDesc[type]||''}`:''}</span></label>
-        <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:6,marginBottom:16}}>
-          {tipos.map(t=>(
-            <button key={t} onClick={()=>setType(t)} style={{padding:'10px 4px',borderRadius:12,border:'2px solid '+(type===t?FC[t]:'#eee'),background:type===t?FC[t]+'22':'#fafafa',fontWeight:800,fontSize:12,color:type===t?FC[t]:'#aaa',cursor:'pointer',display:'flex',flexDirection:'column',alignItems:'center',gap:3,transition:'all .15s'}}>
-              <span style={{fontSize:20}}>{FI[t]}</span>
-              <span>{t}</span>
-            </button>
-          ))}
-        </div>
-
-        {/* Guia rápido */}
-        <div style={{background:'#f8f8f8',borderRadius:10,padding:'10px 12px',marginBottom:14,fontSize:11,color:'#777'}}>
-          <div style={{fontWeight:800,color:'#555',marginBottom:5}}>💡 Como escolher o tipo:</div>
-          <div>• <b>WP/WG/SP</b> → pós e granulados que precisam pré-dissolver</div>
-          <div>• <b>SC/FS</b> → suspensões líquidas (aspecto cremoso)</div>
-          <div>• <b>EC/EW</b> → emulsões (aspecto oleoso)</div>
-          <div>• <b>SL</b> → soluções prontas (límpidas)</div>
-        </div>
-
-        <button className="btn" onClick={salvar} disabled={!name.trim()||!type}>
-          💾 Salvar produto
-        </button>
-        <div style={{fontSize:11,color:'#bbb',textAlign:'center',marginTop:8}}>Salvo neste dispositivo para uso futuro</div>
-      </div>
-    </div>
-  )
+  const TDesc = {
+    PH: 'Corretores de pH (ácidos, buffers)',
+    WP: 'Pós e granulados (WP, WG, SP)',
+    SC: 'Suspensões concentradas (SC, FS)',
+    EC: 'Emulsões (EC, EW)',
+    SL: 'Soluções líquidas (SL)',
+    FERT: 'Fertilizantes foliares',
+    DISP: 'Dispersante/espalhante (antes de WP e SC)',
+    OIL: 'Óleo mineral/vegetal (sempre por último)',
+    BIO: 'Produtos biológicos'
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'fixed',
+      inset: 0,
+      background: 'rgba(0,0,0,.6)',
+      zIndex: 999,
+      display: 'flex',
+      alignItems: 'flex-end',
+      justifyContent: 'center'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: '#fff',
+      borderRadius: '20px 20px 0 0',
+      width: '100%',
+      maxWidth: 480,
+      padding: '20px 16px 32px',
+      maxHeight: '90vh',
+      overflowY: 'auto'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 16
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: 900,
+      fontSize: 16,
+      color: '#00313C'
+    }
+  }, "\u2795 Cadastrar produto"), /*#__PURE__*/React.createElement("button", {
+    onClick: onClose,
+    style: {
+      background: 'none',
+      border: 'none',
+      fontSize: 22,
+      color: '#bbb',
+      cursor: 'pointer'
+    }
+  }, "\u2715")), /*#__PURE__*/React.createElement("label", {
+    className: "lbl"
+  }, "Nome do produto *"), /*#__PURE__*/React.createElement("input", {
+    className: "field",
+    placeholder: "Ex: Kaiso Sorbie",
+    value: name,
+    onChange: e => handleName(e.target.value),
+    style: {
+      marginBottom: 10
+    }
+  }), /*#__PURE__*/React.createElement("label", {
+    className: "lbl"
+  }, "Classe (opcional)"), /*#__PURE__*/React.createElement("input", {
+    className: "field",
+    placeholder: "Ex: Fungicida, Inseticida, Herbicida...",
+    value: classe,
+    onChange: e => setClasse(e.target.value),
+    style: {
+      marginBottom: 14
+    }
+  }), /*#__PURE__*/React.createElement("label", {
+    className: "lbl"
+  }, "Tipo de formula\xE7\xE3o * ", /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: '#A2B34C',
+      fontWeight: 600,
+      textTransform: 'none'
+    }
+  }, type ? `— ${TDesc[type] || ''}` : '')), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(4,1fr)',
+      gap: 6,
+      marginBottom: 16
+    }
+  }, tipos.map(t => /*#__PURE__*/React.createElement("button", {
+    key: t,
+    onClick: () => setType(t),
+    style: {
+      padding: '10px 4px',
+      borderRadius: 12,
+      border: '2px solid ' + (type === t ? FC[t] : '#eee'),
+      background: type === t ? FC[t] + '22' : '#fafafa',
+      fontWeight: 800,
+      fontSize: 12,
+      color: type === t ? FC[t] : '#aaa',
+      cursor: 'pointer',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      gap: 3,
+      transition: 'all .15s'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 20
+    }
+  }, FI[t]), /*#__PURE__*/React.createElement("span", null, t)))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: '#f8f8f8',
+      borderRadius: 10,
+      padding: '10px 12px',
+      marginBottom: 14,
+      fontSize: 11,
+      color: '#777'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: 800,
+      color: '#555',
+      marginBottom: 5
+    }
+  }, "\uD83D\uDCA1 Como escolher o tipo:"), /*#__PURE__*/React.createElement("div", null, "\u2022 ", /*#__PURE__*/React.createElement("b", null, "WP/WG/SP"), " \u2192 p\xF3s e granulados que precisam pr\xE9-dissolver"), /*#__PURE__*/React.createElement("div", null, "\u2022 ", /*#__PURE__*/React.createElement("b", null, "SC/FS"), " \u2192 suspens\xF5es l\xEDquidas (aspecto cremoso)"), /*#__PURE__*/React.createElement("div", null, "\u2022 ", /*#__PURE__*/React.createElement("b", null, "EC/EW"), " \u2192 emuls\xF5es (aspecto oleoso)"), /*#__PURE__*/React.createElement("div", null, "\u2022 ", /*#__PURE__*/React.createElement("b", null, "SL"), " \u2192 solu\xE7\xF5es prontas (l\xEDmpidas)")), /*#__PURE__*/React.createElement("button", {
+    className: "btn",
+    onClick: salvar,
+    disabled: !name.trim() || !type
+  }, "\uD83D\uDCBE Salvar produto"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: '#bbb',
+      textAlign: 'center',
+      marginTop: 8
+    }
+  }, "Salvo neste dispositivo para uso futuro")));
 }
-
-function ProductPicker({onAdd}){
-  const[search,setSearch]=useState('')
-  const[picking,setPicking]=useState(null)
-  const[doseVal,setDoseVal]=useState('')
-  const[doseUnit,setDoseUnit]=useState('L/ha')
-  const[showNewModal,setShowNewModal]=useState(false)
-  const[newProductName,setNewProductName]=useState('')
-  const[allProducts,setAllProducts]=useState(()=>getAllProducts())
-  const inputRef=useRef(null)
-
-  const filtered=useMemo(()=>{
-    if(!search.trim()) return []
-    const q=nrm(search)
-    return allProducts.filter(p=>nrm(p.name).includes(q)||nrm(FL[p.type]||'').includes(q)).slice(0,8)
-  },[search,allProducts])
-
-  const selectProduct=(p)=>{
-    setPicking(p)
-    setSearch('')
-    setDoseVal('')
-    setDoseUnit('L/ha')
-    setTimeout(()=>document.getElementById('dose-input')?.focus(),100)
-  }
-
-  const openNewModal=()=>{
-    setNewProductName(search.trim())
-    setShowNewModal(true)
-    setSearch('')
-  }
-
-  const handleNewProductSaved=(p)=>{
-    setAllProducts(getAllProducts())
-    setShowNewModal(false)
-    selectProduct(p)
-  }
-
-  const confirm=()=>{
-    if(!picking) return
-    const dose=doseVal.trim()?(doseVal.trim().replace(',','.')+' '+doseUnit):''
-    onAdd({name:picking.name,nameKey:picking.nameKey,type:picking.type,dose})
-    setPicking(null)
-    setSearch('')
-    setTimeout(()=>inputRef.current?.focus(),50)
-  }
-
-  return(
-    <div>
-      {showNewModal&&<NewProductModal productName={newProductName} onSave={handleNewProductSaved} onClose={()=>setShowNewModal(false)}/>}
-
-      {/* Campo de busca */}
-      {!picking&&(
-        <div style={{position:'relative'}}>
-          <input
-            ref={inputRef}
-            className="field"
-            placeholder="🔍 Buscar produto... (ex: Priori, Nimbus, Dithane)"
-            value={search}
-            onChange={e=>setSearch(e.target.value)}
-            autoComplete="off"
-          />
-          {search.trim()&&(
-            <div style={{position:'absolute',top:'100%',left:0,right:0,background:'#fff',border:'1.5px solid #006E85',borderRadius:12,zIndex:100,boxShadow:'0 8px 24px rgba(0,0,0,.15)',overflow:'hidden',marginTop:4}}>
-              {filtered.map((p,i)=>(
-                <div key={i} onClick={()=>selectProduct(p)} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px',borderBottom:'1px solid #f5f5f5',cursor:'pointer',background:'#fff'}}
-                  onMouseEnter={e=>e.currentTarget.style.background='#f0f8fa'}
-                  onMouseLeave={e=>e.currentTarget.style.background='#fff'}>
-                  <span style={{fontSize:18}}>{FI[p.type]}</span>
-                  <div style={{flex:1}}>
-                    <div style={{fontWeight:700,fontSize:14}}>{p.name}{p.custom&&<span style={{fontSize:10,marginLeft:6,color:'#A2B34C',fontWeight:800}}>★ MEU</span>}</div>
-                    <div style={{fontSize:11,color:'#999'}}>{FL[p.type]}</div>
-                  </div>
-                  <span style={{fontSize:11,fontWeight:800,color:'#fff',background:FC[p.type],padding:'2px 8px',borderRadius:20}}>{p.type}</span>
-                </div>
-              ))}
-              {/* Botão cadastrar novo */}
-              <div onClick={openNewModal} style={{display:'flex',alignItems:'center',gap:10,padding:'11px 12px',cursor:'pointer',background:'#fffdf5',borderTop:'1px solid #f5f5f5'}}>
-                <span style={{fontSize:18,background:'#A2B34C',borderRadius:'50%',width:28,height:28,display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontWeight:900,fontSize:16,flexShrink:0}}>+</span>
-                <div>
-                  <div style={{fontWeight:800,fontSize:13,color:'#00313C'}}>Cadastrar "{search.trim()}"</div>
-                  <div style={{fontSize:11,color:'#A2B34C',fontWeight:600}}>Identificar características com IA</div>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Painel de dose após seleção */}
-      {picking&&(
-        <div style={{background:'#e0f4f7',borderRadius:12,padding:'12px 14px',border:'2px solid #006E85'}}>
-          <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:10}}>
-            <span style={{fontSize:22}}>{FI[picking.type]}</span>
-            <div style={{flex:1}}>
-              <div style={{fontWeight:800,fontSize:15}}>{picking.name}</div>
-              <span style={{fontSize:11,fontWeight:800,color:'#fff',background:FC[picking.type],padding:'2px 8px',borderRadius:20}}>{FL[picking.type]}</span>
-            </div>
-            <button onClick={()=>setPicking(null)} style={{background:'none',border:'none',color:'#999',fontSize:20,cursor:'pointer',padding:0}}>✕</button>
-          </div>
-          <label className="lbl">Dose (opcional)</label>
-          <div style={{display:'flex',gap:8}}>
-            <input
-              id="dose-input"
-              className="field"
-              type="number"
-              placeholder="Ex: 0,4"
-              value={doseVal}
-              onChange={e=>setDoseVal(e.target.value)}
-              style={{flex:1}}
-              onKeyDown={e=>e.key==='Enter'&&confirm()}
-            />
-            <select
-              className="field"
-              value={doseUnit}
-              onChange={e=>setDoseUnit(e.target.value)}
-              style={{flex:1.2,appearance:'none',paddingRight:8}}
-            >
-              {DOSE_UNITS.map(u=><option key={u} value={u}>{u}</option>)}
-            </select>
-          </div>
-          <button className="btn" style={{marginTop:10}} onClick={confirm}>
-            ✅ Adicionar à mistura
-          </button>
-        </div>
-      )}
-    </div>
-  )
+function ProductPicker({
+  onAdd
+}) {
+  const [search, setSearch] = useState('');
+  const [picking, setPicking] = useState(null);
+  const [doseVal, setDoseVal] = useState('');
+  const [doseUnit, setDoseUnit] = useState('L/ha');
+  const [showNewModal, setShowNewModal] = useState(false);
+  const [newProductName, setNewProductName] = useState('');
+  const [allProducts, setAllProducts] = useState(() => getAllProducts());
+  const inputRef = useRef(null);
+  const filtered = useMemo(() => {
+    if (!search.trim()) return [];
+    const q = nrm(search);
+    return allProducts.filter(p => nrm(p.name).includes(q) || nrm(FL[p.type] || '').includes(q)).slice(0, 8);
+  }, [search, allProducts]);
+  const selectProduct = p => {
+    setPicking(p);
+    setSearch('');
+    setDoseVal('');
+    setDoseUnit('L/ha');
+    setTimeout(() => document.getElementById('dose-input')?.focus(), 100);
+  };
+  const openNewModal = () => {
+    setNewProductName(search.trim());
+    setShowNewModal(true);
+    setSearch('');
+  };
+  const handleNewProductSaved = p => {
+    setAllProducts(getAllProducts());
+    setShowNewModal(false);
+    selectProduct(p);
+  };
+  const confirm = () => {
+    if (!picking) return;
+    const dose = doseVal.trim() ? doseVal.trim().replace(',', '.') + ' ' + doseUnit : '';
+    onAdd({
+      name: picking.name,
+      nameKey: picking.nameKey,
+      type: picking.type,
+      dose
+    });
+    setPicking(null);
+    setSearch('');
+    setTimeout(() => inputRef.current?.focus(), 50);
+  };
+  return /*#__PURE__*/React.createElement("div", null, showNewModal && /*#__PURE__*/React.createElement(NewProductModal, {
+    productName: newProductName,
+    onSave: handleNewProductSaved,
+    onClose: () => setShowNewModal(false)
+  }), !picking && /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'relative'
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    ref: inputRef,
+    className: "field",
+    placeholder: "\uD83D\uDD0D Buscar produto... (ex: Priori, Nimbus, Dithane)",
+    value: search,
+    onChange: e => setSearch(e.target.value),
+    autoComplete: "off"
+  }), search.trim() && /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'absolute',
+      top: '100%',
+      left: 0,
+      right: 0,
+      background: '#fff',
+      border: '1.5px solid #006E85',
+      borderRadius: 12,
+      zIndex: 100,
+      boxShadow: '0 8px 24px rgba(0,0,0,.15)',
+      overflow: 'hidden',
+      marginTop: 4
+    }
+  }, filtered.map((p, i) => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    onClick: () => selectProduct(p),
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      padding: '10px 12px',
+      borderBottom: '1px solid #f5f5f5',
+      cursor: 'pointer',
+      background: '#fff'
+    },
+    onMouseEnter: e => e.currentTarget.style.background = '#f0f8fa',
+    onMouseLeave: e => e.currentTarget.style.background = '#fff'
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 18
+    }
+  }, FI[p.type]), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: 700,
+      fontSize: 14
+    }
+  }, p.name, p.custom && /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 10,
+      marginLeft: 6,
+      color: '#A2B34C',
+      fontWeight: 800
+    }
+  }, "\u2605 MEU")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: '#999'
+    }
+  }, FL[p.type])), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
+      fontWeight: 800,
+      color: '#fff',
+      background: FC[p.type],
+      padding: '2px 8px',
+      borderRadius: 20
+    }
+  }, p.type))), /*#__PURE__*/React.createElement("div", {
+    onClick: openNewModal,
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      padding: '11px 12px',
+      cursor: 'pointer',
+      background: '#fffdf5',
+      borderTop: '1px solid #f5f5f5'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 18,
+      background: '#A2B34C',
+      borderRadius: '50%',
+      width: 28,
+      height: 28,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      color: '#fff',
+      fontWeight: 900,
+      fontSize: 16,
+      flexShrink: 0
+    }
+  }, "+"), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: 800,
+      fontSize: 13,
+      color: '#00313C'
+    }
+  }, "Cadastrar \"", search.trim(), "\""), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: '#A2B34C',
+      fontWeight: 600
+    }
+  }, "Identificar caracter\xEDsticas com IA"))))), picking && /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: '#e0f4f7',
+      borderRadius: 12,
+      padding: '12px 14px',
+      border: '2px solid #006E85'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      marginBottom: 10
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 22
+    }
+  }, FI[picking.type]), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: 800,
+      fontSize: 15
+    }
+  }, picking.name), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
+      fontWeight: 800,
+      color: '#fff',
+      background: FC[picking.type],
+      padding: '2px 8px',
+      borderRadius: 20
+    }
+  }, FL[picking.type])), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setPicking(null),
+    style: {
+      background: 'none',
+      border: 'none',
+      color: '#999',
+      fontSize: 20,
+      cursor: 'pointer',
+      padding: 0
+    }
+  }, "\u2715")), /*#__PURE__*/React.createElement("label", {
+    className: "lbl"
+  }, "Dose (opcional)"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    id: "dose-input",
+    className: "field",
+    type: "number",
+    placeholder: "Ex: 0,4",
+    value: doseVal,
+    onChange: e => setDoseVal(e.target.value),
+    style: {
+      flex: 1
+    },
+    onKeyDown: e => e.key === 'Enter' && confirm()
+  }), /*#__PURE__*/React.createElement("select", {
+    className: "field",
+    value: doseUnit,
+    onChange: e => setDoseUnit(e.target.value),
+    style: {
+      flex: 1.2,
+      appearance: 'none',
+      paddingRight: 8
+    }
+  }, DOSE_UNITS.map(u => /*#__PURE__*/React.createElement("option", {
+    key: u,
+    value: u
+  }, u)))), /*#__PURE__*/React.createElement("button", {
+    className: "btn",
+    style: {
+      marginTop: 10
+    },
+    onClick: confirm
+  }, "\u2705 Adicionar \xE0 mistura")));
 }
-
-function NewLotScreen({onBack,onSaved}){
-  const[farm,setFarm]=useState('')
-  const[field,setField]=useState('')
-  const[vol,setVol]=useState('')
-  const[area,setArea]=useState('')
-  const[selectedProducts,setSelectedProducts]=useState([]) // [{name,type,dose}]
-  const[saving,setSaving]=useState(false)
-  const[err,setErr]=useState('')
-
-  const areaNum=parseFloat(area)||0
+function NewLotScreen({
+  onBack,
+  onSaved
+}) {
+  const [farm, setFarm] = useState('');
+  const [field, setField] = useState('');
+  const [vol, setVol] = useState('');
+  const [area, setArea] = useState('');
+  const [selectedProducts, setSelectedProducts] = useState([]); // [{name,type,dose}]
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState('');
+  const areaNum = parseFloat(area) || 0;
 
   // Monta recipe_text já na ordem correta de adição (por tipo)
-  const recipeText=useMemo(()=>
-    [...selectedProducts].sort((a,b)=>(ORD[a.type]||9)-(ORD[b.type]||9))
-      .map(p=>p.dose?`${p.name} ${p.dose}`:p.name).join(' + ')
-  ,[selectedProducts])
+  const recipeText = useMemo(() => [...selectedProducts].sort((a, b) => (ORD[a.type] || 9) - (ORD[b.type] || 9)).map(p => p.dose ? `${p.name} ${p.dose}` : p.name).join(' + '), [selectedProducts]);
 
   // Ordena por tipo (ordem de adição) para exibição
-  const sortedProducts=useMemo(()=>[...selectedProducts].sort((a,b)=>(ORD[a.type]||9)-(ORD[b.type]||9)),[selectedProducts])
-  const incompats=useMemo(()=>detectIncompat(sortedProducts),[sortedProducts])
-
-  const addProduct=(p)=>{
-    setSelectedProducts(prev=>[...prev,p])
-    setErr('')
-  }
-
-  const removeProduct=(idx)=>{
-    setSelectedProducts(prev=>prev.filter((_,i)=>i!==idx))
-  }
-
-  const moveUp=(idx)=>{
-    if(idx===0) return
-    setSelectedProducts(prev=>{const a=[...prev];[a[idx-1],a[idx]]=[a[idx],a[idx-1]];return a})
-  }
-
-  const save=async(goWater)=>{
-    if(!farm.trim()){setErr('Informe a fazenda');return}
-    if(!field.trim()){setErr('Informe o talhão');return}
-    if(!vol){setErr('Informe o volume');return}
-    setSaving(true)
-    const lot={id:uid(),created_at:Date.now(),farm:farm.trim(),field:field.trim(),
-      volume_liters:parseFloat(vol),area_ha:areaNum||undefined,
-      recipe_text:recipeText,status:'REQUESTED'}
-    await insert('lots',lot)
-    setSaving(false)
-    onSaved(lot,goWater)
-  }
-
-  return(
-    <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
-      <Hdr title="Nova Mistura" onBack={onBack}/>
-      <div className="sc" style={{flex:1,padding:12,paddingBottom:100}}>
-
-        {/* Alerta incompatibilidade */}
-        {incompats.length>0&&(
-          <div style={{background:'#c62828',borderRadius:14,padding:'12px 14px',marginBottom:10}}>
-            <div style={{fontWeight:900,fontSize:14,color:'#fff',marginBottom:8}}>⛔ Incompatibilidade detectada!</div>
-            {incompats.map((inc,i)=>(
-              <div key={i} style={{background:'rgba(255,255,255,.15)',borderRadius:10,padding:'9px 11px',marginBottom:6}}>
-                <div style={{fontWeight:800,fontSize:13,color:'#fff',marginBottom:2}}>{inc.icon} {inc.title}</div>
-                <div style={{fontSize:12,color:'rgba(255,255,255,.9)',marginBottom:3}}>{inc.msg}</div>
-                <div style={{fontSize:12,color:'#ffcc80',fontWeight:700}}>✅ {inc.rec}</div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Identificação */}
-        <div className="card">
-          <div style={{fontWeight:800,fontSize:13,color:'#00313C',marginBottom:10}}>📍 Identificação</div>
-          <label className="lbl">Fazenda *</label>
-          <input className="field" placeholder="Ex: Fazenda São João" value={farm} onChange={e=>setFarm(e.target.value)} style={{marginBottom:10}}/>
-          <label className="lbl">Talhão *</label>
-          <input className="field" placeholder="Ex: Talhão 5 – Soja" value={field} onChange={e=>setField(e.target.value)}/>
-        </div>
-
-        {/* Volume e área */}
-        <div className="card">
-          <div style={{fontWeight:800,fontSize:13,color:'#00313C',marginBottom:10}}>⚗️ Calda</div>
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-            <div><label className="lbl">Volume (L) *</label><input className="field" type="number" placeholder="Ex: 4000" value={vol} onChange={e=>setVol(e.target.value)}/></div>
-            <div><label className="lbl">Área (ha)</label><input className="field" type="number" placeholder="Opcional" value={area} onChange={e=>setArea(e.target.value)}/></div>
-          </div>
-          {areaNum>0&&<div style={{background:'#e0f4f7',borderRadius:8,padding:'7px 12px',fontSize:12,fontWeight:700,color:'#006E85',marginTop:10}}>📐 Área: {areaNum} ha — totais calculados automaticamente</div>}
-        </div>
-
-        {/* Seletor de produtos */}
-        <div className="card">
-          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
-            <div style={{fontWeight:800,fontSize:13,color:'#00313C'}}>🧴 Produtos da mistura</div>
-            {selectedProducts.length>0&&<span style={{fontSize:12,fontWeight:700,color:'#006E85'}}>{selectedProducts.length} produto{selectedProducts.length>1?'s':''}</span>}
-          </div>
-
-          <ProductPicker onAdd={addProduct}/>
-
-          {/* Lista de produtos selecionados */}
-          {sortedProducts.length>0&&(
-            <div style={{marginTop:12}}>
-              <div style={{fontSize:11,fontWeight:700,color:'#999',textTransform:'uppercase',marginBottom:8,letterSpacing:.5}}>Ordem de adição ao tanque</div>
-              {sortedProducts.map((p,i)=>{
-                const origIdx=selectedProducts.indexOf(p)
-                const total=areaNum>0&&p.dose?calcTotal(p.dose,areaNum):null
-                return(
-                  <div key={i} style={{display:'flex',alignItems:'center',gap:8,padding:'9px 10px',background:'#f8f8f8',borderRadius:10,marginBottom:6}}>
-                    <div style={{width:24,height:24,borderRadius:'50%',background:'#00313C',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:900,fontSize:11,flexShrink:0}}>{i+1}</div>
-                    <span style={{fontSize:18,flexShrink:0}}>{FI[p.type]}</span>
-                    <div style={{flex:1,minWidth:0}}>
-                      <div style={{fontWeight:700,fontSize:13,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{p.name}</div>
-                      <div style={{display:'flex',gap:6,alignItems:'center',marginTop:2,flexWrap:'wrap'}}>
-                        <span style={{fontSize:10,fontWeight:800,color:'#fff',background:FC[p.type],padding:'1px 7px',borderRadius:20}}>{FL[p.type]}</span>
-                        {p.dose&&<span style={{fontSize:11,color:'#777'}}>{p.dose}</span>}
-                        {total&&<span style={{fontSize:10,fontWeight:800,color:'#006E85',background:'#e0f4f7',padding:'1px 7px',borderRadius:20}}>= {total}</span>}
-                      </div>
-                    </div>
-                    <button onClick={()=>removeProduct(origIdx)} style={{background:'none',border:'none',color:'#e57373',fontSize:18,cursor:'pointer',padding:'2px 4px',flexShrink:0}}>✕</button>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-
-          {selectedProducts.length===0&&(
-            <div style={{textAlign:'center',padding:'16px 0',color:'#bbb',fontSize:13}}>
-              Nenhum produto adicionado ainda
-            </div>
-          )}
-        </div>
-
-        {err&&<div style={{background:'#ffebee',color:'#c62828',padding:'9px 12px',borderRadius:10,fontSize:13,fontWeight:700,marginBottom:8}}>⚠️ {err}</div>}
-      </div>
-
-      <div style={{padding:'10px 12px 16px',background:'#fff',borderTop:'1px solid #eee',display:'flex',flexDirection:'column',gap:8,flexShrink:0}}>
-        <button className="btn" onClick={()=>save(true)} disabled={saving}>{saving?'Salvando...':'Salvar e Analisar Água →'}</button>
-        <button className="btn-ghost" onClick={()=>save(false)} disabled={saving}>💾 Salvar e criar outra mistura</button>
-        <button className="btn-ghost" onClick={onBack} style={{color:'#bbb',borderColor:'#f0f0f0'}}>Cancelar</button>
-      </div>
-    </div>
-  )
-}
-
-function WaterScreen({lot,onBack,onDone}){
-  const[ph,setPh]=useState('6.5')
-  const[temp,setTemp]=useState('22')
-  const[cond,setCond]=useState('')
-  const[saving,setSaving]=useState(false)
-  const phN=parseFloat(ph)||0,tempN=parseFloat(temp)||0,condN=parseFloat(cond)||undefined
-  const phE=evalPH(phN),tempE=evalTemp(tempN),condE=evalCond(condN)
-  const overall=[phE,tempE,...(condN?[condE]:[])].includes('Risco')?'Risco':[phE,tempE,...(condN?[condE]:[])].includes('Atenção')?'Atenção':'OK'
-  const save=async()=>{
-    setSaving(true)
-    const t={id:uid(),lot_id:lot.id,ph:phN,temp_c:tempN,conductivity:condN,evaluation:overall,created_at:Date.now()}
-    await dbInsert('telem',t)
-    await dbUpdate('lots',lot.id,{status:'WATER_OK',last_ph:phN,last_temp_c:tempN})
-    setSaving(false)
-    onDone({...lot,status:'WATER_OK',last_ph:phN},t)
-  }
-  return(
-    <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
-      <Hdr title="💧 Qualidade da Água" onBack={onBack}/>
-      <div className="sc" style={{flex:1,padding:12,paddingBottom:100}}>
-        <div style={{background:'#e0f4f7',borderRadius:10,padding:'7px 12px',fontSize:12,fontWeight:700,color:'#006E85',marginBottom:10}}>{lot.farm} — {lot.field} · {lot.volume_liters}L</div>
-        <div className="card">
-          <div style={{fontWeight:800,fontSize:13,color:'#00313C',marginBottom:10}}>Medições</div>
-          <label className="lbl">pH <span style={{color:'#bbb',textTransform:'none',fontWeight:400,letterSpacing:0}}>(ideal: 5,5–6,5)</span></label>
-          <input className="field" type="number" step="0.1" min="0" max="14" value={ph} onChange={e=>setPh(e.target.value)} style={{marginBottom:10}}/>
-          <label className="lbl">Temperatura °C <span style={{color:'#bbb',textTransform:'none',fontWeight:400,letterSpacing:0}}>(ideal: 10–25)</span></label>
-          <input className="field" type="number" step="0.5" value={temp} onChange={e=>setTemp(e.target.value)} style={{marginBottom:10}}/>
-          <label className="lbl">Condutividade µS/cm <span style={{color:'#bbb',textTransform:'none',fontWeight:400,letterSpacing:0}}>(opcional, ideal: &lt;200)</span></label>
-          <input className="field" type="number" placeholder="Ex: 155" value={cond} onChange={e=>setCond(e.target.value)}/>
-        </div>
-        <div className="card" style={{borderLeft:`4px solid ${EC[overall]}`,background:EB[overall]}}>
-          <div style={{display:'flex',justifyContent:'space-between',marginBottom:10}}>
-            <span style={{fontWeight:800,fontSize:13}}>Resultado</span>
-            <span style={{fontWeight:800,fontSize:14,color:EC[overall]}}>{overall}</span>
-          </div>
-          {[['pH',phN.toFixed(1),phE],['Temperatura',`${tempN}°C`,tempE],...(condN?[['Condutividade',`${condN} µS/cm`,condE]]:[])] .map(([l,v,e])=>(
-            <div key={l} style={{display:'flex',justifyContent:'space-between',padding:'7px 0',borderTop:'1px solid rgba(0,0,0,.06)'}}>
-              <span style={{fontSize:13,color:'#555'}}>{l}</span>
-              <div style={{display:'flex',alignItems:'center',gap:8}}><span style={{fontWeight:800,fontSize:13}}>{v}</span><span style={{fontSize:11,fontWeight:700,color:EC[e]}}>{e}</span></div>
-            </div>
-          ))}
-        </div>
-        {phE!=='OK'&&(
-          <div className="card" style={{borderLeft:'4px solid #1565C0',background:'#e3f2fd'}}>
-            <div style={{fontWeight:800,fontSize:13,color:'#1565C0',marginBottom:6}}>💡 Sugestão de correção de pH</div>
-            {phN>6.5&&<div style={{fontSize:12,color:'#0d47a1'}}>pH alto → <b>Ácido cítrico</b>: 0,5–1,0 g por 100L para cada unidade de pH a reduzir.<br/><span style={{color:'#1976d2'}}>Alternativa: pH Down comercial (1–5 mL/100L)</span></div>}
-            {phN<5.5&&<div style={{fontSize:12,color:'#0d47a1'}}>pH baixo → <b>Bicarbonato de sódio</b>: 0,5–1,0 g/100L. Meça novamente antes de continuar.</div>}
-          </div>
-        )}
-      </div>
-      <div style={{padding:'10px 12px 16px',background:'#fff',borderTop:'1px solid #eee',flexShrink:0}}>
-        <button className="btn" onClick={save} disabled={saving}>{saving?'Salvando...':'Salvar e Continuar →'}</button>
-      </div>
-    </div>
-  )
-}
-
-function PrepScreen({lot,onBack,onDone}){
-  const products=useMemo(()=>{
-    const parsed=parseRecipe(lot.recipe_text||'')
-    return [...parsed].sort((a,b)=>(ORD[a.type]||9)-(ORD[b.type]||9))
-  },[lot.recipe_text])
-  const steps=useMemo(()=>{
-    const s=[{icon:'💧',title:'Encher tanque a 50–75%',detail:'Adicione água limpa e ligue o agitador antes de qualquer produto.',fixed:true,timer:null}]
-    products.forEach(p=>s.push({icon:FI[p.type],title:`Adicionar: ${p.name}`,dose:p.dose,sub:FL[p.type],color:FC[p.type],detail:FT[p.type],timer:FTm[p.type],fixed:false}))
-    s.push({icon:'💧',title:'Completar volume',detail:'Adicione água até o volume total. Mantenha agitação constante.',fixed:true,timer:null})
-    s.push({icon:'🔍',title:'Verificar aspecto final',detail:'Observe cor, homogeneidade e ausência de grumos. Pronto para Jar Test!',fixed:true,timer:null})
-    return s
-  },[products])
-  const[cur,setCur]=useState(0)
-  const[done,setDone]=useState(new Set())
-  const[saving,setSaving]=useState(false)
-  const s=steps[cur]
-  const pct=Math.round(((cur+1)/steps.length)*100)
-  const next=async()=>{
-    setDone(prev=>new Set([...prev,cur]))
-    if(cur<steps.length-1){ setCur(c=>c+1) }
-    else{
-      setSaving(true)
-      await dbUpdate('lots',lot.id,{status:'JAR_TEST'})
-      setSaving(false)
-      onDone({...lot,status:'JAR_TEST'})
+  const sortedProducts = useMemo(() => [...selectedProducts].sort((a, b) => (ORD[a.type] || 9) - (ORD[b.type] || 9)), [selectedProducts]);
+  const incompats = useMemo(() => detectIncompat(sortedProducts), [sortedProducts]);
+  const addProduct = p => {
+    setSelectedProducts(prev => [...prev, p]);
+    setErr('');
+  };
+  const removeProduct = idx => {
+    setSelectedProducts(prev => prev.filter((_, i) => i !== idx));
+  };
+  const moveUp = idx => {
+    if (idx === 0) return;
+    setSelectedProducts(prev => {
+      const a = [...prev];
+      [a[idx - 1], a[idx]] = [a[idx], a[idx - 1]];
+      return a;
+    });
+  };
+  const save = async goWater => {
+    if (!farm.trim()) {
+      setErr('Informe a fazenda');
+      return;
     }
-  }
-  return(
-    <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
-      <div style={{background:'#00313C',padding:'14px 16px 18px',flexShrink:0}}>
-        <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:10}}>
-          <button onClick={onBack} style={{background:'none',border:'none',color:'#7EC8D8',fontSize:26,fontWeight:900,cursor:'pointer',padding:0}}>‹</button>
-          <span style={{color:'#fff',fontWeight:800,fontSize:16,flex:1}}>Guia de Preparo</span>
-          <span style={{color:'#7EC8D8',fontSize:12,fontWeight:700}}>{cur+1}/{steps.length}</span>
-        </div>
-        <div style={{height:4,background:'rgba(255,255,255,.2)',borderRadius:4,overflow:'hidden'}}><div style={{height:'100%',background:'#7EC8D8',width:`${pct}%`,transition:'width .3s'}}/></div>
-        <div style={{display:'flex',justifyContent:'center',gap:5,marginTop:8,flexWrap:'wrap'}}>
-          {steps.map((_,i)=><div key={i} style={{width:7,height:7,borderRadius:'50%',background:done.has(i)?'#7EC8D8':i===cur?'#fff':'rgba(255,255,255,.25)'}}/>)}
-        </div>
-      </div>
-      <div className="sc" style={{flex:1,padding:12,paddingBottom:100}}>
-        <div className="card" style={{textAlign:'center',padding:20}}>
-          <div style={{fontSize:46,marginBottom:8}}>{s.icon}</div>
-          <div style={{fontSize:17,fontWeight:900,marginBottom:10}}>{s.title}</div>
-          {!s.fixed&&(
-            <div style={{textAlign:'left',marginBottom:10}}>
-              <span style={{fontSize:11,fontWeight:800,color:'#fff',background:s.color,padding:'3px 10px',borderRadius:20,display:'inline-block',marginBottom:8}}>{s.sub}</span>
-              {s.dose&&<div style={{background:'#e0f4f7',borderRadius:8,padding:'7px 12px',fontSize:13,fontWeight:700,color:'#006E85',marginBottom:8}}>📏 Dose: {s.dose}</div>}
-            </div>
-          )}
-          <div style={{background:'#f5f5f5',borderRadius:10,padding:'9px 13px',fontSize:13,color:'#555',textAlign:'left'}}>{s.detail}</div>
-          {s.timer&&<Timer key={cur} seconds={s.timer}/>}
-        </div>
-        {cur<steps.length-1&&(
-          <div className="card" style={{display:'flex',alignItems:'center',gap:10,padding:'10px 14px'}}>
-            <span style={{fontSize:11,color:'#bbb',fontWeight:700,flexShrink:0}}>A SEGUIR →</span>
-            <span style={{fontSize:16,flexShrink:0}}>{steps[cur+1].icon}</span>
-            <span style={{fontSize:13,fontWeight:700,color:'#555',flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{steps[cur+1].title.replace('Adicionar: ','')}</span>
-          </div>
-        )}
-        <div className="card">
-          <div style={{fontSize:11,fontWeight:700,color:'#999',textTransform:'uppercase',marginBottom:8}}>Checklist ({done.size}/{steps.length})</div>
-          {steps.map((st,i)=>(
-            <div key={i} style={{display:'flex',alignItems:'center',gap:8,padding:'5px 8px',borderRadius:8,background:i===cur?'#e0f4f7':'transparent',marginBottom:2}}>
-              <span style={{fontSize:13}}>{done.has(i)?'✅':i===cur?'👉':'⬜'}</span>
-              <span style={{fontSize:12,fontWeight:700,color:done.has(i)?'#bbb':'#333',textDecoration:done.has(i)?'line-through':'none'}}>{st.title.replace('Adicionar: ','')}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-      <div style={{padding:'10px 12px 16px',background:'#fff',borderTop:'1px solid #eee',display:'flex',flexDirection:'column',gap:8,flexShrink:0}}>
-        <button className="btn" onClick={next} disabled={saving}>{saving?'Salvando...':cur===steps.length-1?'✅ Concluir → Jar Test':`Etapa ${cur+1} ✓ → Próxima`}</button>
-        {cur>0&&<button className="btn-ghost" onClick={()=>setCur(c=>c-1)}>← Voltar etapa</button>}
-      </div>
-    </div>
-  )
+    if (!field.trim()) {
+      setErr('Informe o talhão');
+      return;
+    }
+    if (!vol) {
+      setErr('Informe o volume');
+      return;
+    }
+    setSaving(true);
+    const lot = {
+      id: uid(),
+      created_at: Date.now(),
+      farm: farm.trim(),
+      field: field.trim(),
+      volume_liters: parseFloat(vol),
+      area_ha: areaNum || undefined,
+      recipe_text: recipeText,
+      status: 'REQUESTED'
+    };
+    await insert('lots', lot);
+    setSaving(false);
+    onSaved(lot, goWater);
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden'
+    }
+  }, /*#__PURE__*/React.createElement(Hdr, {
+    title: "Nova Mistura",
+    onBack: onBack
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "sc",
+    style: {
+      flex: 1,
+      padding: 12,
+      paddingBottom: 100
+    }
+  }, incompats.length > 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: '#c62828',
+      borderRadius: 14,
+      padding: '12px 14px',
+      marginBottom: 10
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: 900,
+      fontSize: 14,
+      color: '#fff',
+      marginBottom: 8
+    }
+  }, "\u26D4 Incompatibilidade detectada!"), incompats.map((inc, i) => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    style: {
+      background: 'rgba(255,255,255,.15)',
+      borderRadius: 10,
+      padding: '9px 11px',
+      marginBottom: 6
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: 800,
+      fontSize: 13,
+      color: '#fff',
+      marginBottom: 2
+    }
+  }, inc.icon, " ", inc.title), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      color: 'rgba(255,255,255,.9)',
+      marginBottom: 3
+    }
+  }, inc.msg), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      color: '#ffcc80',
+      fontWeight: 700
+    }
+  }, "\u2705 ", inc.rec)))), /*#__PURE__*/React.createElement("div", {
+    className: "card"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: 800,
+      fontSize: 13,
+      color: '#00313C',
+      marginBottom: 10
+    }
+  }, "\uD83D\uDCCD Identifica\xE7\xE3o"), /*#__PURE__*/React.createElement("label", {
+    className: "lbl"
+  }, "Fazenda *"), /*#__PURE__*/React.createElement("input", {
+    className: "field",
+    placeholder: "Ex: Fazenda S\xE3o Jo\xE3o",
+    value: farm,
+    onChange: e => setFarm(e.target.value),
+    style: {
+      marginBottom: 10
+    }
+  }), /*#__PURE__*/React.createElement("label", {
+    className: "lbl"
+  }, "Talh\xE3o *"), /*#__PURE__*/React.createElement("input", {
+    className: "field",
+    placeholder: "Ex: Talh\xE3o 5 \u2013 Soja",
+    value: field,
+    onChange: e => setField(e.target.value)
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "card"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: 800,
+      fontSize: 13,
+      color: '#00313C',
+      marginBottom: 10
+    }
+  }, "\u2697\uFE0F Calda"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr',
+      gap: 10
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    className: "lbl"
+  }, "Volume (L) *"), /*#__PURE__*/React.createElement("input", {
+    className: "field",
+    type: "number",
+    placeholder: "Ex: 4000",
+    value: vol,
+    onChange: e => setVol(e.target.value)
+  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    className: "lbl"
+  }, "\xC1rea (ha)"), /*#__PURE__*/React.createElement("input", {
+    className: "field",
+    type: "number",
+    placeholder: "Opcional",
+    value: area,
+    onChange: e => setArea(e.target.value)
+  }))), areaNum > 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: '#e0f4f7',
+      borderRadius: 8,
+      padding: '7px 12px',
+      fontSize: 12,
+      fontWeight: 700,
+      color: '#006E85',
+      marginTop: 10
+    }
+  }, "\uD83D\uDCD0 \xC1rea: ", areaNum, " ha \u2014 totais calculados automaticamente")), /*#__PURE__*/React.createElement("div", {
+    className: "card"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 10
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: 800,
+      fontSize: 13,
+      color: '#00313C'
+    }
+  }, "\uD83E\uDDF4 Produtos da mistura"), selectedProducts.length > 0 && /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12,
+      fontWeight: 700,
+      color: '#006E85'
+    }
+  }, selectedProducts.length, " produto", selectedProducts.length > 1 ? 's' : '')), /*#__PURE__*/React.createElement(ProductPicker, {
+    onAdd: addProduct
+  }), sortedProducts.length > 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 12
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      fontWeight: 700,
+      color: '#999',
+      textTransform: 'uppercase',
+      marginBottom: 8,
+      letterSpacing: .5
+    }
+  }, "Ordem de adi\xE7\xE3o ao tanque"), sortedProducts.map((p, i) => {
+    const origIdx = selectedProducts.indexOf(p);
+    const total = areaNum > 0 && p.dose ? calcTotal(p.dose, areaNum) : null;
+    return /*#__PURE__*/React.createElement("div", {
+      key: i,
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        padding: '9px 10px',
+        background: '#f8f8f8',
+        borderRadius: 10,
+        marginBottom: 6
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        width: 24,
+        height: 24,
+        borderRadius: '50%',
+        background: '#00313C',
+        color: '#fff',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontWeight: 900,
+        fontSize: 11,
+        flexShrink: 0
+      }
+    }, i + 1), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 18,
+        flexShrink: 0
+      }
+    }, FI[p.type]), /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1,
+        minWidth: 0
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontWeight: 700,
+        fontSize: 13,
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis'
+      }
+    }, p.name), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        gap: 6,
+        alignItems: 'center',
+        marginTop: 2,
+        flexWrap: 'wrap'
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 10,
+        fontWeight: 800,
+        color: '#fff',
+        background: FC[p.type],
+        padding: '1px 7px',
+        borderRadius: 20
+      }
+    }, FL[p.type]), p.dose && /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 11,
+        color: '#777'
+      }
+    }, p.dose), total && /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 10,
+        fontWeight: 800,
+        color: '#006E85',
+        background: '#e0f4f7',
+        padding: '1px 7px',
+        borderRadius: 20
+      }
+    }, "= ", total))), /*#__PURE__*/React.createElement("button", {
+      onClick: () => removeProduct(origIdx),
+      style: {
+        background: 'none',
+        border: 'none',
+        color: '#e57373',
+        fontSize: 18,
+        cursor: 'pointer',
+        padding: '2px 4px',
+        flexShrink: 0
+      }
+    }, "\u2715"));
+  })), selectedProducts.length === 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: 'center',
+      padding: '16px 0',
+      color: '#bbb',
+      fontSize: 13
+    }
+  }, "Nenhum produto adicionado ainda")), err && /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: '#ffebee',
+      color: '#c62828',
+      padding: '9px 12px',
+      borderRadius: 10,
+      fontSize: 13,
+      fontWeight: 700,
+      marginBottom: 8
+    }
+  }, "\u26A0\uFE0F ", err)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '10px 12px 16px',
+      background: '#fff',
+      borderTop: '1px solid #eee',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 8,
+      flexShrink: 0
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn",
+    onClick: () => save(true),
+    disabled: saving
+  }, saving ? 'Salvando...' : 'Salvar e Analisar Água →'), /*#__PURE__*/React.createElement("button", {
+    className: "btn-ghost",
+    onClick: () => save(false),
+    disabled: saving
+  }, "\uD83D\uDCBE Salvar e criar outra mistura"), /*#__PURE__*/React.createElement("button", {
+    className: "btn-ghost",
+    onClick: onBack,
+    style: {
+      color: '#bbb',
+      borderColor: '#f0f0f0'
+    }
+  }, "Cancelar")));
 }
-
-const JAROPTS=[
-  {r:'ESTAVEL',icon:'✅',label:'Estável',desc:'Calda homogênea, sem precipitados.'},
-  {r:'SEPARACAO',icon:'⚠️',label:'Separação de fases',desc:'Óleo ou produto separou da fase aquosa.'},
-  {r:'SEDIMENTACAO',icon:'⚠️',label:'Sedimentação',desc:'Precipitado no fundo — pode entupir bicos.'},
-  {r:'ESPUMA',icon:'⚠️',label:'Espuma excessiva',desc:'Espuma persistente após agitação.'},
-  {r:'GEL',icon:'❌',label:'Virou gel',desc:'Gelatinização — mistura inaplicável.'},
-]
-function JarTestScreen({lot,onBack,onDone}){
-  const[sel,setSel]=useState('ESTAVEL')
-  const[notes,setNotes]=useState('')
-  const[saving,setSaving]=useState(false)
-  const save=async()=>{
-    setSaving(true)
-    const jt={id:uid(),lot_id:lot.id,result:sel,notes:notes.trim()||undefined,created_at:Date.now()}
-    await dbInsert('jars',jt)
-    await dbUpdate('lots',lot.id,{status:'READY'})
-    setSaving(false)
-    onDone({...lot,status:'READY'},jt)
-  }
-  return(
-    <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
-      <Hdr title="🧪 Jar Test" onBack={onBack}/>
-      <div className="sc" style={{flex:1,padding:12,paddingBottom:100}}>
-        <div className="card" style={{borderLeft:'4px solid #006E85',background:'#e0f4f7'}}>
-          <div style={{fontWeight:800,fontSize:13,color:'#006E85',marginBottom:6}}>Como realizar</div>
-          <div style={{fontSize:12,color:'#444',lineHeight:1.9}}>1. Encha um pote de 500 mL com amostra da mistura<br/>2. Agite vigorosamente por 30 segundos<br/>3. Deixe em repouso por 3 minutos<br/>4. Observe precipitação, separação, espuma e consistência</div>
-        </div>
-        <div style={{fontWeight:800,fontSize:13,marginBottom:8}}>Resultado observado</div>
-        {JAROPTS.map(opt=>(
-          <div key={opt.r} className="card" onClick={()=>setSel(opt.r)} style={{cursor:'pointer',display:'flex',alignItems:'center',gap:12,border:`2px solid ${sel===opt.r?'#006E85':'transparent'}`,background:sel===opt.r?'#e0f4f7':'#fff',marginBottom:8,padding:'11px 14px'}}>
-            <span style={{fontSize:22}}>{opt.icon}</span>
-            <div style={{flex:1}}><div style={{fontWeight:800,fontSize:13}}>{opt.label}</div><div style={{fontSize:11,color:'#777',marginTop:1}}>{opt.desc}</div></div>
-            {sel===opt.r&&<span style={{color:'#006E85',fontWeight:900,fontSize:18}}>✓</span>}
-          </div>
-        ))}
-        <div className="card">
-          <label className="lbl">Observações (opcional)</label>
-          <textarea className="field" rows={3} placeholder="Anote detalhes sobre a calda..." value={notes} onChange={e=>setNotes(e.target.value)} style={{resize:'none'}}/>
-        </div>
-      </div>
-      <div style={{padding:'10px 12px 16px',background:'#fff',borderTop:'1px solid #eee',flexShrink:0}}>
-        <button className="btn" onClick={save} disabled={saving}>{saving?'Salvando...':'💾 Salvar Jar Test'}</button>
-      </div>
-    </div>
-  )
+function WaterScreen({
+  lot,
+  onBack,
+  onDone
+}) {
+  const [ph, setPh] = useState('6.5');
+  const [temp, setTemp] = useState('22');
+  const [cond, setCond] = useState('');
+  const [saving, setSaving] = useState(false);
+  const phN = parseFloat(ph) || 0,
+    tempN = parseFloat(temp) || 0,
+    condN = parseFloat(cond) || undefined;
+  const phE = evalPH(phN),
+    tempE = evalTemp(tempN),
+    condE = evalCond(condN);
+  const overall = [phE, tempE, ...(condN ? [condE] : [])].includes('Risco') ? 'Risco' : [phE, tempE, ...(condN ? [condE] : [])].includes('Atenção') ? 'Atenção' : 'OK';
+  const save = async () => {
+    setSaving(true);
+    const t = {
+      id: uid(),
+      lot_id: lot.id,
+      ph: phN,
+      temp_c: tempN,
+      conductivity: condN,
+      evaluation: overall,
+      created_at: Date.now()
+    };
+    await dbInsert('telem', t);
+    await dbUpdate('lots', lot.id, {
+      status: 'WATER_OK',
+      last_ph: phN,
+      last_temp_c: tempN
+    });
+    setSaving(false);
+    onDone({
+      ...lot,
+      status: 'WATER_OK',
+      last_ph: phN
+    }, t);
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden'
+    }
+  }, /*#__PURE__*/React.createElement(Hdr, {
+    title: "\uD83D\uDCA7 Qualidade da \xC1gua",
+    onBack: onBack
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "sc",
+    style: {
+      flex: 1,
+      padding: 12,
+      paddingBottom: 100
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: '#e0f4f7',
+      borderRadius: 10,
+      padding: '7px 12px',
+      fontSize: 12,
+      fontWeight: 700,
+      color: '#006E85',
+      marginBottom: 10
+    }
+  }, lot.farm, " \u2014 ", lot.field, " \xB7 ", lot.volume_liters, "L"), /*#__PURE__*/React.createElement("div", {
+    className: "card"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: 800,
+      fontSize: 13,
+      color: '#00313C',
+      marginBottom: 10
+    }
+  }, "Medi\xE7\xF5es"), /*#__PURE__*/React.createElement("label", {
+    className: "lbl"
+  }, "pH ", /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: '#bbb',
+      textTransform: 'none',
+      fontWeight: 400,
+      letterSpacing: 0
+    }
+  }, "(ideal: 5,5\u20136,5)")), /*#__PURE__*/React.createElement("input", {
+    className: "field",
+    type: "number",
+    step: "0.1",
+    min: "0",
+    max: "14",
+    value: ph,
+    onChange: e => setPh(e.target.value),
+    style: {
+      marginBottom: 10
+    }
+  }), /*#__PURE__*/React.createElement("label", {
+    className: "lbl"
+  }, "Temperatura \xB0C ", /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: '#bbb',
+      textTransform: 'none',
+      fontWeight: 400,
+      letterSpacing: 0
+    }
+  }, "(ideal: 10\u201325)")), /*#__PURE__*/React.createElement("input", {
+    className: "field",
+    type: "number",
+    step: "0.5",
+    value: temp,
+    onChange: e => setTemp(e.target.value),
+    style: {
+      marginBottom: 10
+    }
+  }), /*#__PURE__*/React.createElement("label", {
+    className: "lbl"
+  }, "Condutividade \xB5S/cm ", /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: '#bbb',
+      textTransform: 'none',
+      fontWeight: 400,
+      letterSpacing: 0
+    }
+  }, "(opcional, ideal: <200)")), /*#__PURE__*/React.createElement("input", {
+    className: "field",
+    type: "number",
+    placeholder: "Ex: 155",
+    value: cond,
+    onChange: e => setCond(e.target.value)
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      borderLeft: `4px solid ${EC[overall]}`,
+      background: EB[overall]
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      marginBottom: 10
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontWeight: 800,
+      fontSize: 13
+    }
+  }, "Resultado"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontWeight: 800,
+      fontSize: 14,
+      color: EC[overall]
+    }
+  }, overall)), [['pH', phN.toFixed(1), phE], ['Temperatura', `${tempN}°C`, tempE], ...(condN ? [['Condutividade', `${condN} µS/cm`, condE]] : [])].map(([l, v, e]) => /*#__PURE__*/React.createElement("div", {
+    key: l,
+    style: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      padding: '7px 0',
+      borderTop: '1px solid rgba(0,0,0,.06)'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13,
+      color: '#555'
+    }
+  }, l), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontWeight: 800,
+      fontSize: 13
+    }
+  }, v), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
+      fontWeight: 700,
+      color: EC[e]
+    }
+  }, e))))), phE !== 'OK' && /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      borderLeft: '4px solid #1565C0',
+      background: '#e3f2fd'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: 800,
+      fontSize: 13,
+      color: '#1565C0',
+      marginBottom: 6
+    }
+  }, "\uD83D\uDCA1 Sugest\xE3o de corre\xE7\xE3o de pH"), phN > 6.5 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      color: '#0d47a1'
+    }
+  }, "pH alto \u2192 ", /*#__PURE__*/React.createElement("b", null, "\xC1cido c\xEDtrico"), ": 0,5\u20131,0 g por 100L para cada unidade de pH a reduzir.", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: '#1976d2'
+    }
+  }, "Alternativa: pH Down comercial (1\u20135 mL/100L)")), phN < 5.5 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      color: '#0d47a1'
+    }
+  }, "pH baixo \u2192 ", /*#__PURE__*/React.createElement("b", null, "Bicarbonato de s\xF3dio"), ": 0,5\u20131,0 g/100L. Me\xE7a novamente antes de continuar."))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '10px 12px 16px',
+      background: '#fff',
+      borderTop: '1px solid #eee',
+      flexShrink: 0
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn",
+    onClick: save,
+    disabled: saving
+  }, saving ? 'Salvando...' : 'Salvar e Continuar →')));
 }
-
-function LotDetailScreen({lot:initLot,op,onBack,onNav,onLotUpdate}){
-  const[lot,setLot]=useState(initLot)
-  const[telem,setTelem]=useState(null)
-  const[jar,setJar]=useState(null)
-  const[applying,setApplying]=useState(false)
-  const[editando,setEditando]=useState(false)
-
-  useEffect(()=>{
-    dbSelect('telem',{lot_id:lot.id}).then(d=>{if(d.length)setTelem(d[0])})
-    dbSelect('jars',{lot_id:lot.id}).then(d=>{if(d.length)setJar(d[0])})
-  },[lot.id])
-
-  const TL=[{s:'WATER_OK',icon:'💧',label:'Água'},{s:'PREPARING',icon:'⚗️',label:'Preparo'},{s:'JAR_TEST',icon:'🧪',label:'Jar Test'},{s:'READY',icon:'✅',label:'Pronta'},{s:'APPLIED',icon:'🚜',label:'Aplicada'}]
-  const li=SO.indexOf(lot.status)
-  const JarLabel={ESTAVEL:'Estável ✅',SEPARACAO:'Separação de fases ⚠️',SEDIMENTACAO:'Sedimentação ⚠️',ESPUMA:'Espuma excessiva ⚠️',GEL:'Virou gel ❌'}
-
-  const podeEditar=['REQUESTED','WATER_OK'].includes(lot.status)
-
-  const apply=async()=>{
-    setApplying(true)
-    await dbUpdate('lots',lot.id,{status:'APPLIED'})
-    const u={...lot,status:'APPLIED'}
-    setLot(u);onLotUpdate&&onLotUpdate(u)
-    setApplying(false)
-  }
-
-  const incompats=lot.recipe_text?detectIncompat(parseRecipe(lot.recipe_text)):[]
+function PrepScreen({
+  lot,
+  onBack,
+  onDone
+}) {
+  const products = useMemo(() => {
+    const parsed = parseRecipe(lot.recipe_text || '');
+    return [...parsed].sort((a, b) => (ORD[a.type] || 9) - (ORD[b.type] || 9));
+  }, [lot.recipe_text]);
+  const steps = useMemo(() => {
+    const s = [{
+      icon: '💧',
+      title: 'Encher tanque a 50–75%',
+      detail: 'Adicione água limpa e ligue o agitador antes de qualquer produto.',
+      fixed: true,
+      timer: null
+    }];
+    products.forEach(p => s.push({
+      icon: FI[p.type],
+      title: `Adicionar: ${p.name}`,
+      dose: p.dose,
+      sub: FL[p.type],
+      color: FC[p.type],
+      detail: FT[p.type],
+      timer: FTm[p.type],
+      fixed: false
+    }));
+    s.push({
+      icon: '💧',
+      title: 'Completar volume',
+      detail: 'Adicione água até o volume total. Mantenha agitação constante.',
+      fixed: true,
+      timer: null
+    });
+    s.push({
+      icon: '🔍',
+      title: 'Verificar aspecto final',
+      detail: 'Observe cor, homogeneidade e ausência de grumos. Pronto para Jar Test!',
+      fixed: true,
+      timer: null
+    });
+    return s;
+  }, [products]);
+  const [cur, setCur] = useState(0);
+  const [done, setDone] = useState(new Set());
+  const [saving, setSaving] = useState(false);
+  const s = steps[cur];
+  const pct = Math.round((cur + 1) / steps.length * 100);
+  const next = async () => {
+    setDone(prev => new Set([...prev, cur]));
+    if (cur < steps.length - 1) {
+      setCur(c => c + 1);
+    } else {
+      setSaving(true);
+      await dbUpdate('lots', lot.id, {
+        status: 'JAR_TEST'
+      });
+      setSaving(false);
+      onDone({
+        ...lot,
+        status: 'JAR_TEST'
+      });
+    }
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: '#00313C',
+      padding: '14px 16px 18px',
+      flexShrink: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12,
+      marginBottom: 10
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: onBack,
+    style: {
+      background: 'none',
+      border: 'none',
+      color: '#7EC8D8',
+      fontSize: 26,
+      fontWeight: 900,
+      cursor: 'pointer',
+      padding: 0
+    }
+  }, "\u2039"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: '#fff',
+      fontWeight: 800,
+      fontSize: 16,
+      flex: 1
+    }
+  }, "Guia de Preparo"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: '#7EC8D8',
+      fontSize: 12,
+      fontWeight: 700
+    }
+  }, cur + 1, "/", steps.length)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      height: 4,
+      background: 'rgba(255,255,255,.2)',
+      borderRadius: 4,
+      overflow: 'hidden'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      height: '100%',
+      background: '#7EC8D8',
+      width: `${pct}%`,
+      transition: 'width .3s'
+    }
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'center',
+      gap: 5,
+      marginTop: 8,
+      flexWrap: 'wrap'
+    }
+  }, steps.map((_, i) => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    style: {
+      width: 7,
+      height: 7,
+      borderRadius: '50%',
+      background: done.has(i) ? '#7EC8D8' : i === cur ? '#fff' : 'rgba(255,255,255,.25)'
+    }
+  })))), /*#__PURE__*/React.createElement("div", {
+    className: "sc",
+    style: {
+      flex: 1,
+      padding: 12,
+      paddingBottom: 100
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      textAlign: 'center',
+      padding: 20
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 46,
+      marginBottom: 8
+    }
+  }, s.icon), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 17,
+      fontWeight: 900,
+      marginBottom: 10
+    }
+  }, s.title), !s.fixed && /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: 'left',
+      marginBottom: 10
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
+      fontWeight: 800,
+      color: '#fff',
+      background: s.color,
+      padding: '3px 10px',
+      borderRadius: 20,
+      display: 'inline-block',
+      marginBottom: 8
+    }
+  }, s.sub), s.dose && /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: '#e0f4f7',
+      borderRadius: 8,
+      padding: '7px 12px',
+      fontSize: 13,
+      fontWeight: 700,
+      color: '#006E85',
+      marginBottom: 8
+    }
+  }, "\uD83D\uDCCF Dose: ", s.dose)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: '#f5f5f5',
+      borderRadius: 10,
+      padding: '9px 13px',
+      fontSize: 13,
+      color: '#555',
+      textAlign: 'left'
+    }
+  }, s.detail), s.timer && /*#__PURE__*/React.createElement(Timer, {
+    key: cur,
+    seconds: s.timer
+  })), cur < steps.length - 1 && /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      padding: '10px 14px'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
+      color: '#bbb',
+      fontWeight: 700,
+      flexShrink: 0
+    }
+  }, "A SEGUIR \u2192"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 16,
+      flexShrink: 0
+    }
+  }, steps[cur + 1].icon), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13,
+      fontWeight: 700,
+      color: '#555',
+      flex: 1,
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap'
+    }
+  }, steps[cur + 1].title.replace('Adicionar: ', ''))), /*#__PURE__*/React.createElement("div", {
+    className: "card"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      fontWeight: 700,
+      color: '#999',
+      textTransform: 'uppercase',
+      marginBottom: 8
+    }
+  }, "Checklist (", done.size, "/", steps.length, ")"), steps.map((st, i) => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      padding: '5px 8px',
+      borderRadius: 8,
+      background: i === cur ? '#e0f4f7' : 'transparent',
+      marginBottom: 2
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13
+    }
+  }, done.has(i) ? '✅' : i === cur ? '👉' : '⬜'), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12,
+      fontWeight: 700,
+      color: done.has(i) ? '#bbb' : '#333',
+      textDecoration: done.has(i) ? 'line-through' : 'none'
+    }
+  }, st.title.replace('Adicionar: ', '')))))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '10px 12px 16px',
+      background: '#fff',
+      borderTop: '1px solid #eee',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 8,
+      flexShrink: 0
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn",
+    onClick: next,
+    disabled: saving
+  }, saving ? 'Salvando...' : cur === steps.length - 1 ? '✅ Concluir → Jar Test' : `Etapa ${cur + 1} ✓ → Próxima`), cur > 0 && /*#__PURE__*/React.createElement("button", {
+    className: "btn-ghost",
+    onClick: () => setCur(c => c - 1)
+  }, "\u2190 Voltar etapa")));
+}
+const JAROPTS = [{
+  r: 'ESTAVEL',
+  icon: '✅',
+  label: 'Estável',
+  desc: 'Calda homogênea, sem precipitados.'
+}, {
+  r: 'SEPARACAO',
+  icon: '⚠️',
+  label: 'Separação de fases',
+  desc: 'Óleo ou produto separou da fase aquosa.'
+}, {
+  r: 'SEDIMENTACAO',
+  icon: '⚠️',
+  label: 'Sedimentação',
+  desc: 'Precipitado no fundo — pode entupir bicos.'
+}, {
+  r: 'ESPUMA',
+  icon: '⚠️',
+  label: 'Espuma excessiva',
+  desc: 'Espuma persistente após agitação.'
+}, {
+  r: 'GEL',
+  icon: '❌',
+  label: 'Virou gel',
+  desc: 'Gelatinização — mistura inaplicável.'
+}];
+function JarTestScreen({
+  lot,
+  onBack,
+  onDone
+}) {
+  const [sel, setSel] = useState('ESTAVEL');
+  const [notes, setNotes] = useState('');
+  const [saving, setSaving] = useState(false);
+  const save = async () => {
+    setSaving(true);
+    const jt = {
+      id: uid(),
+      lot_id: lot.id,
+      result: sel,
+      notes: notes.trim() || undefined,
+      created_at: Date.now()
+    };
+    await dbInsert('jars', jt);
+    await dbUpdate('lots', lot.id, {
+      status: 'READY'
+    });
+    setSaving(false);
+    onDone({
+      ...lot,
+      status: 'READY'
+    }, jt);
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden'
+    }
+  }, /*#__PURE__*/React.createElement(Hdr, {
+    title: "\uD83E\uDDEA Jar Test",
+    onBack: onBack
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "sc",
+    style: {
+      flex: 1,
+      padding: 12,
+      paddingBottom: 100
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      borderLeft: '4px solid #006E85',
+      background: '#e0f4f7'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: 800,
+      fontSize: 13,
+      color: '#006E85',
+      marginBottom: 6
+    }
+  }, "Como realizar"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      color: '#444',
+      lineHeight: 1.9
+    }
+  }, "1. Encha um pote de 500 mL com amostra da mistura", /*#__PURE__*/React.createElement("br", null), "2. Agite vigorosamente por 30 segundos", /*#__PURE__*/React.createElement("br", null), "3. Deixe em repouso por 3 minutos", /*#__PURE__*/React.createElement("br", null), "4. Observe precipita\xE7\xE3o, separa\xE7\xE3o, espuma e consist\xEAncia")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: 800,
+      fontSize: 13,
+      marginBottom: 8
+    }
+  }, "Resultado observado"), JAROPTS.map(opt => /*#__PURE__*/React.createElement("div", {
+    key: opt.r,
+    className: "card",
+    onClick: () => setSel(opt.r),
+    style: {
+      cursor: 'pointer',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12,
+      border: `2px solid ${sel === opt.r ? '#006E85' : 'transparent'}`,
+      background: sel === opt.r ? '#e0f4f7' : '#fff',
+      marginBottom: 8,
+      padding: '11px 14px'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 22
+    }
+  }, opt.icon), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: 800,
+      fontSize: 13
+    }
+  }, opt.label), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: '#777',
+      marginTop: 1
+    }
+  }, opt.desc)), sel === opt.r && /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: '#006E85',
+      fontWeight: 900,
+      fontSize: 18
+    }
+  }, "\u2713"))), /*#__PURE__*/React.createElement("div", {
+    className: "card"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "lbl"
+  }, "Observa\xE7\xF5es (opcional)"), /*#__PURE__*/React.createElement("textarea", {
+    className: "field",
+    rows: 3,
+    placeholder: "Anote detalhes sobre a calda...",
+    value: notes,
+    onChange: e => setNotes(e.target.value),
+    style: {
+      resize: 'none'
+    }
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '10px 12px 16px',
+      background: '#fff',
+      borderTop: '1px solid #eee',
+      flexShrink: 0
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn",
+    onClick: save,
+    disabled: saving
+  }, saving ? 'Salvando...' : '💾 Salvar Jar Test')));
+}
+function LotDetailScreen({
+  lot: initLot,
+  op,
+  onBack,
+  onNav,
+  onLotUpdate
+}) {
+  const [lot, setLot] = useState(initLot);
+  const [telem, setTelem] = useState(null);
+  const [jar, setJar] = useState(null);
+  const [applying, setApplying] = useState(false);
+  const [editando, setEditando] = useState(false);
+  useEffect(() => {
+    dbSelect('telem', {
+      lot_id: lot.id
+    }).then(d => {
+      if (d.length) setTelem(d[0]);
+    });
+    dbSelect('jars', {
+      lot_id: lot.id
+    }).then(d => {
+      if (d.length) setJar(d[0]);
+    });
+  }, [lot.id]);
+  const TL = [{
+    s: 'WATER_OK',
+    icon: '💧',
+    label: 'Água'
+  }, {
+    s: 'PREPARING',
+    icon: '⚗️',
+    label: 'Preparo'
+  }, {
+    s: 'JAR_TEST',
+    icon: '🧪',
+    label: 'Jar Test'
+  }, {
+    s: 'READY',
+    icon: '✅',
+    label: 'Pronta'
+  }, {
+    s: 'APPLIED',
+    icon: '🚜',
+    label: 'Aplicada'
+  }];
+  const li = SO.indexOf(lot.status);
+  const JarLabel = {
+    ESTAVEL: 'Estável ✅',
+    SEPARACAO: 'Separação de fases ⚠️',
+    SEDIMENTACAO: 'Sedimentação ⚠️',
+    ESPUMA: 'Espuma excessiva ⚠️',
+    GEL: 'Virou gel ❌'
+  };
+  const podeEditar = ['REQUESTED', 'WATER_OK'].includes(lot.status);
+  const apply = async () => {
+    setApplying(true);
+    await dbUpdate('lots', lot.id, {
+      status: 'APPLIED'
+    });
+    const u = {
+      ...lot,
+      status: 'APPLIED'
+    };
+    setLot(u);
+    onLotUpdate && onLotUpdate(u);
+    setApplying(false);
+  };
+  const incompats = lot.recipe_text ? detectIncompat(parseRecipe(lot.recipe_text)) : [];
 
   // ── Modal de edição de receita inline ──────────────────────────
-  const EditModal=()=>{
-    const parsed=useMemo(()=>parseRecipe(lot.recipe_text||''),[])
-    const[prods,setProds]=useState(()=>
-      parsed.map(p=>({name:p.name,nameKey:nrm(p.name),type:p.type,dose:p.dose||''}))
-    )
-    const[saving,setSaving]=useState(false)
-    const[allProducts]=useState(()=>getAllProducts())
-    const[search,setSearch]=useState('')
-    const[picking,setPicking]=useState(null)
-    const[doseVal,setDoseVal]=useState('')
-    const[doseUnit,setDoseUnit]=useState('L/ha')
-
-    const sorted=useMemo(()=>[...prods].sort((a,b)=>(ORD[a.type]||9)-(ORD[b.type]||9)),[prods])
-    const incompatsEdit=useMemo(()=>detectIncompat(sorted),[sorted])
-
-    const filtered=useMemo(()=>{
-      if(!search.trim()) return []
-      const q=nrm(search)
-      return allProducts.filter(p=>nrm(p.name).includes(q)).slice(0,6)
-    },[search])
-
-    const selectProduct=(p)=>{
-      setPicking(p);setSearch('');setDoseVal('');setDoseUnit('L/ha')
+  const EditModal = () => {
+    const parsed = useMemo(() => parseRecipe(lot.recipe_text || ''), []);
+    const [prods, setProds] = useState(() => parsed.map(p => ({
+      name: p.name,
+      nameKey: nrm(p.name),
+      type: p.type,
+      dose: p.dose || ''
+    })));
+    const [saving, setSaving] = useState(false);
+    const [allProducts] = useState(() => getAllProducts());
+    const [search, setSearch] = useState('');
+    const [picking, setPicking] = useState(null);
+    const [doseVal, setDoseVal] = useState('');
+    const [doseUnit, setDoseUnit] = useState('L/ha');
+    const sorted = useMemo(() => [...prods].sort((a, b) => (ORD[a.type] || 9) - (ORD[b.type] || 9)), [prods]);
+    const incompatsEdit = useMemo(() => detectIncompat(sorted), [sorted]);
+    const filtered = useMemo(() => {
+      if (!search.trim()) return [];
+      const q = nrm(search);
+      return allProducts.filter(p => nrm(p.name).includes(q)).slice(0, 6);
+    }, [search]);
+    const selectProduct = p => {
+      setPicking(p);
+      setSearch('');
+      setDoseVal('');
+      setDoseUnit('L/ha');
+    };
+    const confirmAdd = () => {
+      if (!picking) return;
+      const dose = doseVal.trim() ? doseVal.trim().replace(',', '.') + ' ' + doseUnit : '';
+      setProds(prev => [...prev, {
+        name: picking.name,
+        nameKey: picking.nameKey,
+        type: picking.type,
+        dose
+      }]);
+      setPicking(null);
+    };
+    const removeProduct = idx => setProds(prev => prev.filter((_, i) => i !== idx));
+    const salvar = async () => {
+      setSaving(true);
+      const newRecipe = [...prods].sort((a, b) => (ORD[a.type] || 9) - (ORD[b.type] || 9)).map(p => p.dose ? `${p.name} ${p.dose}` : p.name).join(' + ');
+      await dbUpdate('lots', lot.id, {
+        recipe_text: newRecipe
+      });
+      const updated = {
+        ...lot,
+        recipe_text: newRecipe
+      };
+      setLot(updated);
+      onLotUpdate && onLotUpdate(updated);
+      setSaving(false);
+      setEditando(false);
+    };
+    return /*#__PURE__*/React.createElement("div", {
+      style: {
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0,0,0,.6)',
+        zIndex: 999,
+        display: 'flex',
+        alignItems: 'flex-end',
+        justifyContent: 'center'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        background: '#fff',
+        borderRadius: '20px 20px 0 0',
+        width: '100%',
+        maxWidth: 480,
+        padding: '20px 16px 28px',
+        maxHeight: '92vh',
+        overflowY: 'auto'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 14
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontWeight: 900,
+        fontSize: 16,
+        color: '#00313C'
+      }
+    }, "\u270F\uFE0F Editar Receita"), /*#__PURE__*/React.createElement("button", {
+      onClick: () => setEditando(false),
+      style: {
+        background: 'none',
+        border: 'none',
+        fontSize: 22,
+        color: '#bbb',
+        cursor: 'pointer'
+      }
+    }, "\u2715")), incompatsEdit.length > 0 && /*#__PURE__*/React.createElement("div", {
+      style: {
+        background: '#c62828',
+        borderRadius: 12,
+        padding: '10px 12px',
+        marginBottom: 12
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontWeight: 800,
+        fontSize: 13,
+        color: '#fff',
+        marginBottom: 4
+      }
+    }, "\u26D4 Incompatibilidade detectada!"), incompatsEdit.map((inc, i) => /*#__PURE__*/React.createElement("div", {
+      key: i,
+      style: {
+        fontSize: 12,
+        color: 'rgba(255,255,255,.9)'
+      }
+    }, inc.icon, " ", inc.title))), sorted.length > 0 && /*#__PURE__*/React.createElement("div", {
+      style: {
+        marginBottom: 14
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 11,
+        fontWeight: 800,
+        color: '#999',
+        textTransform: 'uppercase',
+        marginBottom: 8
+      }
+    }, "Produtos na mistura \u2014 ordem de adi\xE7\xE3o"), sorted.map((p, i) => /*#__PURE__*/React.createElement("div", {
+      key: i,
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        padding: '9px 10px',
+        background: '#f8f8f8',
+        borderRadius: 10,
+        marginBottom: 6
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        width: 22,
+        height: 22,
+        borderRadius: '50%',
+        background: FC[p.type],
+        color: '#fff',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontWeight: 900,
+        fontSize: 11,
+        flexShrink: 0
+      }
+    }, i + 1), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 16
+      }
+    }, FI[p.type]), /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1,
+        minWidth: 0
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontWeight: 700,
+        fontSize: 13
+      }
+    }, p.name), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        gap: 6,
+        marginTop: 2
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 10,
+        fontWeight: 800,
+        color: '#fff',
+        background: FC[p.type],
+        padding: '1px 6px',
+        borderRadius: 20
+      }
+    }, FL[p.type]), p.dose && /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 11,
+        color: '#777'
+      }
+    }, p.dose))), /*#__PURE__*/React.createElement("button", {
+      onClick: () => removeProduct(prods.indexOf(p)),
+      style: {
+        background: 'none',
+        border: 'none',
+        color: '#e57373',
+        fontSize: 20,
+        cursor: 'pointer',
+        padding: '2px 6px',
+        flexShrink: 0
+      }
+    }, "\u2715")))), /*#__PURE__*/React.createElement("div", {
+      style: {
+        background: '#f0f8fa',
+        borderRadius: 12,
+        padding: '12px',
+        marginBottom: 14
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontWeight: 800,
+        fontSize: 13,
+        color: '#00313C',
+        marginBottom: 10
+      }
+    }, "\u2795 Adicionar produto"), !picking ? /*#__PURE__*/React.createElement("div", {
+      style: {
+        position: 'relative'
+      }
+    }, /*#__PURE__*/React.createElement("input", {
+      className: "field",
+      placeholder: "\uD83D\uDD0D Buscar produto...",
+      value: search,
+      onChange: e => setSearch(e.target.value),
+      autoComplete: "off",
+      style: {
+        marginBottom: 0
+      }
+    }), search.trim() && /*#__PURE__*/React.createElement("div", {
+      style: {
+        position: 'absolute',
+        top: '100%',
+        left: 0,
+        right: 0,
+        background: '#fff',
+        border: '1.5px solid #006E85',
+        borderRadius: 12,
+        zIndex: 100,
+        boxShadow: '0 8px 24px rgba(0,0,0,.15)',
+        overflow: 'hidden',
+        marginTop: 4
+      }
+    }, filtered.map((p, i) => /*#__PURE__*/React.createElement("div", {
+      key: i,
+      onClick: () => selectProduct(p),
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        padding: '10px 12px',
+        borderBottom: '1px solid #f5f5f5',
+        cursor: 'pointer'
+      },
+      onMouseEnter: e => e.currentTarget.style.background = '#f0f8fa',
+      onMouseLeave: e => e.currentTarget.style.background = '#fff'
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 16
+      }
+    }, FI[p.type]), /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontWeight: 700,
+        fontSize: 13
+      }
+    }, p.name), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 11,
+        color: '#999'
+      }
+    }, FL[p.type])), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 11,
+        fontWeight: 800,
+        color: '#fff',
+        background: FC[p.type],
+        padding: '2px 7px',
+        borderRadius: 20
+      }
+    }, p.type))), filtered.length === 0 && /*#__PURE__*/React.createElement("div", {
+      style: {
+        padding: '10px 12px',
+        fontSize: 13,
+        color: '#999'
+      }
+    }, "Nenhum produto encontrado"))) : /*#__PURE__*/React.createElement("div", {
+      style: {
+        background: '#fff',
+        borderRadius: 10,
+        padding: '10px 12px',
+        border: '2px solid #006E85'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        marginBottom: 10
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 18
+      }
+    }, FI[picking.type]), /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontWeight: 800,
+        fontSize: 14
+      }
+    }, picking.name), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 10,
+        fontWeight: 800,
+        color: '#fff',
+        background: FC[picking.type],
+        padding: '1px 6px',
+        borderRadius: 20
+      }
+    }, FL[picking.type])), /*#__PURE__*/React.createElement("button", {
+      onClick: () => setPicking(null),
+      style: {
+        background: 'none',
+        border: 'none',
+        color: '#bbb',
+        fontSize: 18,
+        cursor: 'pointer'
+      }
+    }, "\u2715")), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        gap: 8
+      }
+    }, /*#__PURE__*/React.createElement("input", {
+      className: "field",
+      type: "number",
+      placeholder: "Dose (ex: 0,4)",
+      value: doseVal,
+      onChange: e => setDoseVal(e.target.value),
+      style: {
+        flex: 1,
+        marginBottom: 0
+      },
+      onKeyDown: e => e.key === 'Enter' && confirmAdd()
+    }), /*#__PURE__*/React.createElement("select", {
+      className: "field",
+      value: doseUnit,
+      onChange: e => setDoseUnit(e.target.value),
+      style: {
+        flex: 1.2,
+        marginBottom: 0
+      }
+    }, DOSE_UNITS.map(u => /*#__PURE__*/React.createElement("option", {
+      key: u,
+      value: u
+    }, u)))), /*#__PURE__*/React.createElement("button", {
+      className: "btn",
+      style: {
+        marginTop: 10
+      },
+      onClick: confirmAdd
+    }, "\u2705 Adicionar"))), /*#__PURE__*/React.createElement("button", {
+      className: "btn",
+      onClick: salvar,
+      disabled: saving || prods.length === 0
+    }, saving ? 'Salvando...' : '💾 Salvar alterações')));
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden'
     }
-    const confirmAdd=()=>{
-      if(!picking) return
-      const dose=doseVal.trim()?(doseVal.trim().replace(',','.')+' '+doseUnit):''
-      setProds(prev=>[...prev,{name:picking.name,nameKey:picking.nameKey,type:picking.type,dose}])
-      setPicking(null)
+  }, editando && /*#__PURE__*/React.createElement(EditModal, null), /*#__PURE__*/React.createElement(Hdr, {
+    title: "Detalhe da Mistura",
+    onBack: onBack
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "sc",
+    style: {
+      flex: 1,
+      padding: 12,
+      paddingBottom: 24
     }
-    const removeProduct=(idx)=>setProds(prev=>prev.filter((_,i)=>i!==idx))
-
-    const salvar=async()=>{
-      setSaving(true)
-      const newRecipe=[...prods].sort((a,b)=>(ORD[a.type]||9)-(ORD[b.type]||9))
-        .map(p=>p.dose?`${p.name} ${p.dose}`:p.name).join(' + ')
-      await dbUpdate('lots',lot.id,{recipe_text:newRecipe})
-      const updated={...lot,recipe_text:newRecipe}
-      setLot(updated);onLotUpdate&&onLotUpdate(updated)
-      setSaving(false);setEditando(false)
+  }, incompats.length > 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: '#c62828',
+      borderRadius: 14,
+      padding: '10px 14px',
+      marginBottom: 10
     }
-
-    return(
-      <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.6)',zIndex:999,display:'flex',alignItems:'flex-end',justifyContent:'center'}}>
-        <div style={{background:'#fff',borderRadius:'20px 20px 0 0',width:'100%',maxWidth:480,padding:'20px 16px 28px',maxHeight:'92vh',overflowY:'auto'}}>
-
-          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}>
-            <div style={{fontWeight:900,fontSize:16,color:'#00313C'}}>✏️ Editar Receita</div>
-            <button onClick={()=>setEditando(false)} style={{background:'none',border:'none',fontSize:22,color:'#bbb',cursor:'pointer'}}>✕</button>
-          </div>
-
-          {/* Alerta de incompatibilidade */}
-          {incompatsEdit.length>0&&(
-            <div style={{background:'#c62828',borderRadius:12,padding:'10px 12px',marginBottom:12}}>
-              <div style={{fontWeight:800,fontSize:13,color:'#fff',marginBottom:4}}>⛔ Incompatibilidade detectada!</div>
-              {incompatsEdit.map((inc,i)=><div key={i} style={{fontSize:12,color:'rgba(255,255,255,.9)'}}>{inc.icon} {inc.title}</div>)}
-            </div>
-          )}
-
-          {/* Lista de produtos atual */}
-          {sorted.length>0&&(
-            <div style={{marginBottom:14}}>
-              <div style={{fontSize:11,fontWeight:800,color:'#999',textTransform:'uppercase',marginBottom:8}}>Produtos na mistura — ordem de adição</div>
-              {sorted.map((p,i)=>(
-                <div key={i} style={{display:'flex',alignItems:'center',gap:8,padding:'9px 10px',background:'#f8f8f8',borderRadius:10,marginBottom:6}}>
-                  <div style={{width:22,height:22,borderRadius:'50%',background:FC[p.type],color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:900,fontSize:11,flexShrink:0}}>{i+1}</div>
-                  <span style={{fontSize:16}}>{FI[p.type]}</span>
-                  <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontWeight:700,fontSize:13}}>{p.name}</div>
-                    <div style={{display:'flex',gap:6,marginTop:2}}>
-                      <span style={{fontSize:10,fontWeight:800,color:'#fff',background:FC[p.type],padding:'1px 6px',borderRadius:20}}>{FL[p.type]}</span>
-                      {p.dose&&<span style={{fontSize:11,color:'#777'}}>{p.dose}</span>}
-                    </div>
-                  </div>
-                  <button onClick={()=>removeProduct(prods.indexOf(p))} style={{background:'none',border:'none',color:'#e57373',fontSize:20,cursor:'pointer',padding:'2px 6px',flexShrink:0}}>✕</button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Adicionar produto */}
-          <div style={{background:'#f0f8fa',borderRadius:12,padding:'12px',marginBottom:14}}>
-            <div style={{fontWeight:800,fontSize:13,color:'#00313C',marginBottom:10}}>➕ Adicionar produto</div>
-            {!picking?(
-              <div style={{position:'relative'}}>
-                <input className="field" placeholder="🔍 Buscar produto..." value={search}
-                  onChange={e=>setSearch(e.target.value)} autoComplete="off" style={{marginBottom:0}}/>
-                {search.trim()&&(
-                  <div style={{position:'absolute',top:'100%',left:0,right:0,background:'#fff',border:'1.5px solid #006E85',borderRadius:12,zIndex:100,boxShadow:'0 8px 24px rgba(0,0,0,.15)',overflow:'hidden',marginTop:4}}>
-                    {filtered.map((p,i)=>(
-                      <div key={i} onClick={()=>selectProduct(p)} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px',borderBottom:'1px solid #f5f5f5',cursor:'pointer'}}
-                        onMouseEnter={e=>e.currentTarget.style.background='#f0f8fa'}
-                        onMouseLeave={e=>e.currentTarget.style.background='#fff'}>
-                        <span style={{fontSize:16}}>{FI[p.type]}</span>
-                        <div style={{flex:1}}>
-                          <div style={{fontWeight:700,fontSize:13}}>{p.name}</div>
-                          <div style={{fontSize:11,color:'#999'}}>{FL[p.type]}</div>
-                        </div>
-                        <span style={{fontSize:11,fontWeight:800,color:'#fff',background:FC[p.type],padding:'2px 7px',borderRadius:20}}>{p.type}</span>
-                      </div>
-                    ))}
-                    {filtered.length===0&&<div style={{padding:'10px 12px',fontSize:13,color:'#999'}}>Nenhum produto encontrado</div>}
-                  </div>
-                )}
-              </div>
-            ):(
-              <div style={{background:'#fff',borderRadius:10,padding:'10px 12px',border:'2px solid #006E85'}}>
-                <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}>
-                  <span style={{fontSize:18}}>{FI[picking.type]}</span>
-                  <div style={{flex:1}}>
-                    <div style={{fontWeight:800,fontSize:14}}>{picking.name}</div>
-                    <span style={{fontSize:10,fontWeight:800,color:'#fff',background:FC[picking.type],padding:'1px 6px',borderRadius:20}}>{FL[picking.type]}</span>
-                  </div>
-                  <button onClick={()=>setPicking(null)} style={{background:'none',border:'none',color:'#bbb',fontSize:18,cursor:'pointer'}}>✕</button>
-                </div>
-                <div style={{display:'flex',gap:8}}>
-                  <input className="field" type="number" placeholder="Dose (ex: 0,4)" value={doseVal}
-                    onChange={e=>setDoseVal(e.target.value)} style={{flex:1,marginBottom:0}}
-                    onKeyDown={e=>e.key==='Enter'&&confirmAdd()}/>
-                  <select className="field" value={doseUnit} onChange={e=>setDoseUnit(e.target.value)}
-                    style={{flex:1.2,marginBottom:0}}>
-                    {DOSE_UNITS.map(u=><option key={u} value={u}>{u}</option>)}
-                  </select>
-                </div>
-                <button className="btn" style={{marginTop:10}} onClick={confirmAdd}>✅ Adicionar</button>
-              </div>
-            )}
-          </div>
-
-          <button className="btn" onClick={salvar} disabled={saving||prods.length===0}>
-            {saving?'Salvando...':'💾 Salvar alterações'}
-          </button>
-        </div>
-      </div>
-    )
-  }
-
-  return(
-    <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
-      {editando&&<EditModal/>}
-      <Hdr title="Detalhe da Mistura" onBack={onBack}/>
-      <div className="sc" style={{flex:1,padding:12,paddingBottom:24}}>
-        {incompats.length>0&&(
-          <div style={{background:'#c62828',borderRadius:14,padding:'10px 14px',marginBottom:10}}>
-            <div style={{fontWeight:800,fontSize:13,color:'#fff',marginBottom:4}}>⛔ Incompatibilidade na receita</div>
-            {incompats.map((inc,i)=><div key={i} style={{fontSize:12,color:'rgba(255,255,255,.9)',marginBottom:2}}>{inc.icon} {inc.title}</div>)}
-          </div>
-        )}
-        <div className="card" style={{borderTop:'4px solid #006E85'}}>
-          <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:10}}>
-            <div><div style={{fontSize:17,fontWeight:900}}>{lot.farm}</div><div style={{fontSize:12,color:'#777'}}>{lot.field}</div></div>
-            <div style={{display:'flex',gap:8,alignItems:'center'}}>
-              {podeEditar&&(
-                <button onClick={()=>setEditando(true)} style={{background:'#e0f4f7',border:'none',borderRadius:20,padding:'4px 12px',fontSize:12,fontWeight:800,color:'#006E85',cursor:'pointer'}}>
-                  ✏️ Editar receita
-                </button>
-              )}
-              <span className={`badge ${SC2[lot.status]}`}>{SL[lot.status]}</span>
-            </div>
-          </div>
-          <div style={{display:'flex',borderTop:'1px solid #f0f0f0',paddingTop:8,marginBottom:10}}>
-            {[['Volume',`${lot.volume_liters}L`],['Área',lot.area_ha?`${lot.area_ha}ha`:'—'],['pH',lot.last_ph?lot.last_ph.toFixed(1):'—']].map(([l,v])=>(
-              <div key={l} style={{flex:1,textAlign:'center'}}><div style={{fontWeight:800,fontSize:14}}>{v}</div><div style={{fontSize:10,color:'#9e9e9e'}}>{l}</div></div>
-            ))}
-          </div>
-          {lot.recipe_text&&<div style={{background:'#f5f5f5',borderRadius:8,padding:'7px 11px',marginBottom:10}}><div style={{fontSize:9,fontWeight:700,color:'#9e9e9e',textTransform:'uppercase',marginBottom:2}}>Receita</div><div style={{fontSize:11,color:'#555'}}>{lot.recipe_text}</div></div>}
-          <div style={{display:'flex',alignItems:'center'}}>
-            {TL.map((step,i)=>{
-              const si=SO.indexOf(step.s),isDone=li>si,isActive=li===si
-              return(<React.Fragment key={step.s}>
-                <div style={{display:'flex',flexDirection:'column',alignItems:'center',flexShrink:0}}>
-                  <div style={{width:30,height:30,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:800,background:isDone?'#006E85':isActive?'#e65100':'#e0e0e0',color:(isDone||isActive)?'#fff':'#9e9e9e'}}>{isDone?'✓':step.icon}</div>
-                  <div style={{fontSize:8,fontWeight:800,color:isDone?'#006E85':isActive?'#e65100':'#bbb',marginTop:2,textAlign:'center',lineHeight:1.1}}>{step.label}</div>
-                </div>
-                {i<TL.length-1&&<div style={{flex:1,height:2,background:isDone?'#006E85':'#e0e0e0',margin:'0 3px',marginBottom:14}}/>}
-              </React.Fragment>)
-            })}
-          </div>
-        </div>
-        {telem&&(
-          <div className="card">
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
-              <span style={{fontWeight:800,fontSize:13}}>💧 Qualidade da Água</span>
-              <span style={{fontSize:12,fontWeight:700,color:EC[telem.evaluation]||'#333'}}>{telem.evaluation}</span>
-            </div>
-            <div style={{display:'flex',gap:16}}>
-              {[['pH',telem.ph],['Temp.',`${telem.temp_c}°C`],...(telem.conductivity?[['Cond.',telem.conductivity]]:[])] .map(([l,v])=>(
-                <div key={l} style={{textAlign:'center'}}><div style={{fontWeight:800,fontSize:14}}>{v}</div><div style={{fontSize:10,color:'#9e9e9e'}}>{l}</div></div>
-              ))}
-            </div>
-          </div>
-        )}
-        {jar&&(
-          <div className="card">
-            <div style={{fontWeight:800,fontSize:13,marginBottom:5}}>🧪 Jar Test</div>
-            <div style={{fontSize:15,fontWeight:800}}>{JarLabel[jar.result]||jar.result}</div>
-            {jar.notes&&<div style={{fontSize:12,color:'#777',marginTop:3,fontStyle:'italic'}}>{jar.notes}</div>}
-          </div>
-        )}
-        <div style={{display:'flex',flexDirection:'column',gap:8}}>
-          {lot.status==='REQUESTED'&&<button className="btn" onClick={()=>onNav('water',lot)}>→ Analisar Água</button>}
-          {(lot.status==='WATER_OK'||lot.status==='PREPARING')&&<button className="btn" onClick={()=>onNav('prep',lot)}>→ Guia de Preparo</button>}
-          {lot.status==='JAR_TEST'&&<button className="btn" onClick={()=>onNav('jartest',lot)}>→ Realizar Jar Test</button>}
-          {lot.status==='READY'&&<button className="btn" style={{background:'#2e7d32'}} onClick={apply} disabled={applying}>{applying?'Registrando...':'🚜 Registrar Aplicação em Campo'}</button>}
-          {lot.status==='APPLIED'&&<div style={{background:'#e8f5e9',border:'1px solid #c8e6c9',borderRadius:12,padding:'11px 16px',textAlign:'center',fontWeight:700,color:'#2e7d32'}}>✅ Calda aplicada em campo</div>}
-          <button className="btn-ghost" onClick={()=>onNav('laudo',lot,telem,jar)}>📄 Gerar Laudo</button>
-        </div>
-      </div>
-    </div>
-  )
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: 800,
+      fontSize: 13,
+      color: '#fff',
+      marginBottom: 4
+    }
+  }, "\u26D4 Incompatibilidade na receita"), incompats.map((inc, i) => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    style: {
+      fontSize: 12,
+      color: 'rgba(255,255,255,.9)',
+      marginBottom: 2
+    }
+  }, inc.icon, " ", inc.title))), /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      borderTop: '4px solid #006E85'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      marginBottom: 10
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 17,
+      fontWeight: 900
+    }
+  }, lot.farm), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      color: '#777'
+    }
+  }, lot.field)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 8,
+      alignItems: 'center'
+    }
+  }, podeEditar && /*#__PURE__*/React.createElement("button", {
+    onClick: () => setEditando(true),
+    style: {
+      background: '#e0f4f7',
+      border: 'none',
+      borderRadius: 20,
+      padding: '4px 12px',
+      fontSize: 12,
+      fontWeight: 800,
+      color: '#006E85',
+      cursor: 'pointer'
+    }
+  }, "\u270F\uFE0F Editar receita"), /*#__PURE__*/React.createElement("span", {
+    className: `badge ${SC2[lot.status]}`
+  }, SL[lot.status]))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      borderTop: '1px solid #f0f0f0',
+      paddingTop: 8,
+      marginBottom: 10
+    }
+  }, [['Volume', `${lot.volume_liters}L`], ['Área', lot.area_ha ? `${lot.area_ha}ha` : '—'], ['pH', lot.last_ph ? lot.last_ph.toFixed(1) : '—']].map(([l, v]) => /*#__PURE__*/React.createElement("div", {
+    key: l,
+    style: {
+      flex: 1,
+      textAlign: 'center'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: 800,
+      fontSize: 14
+    }
+  }, v), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: '#9e9e9e'
+    }
+  }, l)))), lot.recipe_text && /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: '#f5f5f5',
+      borderRadius: 8,
+      padding: '7px 11px',
+      marginBottom: 10
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 9,
+      fontWeight: 700,
+      color: '#9e9e9e',
+      textTransform: 'uppercase',
+      marginBottom: 2
+    }
+  }, "Receita"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: '#555'
+    }
+  }, lot.recipe_text)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center'
+    }
+  }, TL.map((step, i) => {
+    const si = SO.indexOf(step.s),
+      isDone = li > si,
+      isActive = li === si;
+    return /*#__PURE__*/React.createElement(React.Fragment, {
+      key: step.s
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        flexShrink: 0
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        width: 30,
+        height: 30,
+        borderRadius: '50%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: 11,
+        fontWeight: 800,
+        background: isDone ? '#006E85' : isActive ? '#e65100' : '#e0e0e0',
+        color: isDone || isActive ? '#fff' : '#9e9e9e'
+      }
+    }, isDone ? '✓' : step.icon), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 8,
+        fontWeight: 800,
+        color: isDone ? '#006E85' : isActive ? '#e65100' : '#bbb',
+        marginTop: 2,
+        textAlign: 'center',
+        lineHeight: 1.1
+      }
+    }, step.label)), i < TL.length - 1 && /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1,
+        height: 2,
+        background: isDone ? '#006E85' : '#e0e0e0',
+        margin: '0 3px',
+        marginBottom: 14
+      }
+    }));
+  }))), telem && /*#__PURE__*/React.createElement("div", {
+    className: "card"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 8
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontWeight: 800,
+      fontSize: 13
+    }
+  }, "\uD83D\uDCA7 Qualidade da \xC1gua"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12,
+      fontWeight: 700,
+      color: EC[telem.evaluation] || '#333'
+    }
+  }, telem.evaluation)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 16
+    }
+  }, [['pH', telem.ph], ['Temp.', `${telem.temp_c}°C`], ...(telem.conductivity ? [['Cond.', telem.conductivity]] : [])].map(([l, v]) => /*#__PURE__*/React.createElement("div", {
+    key: l,
+    style: {
+      textAlign: 'center'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: 800,
+      fontSize: 14
+    }
+  }, v), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: '#9e9e9e'
+    }
+  }, l))))), jar && /*#__PURE__*/React.createElement("div", {
+    className: "card"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: 800,
+      fontSize: 13,
+      marginBottom: 5
+    }
+  }, "\uD83E\uDDEA Jar Test"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 15,
+      fontWeight: 800
+    }
+  }, JarLabel[jar.result] || jar.result), jar.notes && /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      color: '#777',
+      marginTop: 3,
+      fontStyle: 'italic'
+    }
+  }, jar.notes)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 8
+    }
+  }, lot.status === 'REQUESTED' && /*#__PURE__*/React.createElement("button", {
+    className: "btn",
+    onClick: () => onNav('water', lot)
+  }, "\u2192 Analisar \xC1gua"), (lot.status === 'WATER_OK' || lot.status === 'PREPARING') && /*#__PURE__*/React.createElement("button", {
+    className: "btn",
+    onClick: () => onNav('prep', lot)
+  }, "\u2192 Guia de Preparo"), lot.status === 'JAR_TEST' && /*#__PURE__*/React.createElement("button", {
+    className: "btn",
+    onClick: () => onNav('jartest', lot)
+  }, "\u2192 Realizar Jar Test"), lot.status === 'READY' && /*#__PURE__*/React.createElement("button", {
+    className: "btn",
+    style: {
+      background: '#2e7d32'
+    },
+    onClick: apply,
+    disabled: applying
+  }, applying ? 'Registrando...' : '🚜 Registrar Aplicação em Campo'), lot.status === 'APPLIED' && /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: '#e8f5e9',
+      border: '1px solid #c8e6c9',
+      borderRadius: 12,
+      padding: '11px 16px',
+      textAlign: 'center',
+      fontWeight: 700,
+      color: '#2e7d32'
+    }
+  }, "\u2705 Calda aplicada em campo"), /*#__PURE__*/React.createElement("button", {
+    className: "btn-ghost",
+    onClick: () => onNav('laudo', lot, telem, jar)
+  }, "\uD83D\uDCC4 Gerar Laudo"))));
 }
-
-function LaudoScreen({lot,telem,jar,op,onBack}){
-  const now=new Date(),dateStr=now.toLocaleDateString('pt-BR'),timeStr=now.toLocaleTimeString('pt-BR')
-  const phColor=!telem?'#333':EC[telem.evaluation]||'#333'
-  const phBg=!telem?'#f5f5f5':EB[telem.evaluation]||'#f5f5f5'
-  const JarLabel={ESTAVEL:'Estável ✅',SEPARACAO:'Separação de fases ⚠️',SEDIMENTACAO:'Sedimentação ⚠️',ESPUMA:'Espuma excessiva ⚠️',GEL:'Virou gel ❌'}
-  const S=({title,children})=>(<div style={{marginBottom:16}}><div style={{fontSize:11,fontWeight:800,color:'#00313C',borderBottom:'2px solid #D6CCA6',paddingBottom:5,marginBottom:8,textTransform:'uppercase',letterSpacing:.5}}>{title}</div>{children}</div>)
-  const F=({label,value})=>(<div style={{marginBottom:7}}><div style={{fontSize:9,fontWeight:700,color:'#9e9e9e',textTransform:'uppercase',marginBottom:1}}>{label}</div><div style={{fontSize:13,fontWeight:700}}>{value||'—'}</div></div>)
+function LaudoScreen({
+  lot,
+  telem,
+  jar,
+  op,
+  onBack
+}) {
+  const now = new Date(),
+    dateStr = now.toLocaleDateString('pt-BR'),
+    timeStr = now.toLocaleTimeString('pt-BR');
+  const phColor = !telem ? '#333' : EC[telem.evaluation] || '#333';
+  const phBg = !telem ? '#f5f5f5' : EB[telem.evaluation] || '#f5f5f5';
+  const JarLabel = {
+    ESTAVEL: 'Estável ✅',
+    SEPARACAO: 'Separação de fases ⚠️',
+    SEDIMENTACAO: 'Sedimentação ⚠️',
+    ESPUMA: 'Espuma excessiva ⚠️',
+    GEL: 'Virou gel ❌'
+  };
+  const S = ({
+    title,
+    children
+  }) => /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginBottom: 16
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      fontWeight: 800,
+      color: '#00313C',
+      borderBottom: '2px solid #D6CCA6',
+      paddingBottom: 5,
+      marginBottom: 8,
+      textTransform: 'uppercase',
+      letterSpacing: .5
+    }
+  }, title), children);
+  const F = ({
+    label,
+    value
+  }) => /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginBottom: 7
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 9,
+      fontWeight: 700,
+      color: '#9e9e9e',
+      textTransform: 'uppercase',
+      marginBottom: 1
+    }
+  }, label), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      fontWeight: 700
+    }
+  }, value || '—'));
 
   // Produtos ordenados com dose e volume total calculado
-  const products=useMemo(()=>{
-    const parsed=parseRecipe(lot.recipe_text||'')
-    return [...parsed].sort((a,b)=>(ORD[a.type]||9)-(ORD[b.type]||9))
-  },[lot.recipe_text])
-  const areaNum=parseFloat(lot.area_ha)||0
-
-  return(
-    <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
-      <div className="np"><Hdr title="📄 Laudo de Qualidade" onBack={onBack}/></div>
-      <div className="sc" style={{flex:1,padding:12,paddingBottom:100}}>
-        <div id="laudo" style={{background:'#fff',borderRadius:16,overflow:'hidden',border:'1px solid #eee'}}>
-
-          {/* Cabeçalho */}
-          <div style={{background:'#00313C',padding:'18px 22px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-            <div>
-              <div style={{color:'#fff',fontSize:20,fontWeight:900,letterSpacing:-1}}>FertigeoTech</div>
-              <div style={{color:'#D6CCA6',fontSize:9,fontWeight:700,letterSpacing:2,marginTop:2,textTransform:'uppercase'}}>Laudo de Qualidade de Calda</div>
-            </div>
-            <div style={{textAlign:'right'}}>
-              <div style={{color:'#7EC8D8',fontSize:11,fontWeight:800}}>#{lot.id.slice(-6).toUpperCase()}</div>
-              <div style={{color:'rgba(255,255,255,.6)',fontSize:9,marginTop:2}}>{dateStr}</div>
-            </div>
-          </div>
-
-          <div style={{padding:'18px 20px'}}>
-
-            {/* Dados da mistura */}
-            <S title="Identificação">
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}>
-                <F label="Fazenda" value={lot.farm}/>
-                <F label="Talhão" value={lot.field}/>
-                <F label="Volume da calda" value={`${lot.volume_liters} L`}/>
-                {lot.area_ha&&<F label="Área" value={`${lot.area_ha} ha`}/>}
-              </div>
-            </S>
-
-            {/* Produtos — seção principal em destaque */}
-            {products.length>0&&(
-              <S title={`Receita — ${products.length} produto${products.length>1?'s':''}`}>
-                <div style={{border:'2px solid #00313C',borderRadius:12,overflow:'hidden'}}>
-                  {/* Header da tabela */}
-                  <div style={{display:'grid',gridTemplateColumns:'28px 24px 1fr 90px 80px',gap:0,background:'#00313C',padding:'7px 10px'}}>
-                    <div style={{fontSize:9,fontWeight:800,color:'#D6CCA6',textTransform:'uppercase'}}>#</div>
-                    <div style={{fontSize:9,fontWeight:800,color:'#D6CCA6'}}></div>
-                    <div style={{fontSize:9,fontWeight:800,color:'#D6CCA6',textTransform:'uppercase'}}>Produto</div>
-                    <div style={{fontSize:9,fontWeight:800,color:'#D6CCA6',textTransform:'uppercase',textAlign:'right'}}>Dose</div>
-                    <div style={{fontSize:9,fontWeight:800,color:'#D6CCA6',textTransform:'uppercase',textAlign:'right'}}>Total</div>
-                  </div>
-                  {/* Linhas de produto */}
-                  {products.map((p,i)=>{
-                    const total=areaNum>0&&p.dose?calcTotal(p.dose,areaNum):null
-                    const isLast=i===products.length-1
-                    return(
-                      <div key={i} style={{display:'grid',gridTemplateColumns:'28px 24px 1fr 90px 80px',gap:0,padding:'9px 10px',background:i%2===0?'#fff':'#f8f9fa',borderBottom:isLast?'none':'1px solid #eee',alignItems:'center'}}>
-                        {/* Número de ordem */}
-                        <div style={{width:20,height:20,borderRadius:'50%',background:FC[p.type],display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontWeight:900,fontSize:10}}>{i+1}</div>
-                        {/* Ícone */}
-                        <div style={{fontSize:15,textAlign:'center'}}>{FI[p.type]}</div>
-                        {/* Nome + tipo */}
-                        <div>
-                          <div style={{fontWeight:800,fontSize:13,color:'#00313C'}}>{p.name}</div>
-                          <span style={{fontSize:9,fontWeight:800,color:'#fff',background:FC[p.type],padding:'1px 6px',borderRadius:20,display:'inline-block',marginTop:2}}>{FL[p.type]}</span>
-                        </div>
-                        {/* Dose */}
-                        <div style={{textAlign:'right'}}>
-                          {p.dose
-                            ? <span style={{fontSize:12,fontWeight:700,color:'#333'}}>{p.dose}</span>
-                            : <span style={{fontSize:11,color:'#bbb'}}>—</span>
-                          }
-                        </div>
-                        {/* Volume total */}
-                        <div style={{textAlign:'right'}}>
-                          {total
-                            ? <span style={{fontSize:12,fontWeight:800,color:'#006E85',background:'#e0f4f7',padding:'2px 7px',borderRadius:8,display:'inline-block'}}>{total}</span>
-                            : <span style={{fontSize:11,color:'#bbb'}}>—</span>
-                          }
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-                {areaNum===0&&<div style={{fontSize:10,color:'#bbb',marginTop:5,textAlign:'right'}}>* Informe a área na mistura para calcular volumes totais</div>}
-              </S>
-            )}
-
-            {/* pH da água em destaque */}
-            {telem&&(
-              <S title="Qualidade da Água">
-                <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8,marginBottom:8}}>
-                  {[
-                    ['pH',telem.ph,telem.evaluation],
-                    ['Temperatura',`${telem.temp_c}°C`,null],
-                    ...(telem.conductivity?[['Condutividade',`${telem.conductivity} µS/cm`,null]]:[])
-                  ].map(([l,v,ev])=>(
-                    <div key={l} style={{borderRadius:10,padding:'10px 8px',textAlign:'center',background:l==='pH'?phBg:'#f5f5f5',border:l==='pH'?`2px solid ${phColor}`:'2px solid #eee'}}>
-                      <div style={{fontSize:9,fontWeight:700,color:'#9e9e9e',textTransform:'uppercase'}}>{l}</div>
-                      <div style={{fontSize:22,fontWeight:900,color:l==='pH'?phColor:'#00313C',marginTop:2}}>{v}</div>
-                      {ev&&<div style={{fontSize:10,fontWeight:800,color:phColor,marginTop:2}}>{ev}</div>}
-                    </div>
-                  ))}
-                </div>
-              </S>
-            )}
-
-            {/* Jar Test */}
-            {jar&&(
-              <S title="Resultado do Jar Test">
-                <div style={{background:'#f5f5f5',borderRadius:8,padding:'10px 12px',display:'flex',alignItems:'center',gap:10}}>
-                  <span style={{fontSize:24}}>{jar.result==='ESTAVEL'?'✅':'⚠️'}</span>
-                  <div>
-                    <div style={{fontSize:14,fontWeight:800}}>{JarLabel[jar.result]||jar.result}</div>
-                    {jar.notes&&<div style={{fontSize:12,color:'#666',fontStyle:'italic',marginTop:2}}>{jar.notes}</div>}
-                  </div>
-                </div>
-              </S>
-            )}
-
-            {/* Responsável */}
-            <S title="Responsável Técnico">
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}>
-                <F label="Nome" value={op?.name}/>
-                <F label="Função" value={op?.role}/>
-                {op?.company&&<F label="Empresa" value={op.company}/>}
-                {op?.crea&&<F label="CREA/CFTA" value={op.crea}/>}
-              </div>
-            </S>
-
-            {/* Assinatura */}
-            <div style={{marginTop:18,paddingTop:14,borderTop:'1px solid #eee'}}>
-              <div style={{fontSize:10,color:'#9e9e9e',marginBottom:6}}>Assinatura do responsável técnico</div>
-              <div style={{borderBottom:'2px solid #333',width:200,height:40,marginBottom:6}}/>
-              <div style={{fontSize:11,fontWeight:700,color:'#333'}}>{op?.name} · {op?.role}</div>
-              {op?.crea&&<div style={{fontSize:10,color:'#9e9e9e'}}>CREA/CFTA: {op.crea}</div>}
-            </div>
-
-            <div style={{marginTop:16,textAlign:'center',fontSize:9,color:'#bbb',borderTop:'1px solid #f0f0f0',paddingTop:10}}>
-              {dateStr}, {timeStr} — FertigeoTech · Fertigeo Inteligência Agrícola
-            </div>
-          </div>
-        </div>
-      </div>
-      <div className="np" style={{padding:'10px 12px 16px',background:'#fff',borderTop:'1px solid #eee',display:'flex',flexDirection:'column',gap:8,flexShrink:0}}>
-        <button className="btn" onClick={()=>window.print()}>🖨️ Imprimir / Salvar PDF</button>
-        <button className="btn-ghost" onClick={onBack}>Voltar</button>
-      </div>
-    </div>
-  )
+  const products = useMemo(() => {
+    const parsed = parseRecipe(lot.recipe_text || '');
+    return [...parsed].sort((a, b) => (ORD[a.type] || 9) - (ORD[b.type] || 9));
+  }, [lot.recipe_text]);
+  const areaNum = parseFloat(lot.area_ha) || 0;
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "np"
+  }, /*#__PURE__*/React.createElement(Hdr, {
+    title: "\uD83D\uDCC4 Laudo de Qualidade",
+    onBack: onBack
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "sc",
+    style: {
+      flex: 1,
+      padding: 12,
+      paddingBottom: 100
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    id: "laudo",
+    style: {
+      background: '#fff',
+      borderRadius: 16,
+      overflow: 'hidden',
+      border: '1px solid #eee'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: '#00313C',
+      padding: '18px 22px',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between'
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      color: '#fff',
+      fontSize: 20,
+      fontWeight: 900,
+      letterSpacing: -1
+    }
+  }, "FertigeoTech"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      color: '#D6CCA6',
+      fontSize: 9,
+      fontWeight: 700,
+      letterSpacing: 2,
+      marginTop: 2,
+      textTransform: 'uppercase'
+    }
+  }, "Laudo de Qualidade de Calda")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: 'right'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      color: '#7EC8D8',
+      fontSize: 11,
+      fontWeight: 800
+    }
+  }, "#", lot.id.slice(-6).toUpperCase()), /*#__PURE__*/React.createElement("div", {
+    style: {
+      color: 'rgba(255,255,255,.6)',
+      fontSize: 9,
+      marginTop: 2
+    }
+  }, dateStr))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '18px 20px'
+    }
+  }, /*#__PURE__*/React.createElement(S, {
+    title: "Identifica\xE7\xE3o"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr',
+      gap: 6
+    }
+  }, /*#__PURE__*/React.createElement(F, {
+    label: "Fazenda",
+    value: lot.farm
+  }), /*#__PURE__*/React.createElement(F, {
+    label: "Talh\xE3o",
+    value: lot.field
+  }), /*#__PURE__*/React.createElement(F, {
+    label: "Volume da calda",
+    value: `${lot.volume_liters} L`
+  }), lot.area_ha && /*#__PURE__*/React.createElement(F, {
+    label: "\xC1rea",
+    value: `${lot.area_ha} ha`
+  }))), products.length > 0 && /*#__PURE__*/React.createElement(S, {
+    title: `Receita — ${products.length} produto${products.length > 1 ? 's' : ''}`
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      border: '2px solid #00313C',
+      borderRadius: 12,
+      overflow: 'hidden'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: '28px 24px 1fr 90px 80px',
+      gap: 0,
+      background: '#00313C',
+      padding: '7px 10px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 9,
+      fontWeight: 800,
+      color: '#D6CCA6',
+      textTransform: 'uppercase'
+    }
+  }, "#"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 9,
+      fontWeight: 800,
+      color: '#D6CCA6'
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 9,
+      fontWeight: 800,
+      color: '#D6CCA6',
+      textTransform: 'uppercase'
+    }
+  }, "Produto"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 9,
+      fontWeight: 800,
+      color: '#D6CCA6',
+      textTransform: 'uppercase',
+      textAlign: 'right'
+    }
+  }, "Dose"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 9,
+      fontWeight: 800,
+      color: '#D6CCA6',
+      textTransform: 'uppercase',
+      textAlign: 'right'
+    }
+  }, "Total")), products.map((p, i) => {
+    const total = areaNum > 0 && p.dose ? calcTotal(p.dose, areaNum) : null;
+    const isLast = i === products.length - 1;
+    return /*#__PURE__*/React.createElement("div", {
+      key: i,
+      style: {
+        display: 'grid',
+        gridTemplateColumns: '28px 24px 1fr 90px 80px',
+        gap: 0,
+        padding: '9px 10px',
+        background: i % 2 === 0 ? '#fff' : '#f8f9fa',
+        borderBottom: isLast ? 'none' : '1px solid #eee',
+        alignItems: 'center'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        width: 20,
+        height: 20,
+        borderRadius: '50%',
+        background: FC[p.type],
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: '#fff',
+        fontWeight: 900,
+        fontSize: 10
+      }
+    }, i + 1), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 15,
+        textAlign: 'center'
+      }
+    }, FI[p.type]), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontWeight: 800,
+        fontSize: 13,
+        color: '#00313C'
+      }
+    }, p.name), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 9,
+        fontWeight: 800,
+        color: '#fff',
+        background: FC[p.type],
+        padding: '1px 6px',
+        borderRadius: 20,
+        display: 'inline-block',
+        marginTop: 2
+      }
+    }, FL[p.type])), /*#__PURE__*/React.createElement("div", {
+      style: {
+        textAlign: 'right'
+      }
+    }, p.dose ? /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 12,
+        fontWeight: 700,
+        color: '#333'
+      }
+    }, p.dose) : /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 11,
+        color: '#bbb'
+      }
+    }, "\u2014")), /*#__PURE__*/React.createElement("div", {
+      style: {
+        textAlign: 'right'
+      }
+    }, total ? /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 12,
+        fontWeight: 800,
+        color: '#006E85',
+        background: '#e0f4f7',
+        padding: '2px 7px',
+        borderRadius: 8,
+        display: 'inline-block'
+      }
+    }, total) : /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 11,
+        color: '#bbb'
+      }
+    }, "\u2014")));
+  })), areaNum === 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: '#bbb',
+      marginTop: 5,
+      textAlign: 'right'
+    }
+  }, "* Informe a \xE1rea na mistura para calcular volumes totais")), telem && /*#__PURE__*/React.createElement(S, {
+    title: "Qualidade da \xC1gua"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(3,1fr)',
+      gap: 8,
+      marginBottom: 8
+    }
+  }, [['pH', telem.ph, telem.evaluation], ['Temperatura', `${telem.temp_c}°C`, null], ...(telem.conductivity ? [['Condutividade', `${telem.conductivity} µS/cm`, null]] : [])].map(([l, v, ev]) => /*#__PURE__*/React.createElement("div", {
+    key: l,
+    style: {
+      borderRadius: 10,
+      padding: '10px 8px',
+      textAlign: 'center',
+      background: l === 'pH' ? phBg : '#f5f5f5',
+      border: l === 'pH' ? `2px solid ${phColor}` : '2px solid #eee'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 9,
+      fontWeight: 700,
+      color: '#9e9e9e',
+      textTransform: 'uppercase'
+    }
+  }, l), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 22,
+      fontWeight: 900,
+      color: l === 'pH' ? phColor : '#00313C',
+      marginTop: 2
+    }
+  }, v), ev && /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      fontWeight: 800,
+      color: phColor,
+      marginTop: 2
+    }
+  }, ev))))), jar && /*#__PURE__*/React.createElement(S, {
+    title: "Resultado do Jar Test"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: '#f5f5f5',
+      borderRadius: 8,
+      padding: '10px 12px',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 24
+    }
+  }, jar.result === 'ESTAVEL' ? '✅' : '⚠️'), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 14,
+      fontWeight: 800
+    }
+  }, JarLabel[jar.result] || jar.result), jar.notes && /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      color: '#666',
+      fontStyle: 'italic',
+      marginTop: 2
+    }
+  }, jar.notes)))), /*#__PURE__*/React.createElement(S, {
+    title: "Respons\xE1vel T\xE9cnico"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr',
+      gap: 6
+    }
+  }, /*#__PURE__*/React.createElement(F, {
+    label: "Nome",
+    value: op?.name
+  }), /*#__PURE__*/React.createElement(F, {
+    label: "Fun\xE7\xE3o",
+    value: op?.role
+  }), op?.company && /*#__PURE__*/React.createElement(F, {
+    label: "Empresa",
+    value: op.company
+  }), op?.crea && /*#__PURE__*/React.createElement(F, {
+    label: "CREA/CFTA",
+    value: op.crea
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 18,
+      paddingTop: 14,
+      borderTop: '1px solid #eee'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: '#9e9e9e',
+      marginBottom: 6
+    }
+  }, "Assinatura do respons\xE1vel t\xE9cnico"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      borderBottom: '2px solid #333',
+      width: 200,
+      height: 40,
+      marginBottom: 6
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      fontWeight: 700,
+      color: '#333'
+    }
+  }, op?.name, " \xB7 ", op?.role), op?.crea && /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: '#9e9e9e'
+    }
+  }, "CREA/CFTA: ", op.crea)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 16,
+      textAlign: 'center',
+      fontSize: 9,
+      color: '#bbb',
+      borderTop: '1px solid #f0f0f0',
+      paddingTop: 10
+    }
+  }, dateStr, ", ", timeStr, " \u2014 FertigeoTech \xB7 Fertigeo Intelig\xEAncia Agr\xEDcola")))), /*#__PURE__*/React.createElement("div", {
+    className: "np",
+    style: {
+      padding: '10px 12px 16px',
+      background: '#fff',
+      borderTop: '1px solid #eee',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 8,
+      flexShrink: 0
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn",
+    onClick: () => window.print()
+  }, "\uD83D\uDDA8\uFE0F Imprimir / Salvar PDF"), /*#__PURE__*/React.createElement("button", {
+    className: "btn-ghost",
+    onClick: onBack
+  }, "Voltar")));
 }
-
-function ManagerScreen({lots,onNav}){
-  const today=new Date().toDateString()
-  const kpis=[
-    {icon:'📋',label:'Hoje',val:lots.filter(l=>new Date(l.created_at).toDateString()===today).length,c:'#006E85'},
-    {icon:'✅',label:'Prontas',val:lots.filter(l=>l.status==='READY').length,c:'#4caf50'},
-    {icon:'⚗️',label:'Em andamento',val:lots.filter(l=>!['READY','APPLIED','REQUESTED'].includes(l.status)).length,c:'#e65100'},
-    {icon:'⚠️',label:'Riscos',val:lots.filter(l=>l.last_ph&&(l.last_ph<5||l.last_ph>7)).length,c:'#c62828'},
-  ]
-  const active=lots.filter(l=>l.status!=='APPLIED')
-  const risks=lots.filter(l=>l.last_ph&&(l.last_ph<5||l.last_ph>7))
-  const TL=[{s:'WATER_OK',icon:'💧'},{s:'PREPARING',icon:'⚗️'},{s:'JAR_TEST',icon:'🧪'},{s:'READY',icon:'✅'},{s:'APPLIED',icon:'🚜'}]
-  return(
-    <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
-      <div style={{background:'#00313C',padding:'14px 16px',flexShrink:0}}>
-        <div style={{color:'#fff',fontWeight:800,fontSize:16}}>📊 Painel do Gestor</div>
-        <div style={{color:'#7EC8D8',fontSize:11,marginTop:2}}>Visão geral de operações</div>
-      </div>
-      <div className="sc" style={{flex:1,padding:12,paddingBottom:24}}>
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:12}}>
-          {kpis.map(k=>(
-            <div key={k.label} className="card" style={{textAlign:'center',marginBottom:0}}>
-              <div style={{fontSize:22,marginBottom:3}}>{k.icon}</div>
-              <div style={{fontSize:24,fontWeight:900,color:k.c}}>{k.val}</div>
-              <div style={{fontSize:11,color:'#777',fontWeight:600}}>{k.label}</div>
-            </div>
-          ))}
-        </div>
-        {risks.length>0&&(
-          <div className="card" style={{borderLeft:'4px solid #f44336',background:'#ffebee',marginBottom:10}}>
-            <div style={{fontWeight:800,fontSize:13,color:'#c62828',marginBottom:5}}>⚠️ pH fora do ideal</div>
-            {risks.map(l=><div key={l.id} style={{fontSize:12,color:'#b71c1c',marginBottom:1}}>• {l.farm} / {l.field} — pH {l.last_ph?.toFixed(1)}</div>)}
-          </div>
-        )}
-        <div style={{fontWeight:800,fontSize:13,marginBottom:8}}>Operações em andamento</div>
-        {active.length===0&&<div className="card" style={{textAlign:'center',padding:'20px',color:'#9e9e9e',fontSize:13}}>Nenhuma operação ativa</div>}
-        {active.map(lot=>{
-          const li=SO.indexOf(lot.status)
-          return(
-            <div key={lot.id} className="card" onClick={()=>onNav('detail',lot)} style={{cursor:'pointer',marginBottom:8}}>
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
-                <div><div style={{fontWeight:800,fontSize:13}}>{lot.farm}</div><div style={{fontSize:11,color:'#777'}}>{lot.field} · {lot.volume_liters}L</div></div>
-                <span className={`badge ${SC2[lot.status]}`}>{SL[lot.status]}</span>
-              </div>
-              <div style={{display:'flex',alignItems:'center',gap:3}}>
-                {TL.map((step,i)=>{
-                  const si=SO.indexOf(step.s),isDone=li>si,isActive=li===si
-                  return(<React.Fragment key={step.s}>
-                    <div style={{width:26,height:26,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:800,background:isDone?'#006E85':isActive?'#e65100':'#e0e0e0',color:(isDone||isActive)?'#fff':'#9e9e9e',flexShrink:0}}>{isDone?'✓':step.icon}</div>
-                    {i<TL.length-1&&<div style={{flex:1,height:2,background:isDone?'#006E85':'#e0e0e0'}}/>}
-                  </React.Fragment>)
-                })}
-              </div>
-            </div>
-          )
-        })}
-        {lots.filter(l=>l.last_ph).length>0&&(
-          <div className="card" style={{marginTop:4}}>
-            <div style={{fontWeight:800,fontSize:13,marginBottom:8}}>pH por talhão</div>
-            {lots.filter(l=>l.last_ph).slice(0,8).map(l=>{
-              const ph=l.last_ph,cls=ph>=5.5&&ph<=6.5?'bg-green':ph>=4.5&&ph<=7?'bg-orange':'bg-red'
-              return(
-                <div key={l.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'7px 0',borderBottom:'1px solid #f5f5f5'}}>
-                  <div><span style={{fontWeight:700,fontSize:13}}>{l.farm}</span><span style={{color:'#9e9e9e',fontSize:11}}> — {l.field}</span></div>
-                  <span className={`badge ${cls}`}>pH {ph.toFixed(1)}</span>
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </div>
-    </div>
-  )
+function ManagerScreen({
+  lots,
+  onNav
+}) {
+  const today = new Date().toDateString();
+  const kpis = [{
+    icon: '📋',
+    label: 'Hoje',
+    val: lots.filter(l => new Date(l.created_at).toDateString() === today).length,
+    c: '#006E85'
+  }, {
+    icon: '✅',
+    label: 'Prontas',
+    val: lots.filter(l => l.status === 'READY').length,
+    c: '#4caf50'
+  }, {
+    icon: '⚗️',
+    label: 'Em andamento',
+    val: lots.filter(l => !['READY', 'APPLIED', 'REQUESTED'].includes(l.status)).length,
+    c: '#e65100'
+  }, {
+    icon: '⚠️',
+    label: 'Riscos',
+    val: lots.filter(l => l.last_ph && (l.last_ph < 5 || l.last_ph > 7)).length,
+    c: '#c62828'
+  }];
+  const active = lots.filter(l => l.status !== 'APPLIED');
+  const risks = lots.filter(l => l.last_ph && (l.last_ph < 5 || l.last_ph > 7));
+  const TL = [{
+    s: 'WATER_OK',
+    icon: '💧'
+  }, {
+    s: 'PREPARING',
+    icon: '⚗️'
+  }, {
+    s: 'JAR_TEST',
+    icon: '🧪'
+  }, {
+    s: 'READY',
+    icon: '✅'
+  }, {
+    s: 'APPLIED',
+    icon: '🚜'
+  }];
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: '#00313C',
+      padding: '14px 16px',
+      flexShrink: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      color: '#fff',
+      fontWeight: 800,
+      fontSize: 16
+    }
+  }, "\uD83D\uDCCA Painel do Gestor"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      color: '#7EC8D8',
+      fontSize: 11,
+      marginTop: 2
+    }
+  }, "Vis\xE3o geral de opera\xE7\xF5es")), /*#__PURE__*/React.createElement("div", {
+    className: "sc",
+    style: {
+      flex: 1,
+      padding: 12,
+      paddingBottom: 24
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr',
+      gap: 10,
+      marginBottom: 12
+    }
+  }, kpis.map(k => /*#__PURE__*/React.createElement("div", {
+    key: k.label,
+    className: "card",
+    style: {
+      textAlign: 'center',
+      marginBottom: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 22,
+      marginBottom: 3
+    }
+  }, k.icon), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 24,
+      fontWeight: 900,
+      color: k.c
+    }
+  }, k.val), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: '#777',
+      fontWeight: 600
+    }
+  }, k.label)))), risks.length > 0 && /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      borderLeft: '4px solid #f44336',
+      background: '#ffebee',
+      marginBottom: 10
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: 800,
+      fontSize: 13,
+      color: '#c62828',
+      marginBottom: 5
+    }
+  }, "\u26A0\uFE0F pH fora do ideal"), risks.map(l => /*#__PURE__*/React.createElement("div", {
+    key: l.id,
+    style: {
+      fontSize: 12,
+      color: '#b71c1c',
+      marginBottom: 1
+    }
+  }, "\u2022 ", l.farm, " / ", l.field, " \u2014 pH ", l.last_ph?.toFixed(1)))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: 800,
+      fontSize: 13,
+      marginBottom: 8
+    }
+  }, "Opera\xE7\xF5es em andamento"), active.length === 0 && /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      textAlign: 'center',
+      padding: '20px',
+      color: '#9e9e9e',
+      fontSize: 13
+    }
+  }, "Nenhuma opera\xE7\xE3o ativa"), active.map(lot => {
+    const li = SO.indexOf(lot.status);
+    return /*#__PURE__*/React.createElement("div", {
+      key: lot.id,
+      className: "card",
+      onClick: () => onNav('detail', lot),
+      style: {
+        cursor: 'pointer',
+        marginBottom: 8
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 8
+      }
+    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontWeight: 800,
+        fontSize: 13
+      }
+    }, lot.farm), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 11,
+        color: '#777'
+      }
+    }, lot.field, " \xB7 ", lot.volume_liters, "L")), /*#__PURE__*/React.createElement("span", {
+      className: `badge ${SC2[lot.status]}`
+    }, SL[lot.status])), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 3
+      }
+    }, TL.map((step, i) => {
+      const si = SO.indexOf(step.s),
+        isDone = li > si,
+        isActive = li === si;
+      return /*#__PURE__*/React.createElement(React.Fragment, {
+        key: step.s
+      }, /*#__PURE__*/React.createElement("div", {
+        style: {
+          width: 26,
+          height: 26,
+          borderRadius: '50%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: 10,
+          fontWeight: 800,
+          background: isDone ? '#006E85' : isActive ? '#e65100' : '#e0e0e0',
+          color: isDone || isActive ? '#fff' : '#9e9e9e',
+          flexShrink: 0
+        }
+      }, isDone ? '✓' : step.icon), i < TL.length - 1 && /*#__PURE__*/React.createElement("div", {
+        style: {
+          flex: 1,
+          height: 2,
+          background: isDone ? '#006E85' : '#e0e0e0'
+        }
+      }));
+    })));
+  }), lots.filter(l => l.last_ph).length > 0 && /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      marginTop: 4
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: 800,
+      fontSize: 13,
+      marginBottom: 8
+    }
+  }, "pH por talh\xE3o"), lots.filter(l => l.last_ph).slice(0, 8).map(l => {
+    const ph = l.last_ph,
+      cls = ph >= 5.5 && ph <= 6.5 ? 'bg-green' : ph >= 4.5 && ph <= 7 ? 'bg-orange' : 'bg-red';
+    return /*#__PURE__*/React.createElement("div", {
+      key: l.id,
+      style: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: '7px 0',
+        borderBottom: '1px solid #f5f5f5'
+      }
+    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontWeight: 700,
+        fontSize: 13
+      }
+    }, l.farm), /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: '#9e9e9e',
+        fontSize: 11
+      }
+    }, " \u2014 ", l.field)), /*#__PURE__*/React.createElement("span", {
+      className: `badge ${cls}`
+    }, "pH ", ph.toFixed(1)));
+  }))));
 }
 
 // ═══════════════════════════════════════════════════════════════
 // MAIN APP
 // ═══════════════════════════════════════════════════════════════
-const MGROLES=['Engenheiro Agrônomo','Técnico Agrícola']
-
-function App(){
-  const[op,setOp]=useState(()=>{try{return JSON.parse(localStorage.getItem('ft_op')||'null')}catch{return null}})
-  const[screen,setScreen]=useState('tabs')
-  const[ctx,setCtx]=useState({})
-  const[lots,setLots]=useState([])
-  const[tab,setTab]=useState('home')
-
-  useEffect(()=>{ if(op) loadLots() },[op])
-
-  const loadLots=useCallback(()=>{
-    dbSelect('lots').then(d=>setLots(d))
-  },[])
-
-  const login=o=>{localStorage.setItem('ft_op',JSON.stringify(o));setOp(o)}
-  const logout=()=>{localStorage.removeItem('ft_op');setOp(null);setLots([])}
-
-  const nav=useCallback((sc,lot=null,telem=null,jar=null)=>{
-    setCtx({lot,telem,jar})
-    setScreen(sc)
-  },[])
-
-  const goTab=useCallback(t=>{
-    setTab(t)
-    setScreen('tabs')
-    loadLots() // ← recarrega lista sempre que muda de aba ou volta
-  },[loadLots])
-
-  const updateLot=useCallback(u=>setLots(prev=>prev.map(l=>l.id===u.id?u:l)),[])
-
-  if(!op) return <LoginScreen onLogin={login}/>
+const MGROLES = ['Engenheiro Agrônomo', 'Técnico Agrícola'];
+function App() {
+  const [op, setOp] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('ft_op') || 'null');
+    } catch {
+      return null;
+    }
+  });
+  const [screen, setScreen] = useState('tabs');
+  const [ctx, setCtx] = useState({});
+  const [lots, setLots] = useState([]);
+  const [tab, setTab] = useState('home');
+  useEffect(() => {
+    if (op) loadLots();
+  }, [op]);
+  const loadLots = useCallback(() => {
+    dbSelect('lots').then(d => setLots(d));
+  }, []);
+  const login = o => {
+    localStorage.setItem('ft_op', JSON.stringify(o));
+    setOp(o);
+  };
+  const logout = () => {
+    localStorage.removeItem('ft_op');
+    setOp(null);
+    setLots([]);
+  };
+  const nav = useCallback((sc, lot = null, telem = null, jar = null) => {
+    setCtx({
+      lot,
+      telem,
+      jar
+    });
+    setScreen(sc);
+  }, []);
+  const goTab = useCallback(t => {
+    setTab(t);
+    setScreen('tabs');
+    loadLots(); // ← recarrega lista sempre que muda de aba ou volta
+  }, [loadLots]);
+  const updateLot = useCallback(u => setLots(prev => prev.map(l => l.id === u.id ? u : l)), []);
+  if (!op) return /*#__PURE__*/React.createElement(LoginScreen, {
+    onLogin: login
+  });
 
   // ── Telas modais (sobre as abas) ──────────────────────────────
-  if(screen==='new') return(
-    <NewLotScreen
-      onBack={()=>setScreen('tabs')}
-      onSaved={(lot,goWater)=>{
-        setLots(p=>[lot,...p])
-        if(goWater) nav('water',lot)
-        else setScreen('tabs')
-      }}
-    />
-  )
-  if(screen==='water') return(
-    <WaterScreen
-      lot={ctx.lot}
-      onBack={()=>nav('detail',ctx.lot)}
-      onDone={(u,t)=>{ updateLot(u); nav('prep',u) }}
-    />
-  )
-  if(screen==='prep') return(
-    <PrepScreen
-      lot={ctx.lot}
-      onBack={()=>nav('detail',ctx.lot)}
-      onDone={u=>{ updateLot(u); nav('jartest',u) }}
-    />
-  )
-  if(screen==='jartest') return(
-    <JarTestScreen
-      lot={ctx.lot}
-      onBack={()=>nav('detail',ctx.lot)}
-      onDone={(u)=>{ updateLot(u); nav('detail',u) }}
-    />
-  )
-  if(screen==='detail') return(
-    <LotDetailScreen
-      lot={ctx.lot}
-      op={op}
-      onBack={()=>goTab(tab)}
-      onNav={nav}
-      onLotUpdate={updateLot}
-    />
-  )
-  if(screen==='laudo') return(
-    <LaudoScreen
-      lot={ctx.lot}
-      telem={ctx.telem}
-      jar={ctx.jar}
-      op={op}
-      onBack={()=>nav('detail',ctx.lot,ctx.telem,ctx.jar)}
-    />
-  )
+  if (screen === 'new') return /*#__PURE__*/React.createElement(NewLotScreen, {
+    onBack: () => setScreen('tabs'),
+    onSaved: (lot, goWater) => {
+      setLots(p => [lot, ...p]);
+      if (goWater) nav('water', lot);else setScreen('tabs');
+    }
+  });
+  if (screen === 'water') return /*#__PURE__*/React.createElement(WaterScreen, {
+    lot: ctx.lot,
+    onBack: () => nav('detail', ctx.lot),
+    onDone: (u, t) => {
+      updateLot(u);
+      nav('prep', u);
+    }
+  });
+  if (screen === 'prep') return /*#__PURE__*/React.createElement(PrepScreen, {
+    lot: ctx.lot,
+    onBack: () => nav('detail', ctx.lot),
+    onDone: u => {
+      updateLot(u);
+      nav('jartest', u);
+    }
+  });
+  if (screen === 'jartest') return /*#__PURE__*/React.createElement(JarTestScreen, {
+    lot: ctx.lot,
+    onBack: () => nav('detail', ctx.lot),
+    onDone: u => {
+      updateLot(u);
+      nav('detail', u);
+    }
+  });
+  if (screen === 'detail') return /*#__PURE__*/React.createElement(LotDetailScreen, {
+    lot: ctx.lot,
+    op: op,
+    onBack: () => goTab(tab),
+    onNav: nav,
+    onLotUpdate: updateLot
+  });
+  if (screen === 'laudo') return /*#__PURE__*/React.createElement(LaudoScreen, {
+    lot: ctx.lot,
+    telem: ctx.telem,
+    jar: ctx.jar,
+    op: op,
+    onBack: () => nav('detail', ctx.lot, ctx.telem, ctx.jar)
+  });
 
   // ── Tela principal com abas ───────────────────────────────────
-  const isManager=MGROLES.includes(op?.role)
-  const TABS=[
-    {id:'home',icon:'🏠',label:'Início'},
-    {id:'lots',icon:'⚗️',label:'Misturas'},
-    ...(isManager?[{id:'manager',icon:'📊',label:'Gestor'}]:[])
-  ]
-
-  return(
-    <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
-      <div style={{flex:1,overflow:'hidden',display:'flex',flexDirection:'column'}}>
-        {tab==='home'&&<HomeScreen op={op} onLogout={logout} onNav={nav} lots={lots} onNew={()=>setScreen('new')}/>}
-        {tab==='lots'&&<LotsScreen lots={lots} onNav={nav} onNew={()=>setScreen('new')}/>}
-        {tab==='manager'&&isManager&&<ManagerScreen lots={lots} onNav={nav}/>}
-      </div>
-      <div className="tab-bar np">
-        {TABS.map(t=>(
-          <button key={t.id} className={`tab-btn${tab===t.id?' active':''}`} onClick={()=>goTab(t.id)}>
-            <span style={{fontSize:20}}>{t.icon}</span>
-            <span>{t.label}</span>
-          </button>
-        ))}
-      </div>
-    </div>
-  )
+  const isManager = MGROLES.includes(op?.role);
+  const TABS = [{
+    id: 'home',
+    icon: '🏠',
+    label: 'Início'
+  }, {
+    id: 'lots',
+    icon: '⚗️',
+    label: 'Misturas'
+  }, ...(isManager ? [{
+    id: 'manager',
+    icon: '📊',
+    label: 'Gestor'
+  }] : [])];
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      overflow: 'hidden',
+      display: 'flex',
+      flexDirection: 'column'
+    }
+  }, tab === 'home' && /*#__PURE__*/React.createElement(HomeScreen, {
+    op: op,
+    onLogout: logout,
+    onNav: nav,
+    lots: lots,
+    onNew: () => setScreen('new')
+  }), tab === 'lots' && /*#__PURE__*/React.createElement(LotsScreen, {
+    lots: lots,
+    onNav: nav,
+    onNew: () => setScreen('new')
+  }), tab === 'manager' && isManager && /*#__PURE__*/React.createElement(ManagerScreen, {
+    lots: lots,
+    onNav: nav
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "tab-bar np"
+  }, TABS.map(t => /*#__PURE__*/React.createElement("button", {
+    key: t.id,
+    className: `tab-btn${tab === t.id ? ' active' : ''}`,
+    onClick: () => goTab(t.id)
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 20
+    }
+  }, t.icon), /*#__PURE__*/React.createElement("span", null, t.label)))));
 }
+ReactDOM.createRoot(document.getElementById('root')).render(/*#__PURE__*/React.createElement(App, null));
 
-ReactDOM.createRoot(document.getElementById('root')).render(<App/>)
 </script>
 </body>
 </html>
