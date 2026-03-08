@@ -55,6 +55,8 @@ async function insert(table,row){
 async function update(table,id,patch){
   if(table==='lots'){const d=DB.lots;const i=d.findIndex(r=>r.id===id);if(i>-1){d[i]={...d[i],...patch};DB.saveLots(d)}}
 }
+const dbUpdate=update  // alias
+
 async function selectAll(table){
   if(table==='lots') return DB.lots
   if(table==='telem') return DB.telem
@@ -579,20 +581,22 @@ function getAllProducts(){
 
 function ProductPicker({onAdd}){
   const[search,setSearch]=useState('')
-  const[picking,setPicking]=useState(null) // produto selecionado esperando dose
+  const[open,setOpen]=useState(false)
+  const[picking,setPicking]=useState(null)
   const[doseVal,setDoseVal]=useState('')
   const[doseUnit,setDoseUnit]=useState('L/ha')
   const inputRef=useRef(null)
 
   const filtered=useMemo(()=>{
-    if(!search.trim()) return []
-    const q=nrm(search)
-    return ALL_PRODUCTS.filter(p=>nrm(p.name).includes(q)||nrm(FL[p.type]).includes(q)).slice(0,8)
+    const q=nrm(search.trim())
+    if(!q) return ALL_PRODUCTS.slice(0,8)
+    return ALL_PRODUCTS.filter(p=>nrm(p.name).includes(q)||nrm(FL[p.type]||'').includes(q)).slice(0,8)
   },[search])
 
   const selectProduct=(p)=>{
     setPicking(p)
     setSearch('')
+    setOpen(false)
     setDoseVal('')
     setDoseUnit('L/ha')
     setTimeout(()=>document.getElementById('dose-input')?.focus(),100)
@@ -601,15 +605,15 @@ function ProductPicker({onAdd}){
   const confirm=()=>{
     if(!picking) return
     const dose=doseVal.trim()?(doseVal.trim().replace(',','.')+' '+doseUnit):''
-    onAdd({name:picking.name,nameKey:picking.nameKey,type:picking.type,dose})
+    onAdd({name:picking.name,nameKey:picking.nameKey||nrm(picking.name),type:picking.type||'?',dose})
     setPicking(null)
     setSearch('')
+    setOpen(false)
     setTimeout(()=>inputRef.current?.focus(),50)
   }
 
   return(
     <div>
-      {/* Campo de busca */}
       {!picking&&(
         <div style={{position:'relative'}}>
           <input
@@ -617,25 +621,30 @@ function ProductPicker({onAdd}){
             className="field"
             placeholder="🔍 Buscar produto... (ex: Priori, Nimbus, Dithane)"
             value={search}
-            onChange={e=>setSearch(e.target.value)}
+            onChange={e=>{setSearch(e.target.value);setOpen(true)}}
+            onFocus={()=>setOpen(true)}
+            onBlur={()=>setTimeout(()=>setOpen(false),200)}
             autoComplete="off"
           />
-          {filtered.length>0&&(
-            <div style={{position:'absolute',top:'100%',left:0,right:0,background:'#fff',border:'1.5px solid #006E85',borderRadius:12,zIndex:100,boxShadow:'0 8px 24px rgba(0,0,0,.15)',overflow:'hidden',marginTop:4}}>
+          {open&&(
+            <div style={{position:'absolute',top:'100%',left:0,right:0,background:'#fff',border:'1.5px solid #006E85',borderRadius:12,zIndex:200,boxShadow:'0 8px 24px rgba(0,0,0,.15)',overflow:'hidden',marginTop:4}}>
               {filtered.map((p,i)=>(
-                <div key={i} onClick={()=>selectProduct(p)} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px',borderBottom:'1px solid #f5f5f5',cursor:'pointer',background:'#fff'}}
-                  onMouseEnter={e=>e.currentTarget.style.background='#f0f8fa'}
-                  onMouseLeave={e=>e.currentTarget.style.background='#fff'}>
-                  <span style={{fontSize:18}}>{FI[p.type]}</span>
+                <div key={i}
+                  onMouseDown={e=>{e.preventDefault();selectProduct(p)}}
+                  onTouchEnd={e=>{e.preventDefault();selectProduct(p)}}
+                  style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px',borderBottom:'1px solid #f5f5f5',cursor:'pointer',background:'#fff'}}>
+                  <span style={{fontSize:18}}>{FI[p.type]||'🔬'}</span>
                   <div style={{flex:1}}>
                     <div style={{fontWeight:700,fontSize:14}}>{p.name}</div>
-                    <div style={{fontSize:11,color:'#999'}}>{FL[p.type]}</div>
+                    <div style={{fontSize:11,color:'#999'}}>{FL[p.type]||'Produto'}</div>
                   </div>
-                  <span style={{fontSize:11,fontWeight:800,color:'#fff',background:FC[p.type],padding:'2px 8px',borderRadius:20}}>{p.type}</span>
+                  <span style={{fontSize:11,fontWeight:800,color:'#fff',background:FC[p.type]||'#9E9E9E',padding:'2px 8px',borderRadius:20}}>{p.type||'?'}</span>
                 </div>
               ))}
               {search.trim()&&(
-                <div onClick={()=>selectProduct({name:search.trim(),nameKey:nrm(search.trim()),type:detectType(search.trim())})}
+                <div
+                  onMouseDown={e=>{e.preventDefault();selectProduct({name:search.trim(),nameKey:nrm(search.trim()),type:detectType(search.trim())||'?'})}}
+                  onTouchEnd={e=>{e.preventDefault();selectProduct({name:search.trim(),nameKey:nrm(search.trim()),type:detectType(search.trim())||'?'})}}
                   style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px',cursor:'pointer',background:'#f8f8f8'}}>
                   <span style={{fontSize:18}}>➕</span>
                   <div style={{fontSize:13,color:'#555'}}>Adicionar <b>"{search.trim()}"</b> como produto personalizado</div>
@@ -646,16 +655,14 @@ function ProductPicker({onAdd}){
         </div>
       )}
 
-      {/* Painel de dose após seleção */}
       {picking&&(
         <div style={{background:'#e0f4f7',borderRadius:12,padding:'12px 14px',border:'2px solid #006E85'}}>
-          <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:10}}>
-            <span style={{fontSize:22}}>{FI[picking.type]}</span>
+          <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:10}}>            <span style={{fontSize:22}}>{FI[picking.type]||'🔬'}</span>
             <div style={{flex:1}}>
               <div style={{fontWeight:800,fontSize:15}}>{picking.name}</div>
-              <span style={{fontSize:11,fontWeight:800,color:'#fff',background:FC[picking.type],padding:'2px 8px',borderRadius:20}}>{FL[picking.type]}</span>
+              <span style={{fontSize:11,fontWeight:800,color:'#fff',background:FC[picking.type]||'#9E9E9E',padding:'2px 8px',borderRadius:20}}>{FL[picking.type]||'Produto'}</span>
             </div>
-            <button onClick={()=>setPicking(null)} style={{background:'none',border:'none',color:'#999',fontSize:20,cursor:'pointer',padding:0}}>✕</button>
+            <button onMouseDown={()=>setPicking(null)} style={{background:'none',border:'none',color:'#999',fontSize:20,cursor:'pointer',padding:0}}>✕</button>
           </div>
           <label className="lbl">Dose (opcional)</label>
           <div style={{display:'flex',gap:8}}>
@@ -686,6 +693,7 @@ function ProductPicker({onAdd}){
     </div>
   )
 }
+
 
 function NewLotScreen({onBack,onSaved}){
   const[farm,setFarm]=useState('')
