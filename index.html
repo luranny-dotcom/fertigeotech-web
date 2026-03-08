@@ -76,6 +76,11 @@ const PDB={
   'nova pekacid':'WP','actara 250':'WP','actend':'WP','actigard':'WP','bion':'WP','chess':'WP',
   'desali':'WP','envoke':'WP','fulfill':'WP','invict':'WP','krismat wg':'WP','ridomil gold':'WP',
   'switch':'WP','trigard':'WP','unix':'WP','zapp wg':'WP',
+  'acephate 90 sp agrogill':'WP','garantte':'WP','looper protection':'WP','acefato ccab 750 sp':'WP',
+  'acefato ccab 950 sg':'WP','acetamiprid ccab 200 sp':'WP','acetamiprid ccab 200 sp ii':'WP',
+  'ametrina 800 wg chds':'WP','acefato fersol 750 sp':'WP','trigard 750 wp':'WP','aradya':'WP',
+  'abamectin nortox 400 wg':'WP','acetamiprid nortox 200 sp':'WP','garra 450 wp':'WP',
+  'ametrina 800 wg rainbow':'WP','acefato 750 tide':'WP','tridium':'WP','trifloxystrobin 500 wg':'WP',
   // ── Suspensões SC ──
   'priori xtra':'SC','priori':'SC','priori top':'SC','azoxistrobina':'SC','piraclostrobina':'SC',
   'opera':'SC','orkestra':'SC','abamectina':'SC','vertimec':'SC','kraft':'SC','belt':'SC','folicur':'SC',
@@ -106,6 +111,7 @@ const PDB={
   'rebron':'SC','revus':'SC','savivo':'SC','score':'SC','score flexi':'SC','spectro':'SC',
   'sponta':'SC','tecto':'SC','truzon':'SC','vantigo':'SC','verdadero':'SC','verdavis':'SC',
   'volubilis':'SC','zagrone':'SC',
+  'plethora br':'SC','aptur pf':'SC','ametrina alta 500 sc':'SC','gardeon':'SC','80 fluroxipyr meptilico 80 picloram ccab me':'SC','ametrina ccab 500 sc':'SC','azoxistrobin 200 ciproconazol 80 ccab sc':'SC','azoxistrobina ccab 250 sc':'SC','tricobio sc':'SC','trigger 240 sc':'SC','dorai max':'SC','crystal':'SC','trifluralina h nortox':'SC','ametrina 500 sc rainbow':'SC','tricosphera':'SC','azoxystrobin 250 sc yonon':'SC',
   // ── Emulsões EC/EW ──
   'dual gold':'EC','fastac':'EC','goal':'EC','hero':'EC','capture':'EC','fury':'EC',
   'talstar':'EC','brigade':'EC','rifit':'EC','aramo':'EC','nimitz':'EC','mavrik':'EC',
@@ -116,6 +122,7 @@ const PDB={
   'epimec':'EC','flex':'EC','fuoro':'EC','fusiflex':'EC','fusilade':'EC',
   'fusilade 250':'EC','match':'EC','match ec':'EC','mirato':'EC','moddus':'EC',
   'polytrin':'EC','primoleo':'EC','sequence':'EC','topik':'EC',
+  'araddo':'EC','dorado':'EC','triclopir ccab 480 ec':'EC','garlon 480 br':'EC','cruzaro 480 ec':'EC','triclopir 480 ec maxunitech':'EC','abamectin 72 ec nortox':'EC','triclopir f nortox':'EC','triclopir nortox':'EC','trifluralina nortox gold':'EC','arbust':'EC','produtobr':'EC','triclopir 667 ec perterra':'EC','tora':'EC','triclopyr-butotyl 667':'EC','longar 480 ec':'EC','triclopir tide 480 ec':'EC','triclon':'EC','triclopyr 480 upl':'EC',
   // ── Soluções SL ──
   'glifosato':'SL','gliz':'SL','roundup':'SL','zapp':'SL','zapp qi':'SL','trop':'SL',
   '2,4-d':'SL','2.4-d':'SL','tordon':'SL','dicamba':'SL','banvel':'SL',
@@ -124,6 +131,7 @@ const PDB={
   'stinger':'SL','panther':'SL','raptor':'SL',
   'fertiláqua':'SL','cultar':'SL','extravon':'SL','fitter':'SL','gopan':'SL',
   'influx':'SL','protecta':'SL','touchdown':'SL',
+  '2,4 d 806 sl agcn':'SL','2,4 d 806 sl alamos':'SL','2,4 d amina ccab 806 sl':'SL','2,4 d crop 806 sl':'SL','2,4 d 806 sl crotect':'SL','dorai':'SL','2,4 d r 806 sl perterra':'SL','torban':'SL','aminopyralid 2,4 d 360 sl yonon':'SL',
   // ── Adjuvantes ──
   'nimbus':'ADJ','assist':'ADJ','aureo':'ADJ','áureo':'ADJ','energic':'ADJ',
   'dash':'ADJ','haiten':'ADJ','agral':'ADJ','silwet':'ADJ','oleo':'ADJ','óleo':'ADJ','break thru':'ADJ',
@@ -469,27 +477,152 @@ function LotsScreen({lots,onNav,onNew}){
 }
 
 // ── Product Picker ─────────────────────────────────────────────
-// Lista completa de produtos para busca (nome + tipo)
-const ALL_PRODUCTS = Object.entries(PDB).map(([name,type])=>({
-  name: name.charAt(0).toUpperCase()+name.slice(1),
-  nameKey: name,
-  type
-})).sort((a,b)=>a.name.localeCompare(b.name))
-
 const DOSE_UNITS=['L/ha','mL/ha','kg/ha','g/ha','L/100L','mL/100L','g/100L','kg/100L','L/vc','mL/vc']
+
+// Carrega produtos customizados do localStorage e mescla com PDB
+function loadCustomProducts(){
+  try{return JSON.parse(localStorage.getItem('ft_custom_products')||'[]')}catch{return[]}
+}
+function saveCustomProduct(p){
+  const list=loadCustomProducts()
+  if(!list.find(x=>x.nameKey===p.nameKey)){list.push(p);localStorage.setItem('ft_custom_products',JSON.stringify(list))}
+}
+function getAllProducts(){
+  const base=Object.entries(PDB).map(([name,type])=>({
+    name:name.charAt(0).toUpperCase()+name.slice(1),nameKey:name,type,custom:false
+  }))
+  const custom=loadCustomProducts().map(p=>({...p,custom:true}))
+  const merged=[...base]
+  custom.forEach(cp=>{if(!merged.find(b=>b.nameKey===cp.nameKey))merged.push(cp)})
+  return merged.sort((a,b)=>a.name.localeCompare(b.name))
+}
+
+// Modal para cadastrar novo produto com IA
+function NewProductModal({productName, onSave, onClose}){
+  const[name,setName]=useState(productName||'')
+  const[type,setType]=useState('')
+  const[ia,setIa]=useState('idle') // idle | loading | done | error
+  const[iaResult,setIaResult]=useState(null)
+  const[iaMsg,setIaMsg]=useState('')
+
+  const consultarIA=async()=>{
+    if(!name.trim()) return
+    setIa('loading')
+    setIaMsg('')
+    try{
+      const resp=await fetch('https://api.anthropic.com/v1/messages',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          model:'claude-sonnet-4-20250514',
+          max_tokens:400,
+          tools:[{type:'web_search_20250305',name:'web_search'}],
+          system:'Você é especialista em defensivos agrícolas brasileiros. Responda APENAS com JSON válido, sem texto extra.',
+          messages:[{role:'user',content:`Pesquise o produto agrícola "${name.trim()}" e retorne SOMENTE este JSON (sem markdown):
+{"nome":"nome comercial","tipo":"SC ou WP ou EC ou SL ou ADJ ou BIO ou FERT ou PH","classe":"Fungicida ou Herbicida ou Inseticida ou Adjuvante ou Fertilizante ou Corretor pH ou Biológico","ativo":"ingrediente ativo principal","empresa":"fabricante","obs":"observação curta sobre uso"}`}]
+        })
+      })
+      const data=await resp.json()
+      const text=data.content.filter(b=>b.type==='text').map(b=>b.text).join('')
+      const clean=text.replace(/```json|```/g,'').trim()
+      const parsed=JSON.parse(clean)
+      setIaResult(parsed)
+      setType(parsed.tipo||'SC')
+      setIa('done')
+    }catch(e){
+      setIa('error')
+      setIaMsg('Não foi possível consultar. Preencha manualmente.')
+    }
+  }
+
+  const salvar=()=>{
+    const finalName=name.trim()
+    const finalType=type||'SC'
+    const p={name:finalName,nameKey:finalName.toLowerCase(),type:finalType,custom:true,
+      classe:iaResult?.classe||'',ativo:iaResult?.ativo||'',empresa:iaResult?.empresa||''}
+    saveCustomProduct(p)
+    onSave(p)
+  }
+
+  const tipos=Object.keys(FL).filter(t=>t!=='?')
+
+  return(
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.6)',zIndex:999,display:'flex',alignItems:'flex-end',justifyContent:'center'}}>
+      <div style={{background:'#fff',borderRadius:'20px 20px 0 0',width:'100%',maxWidth:480,padding:'20px 16px 32px',maxHeight:'90vh',overflowY:'auto'}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
+          <div style={{fontWeight:900,fontSize:16,color:'#00313C'}}>➕ Cadastrar novo produto</div>
+          <button onClick={onClose} style={{background:'none',border:'none',fontSize:22,color:'#bbb',cursor:'pointer'}}>✕</button>
+        </div>
+
+        <label className="lbl">Nome do produto *</label>
+        <input className="field" placeholder="Ex: Kaiso Sorbie" value={name} onChange={e=>setName(e.target.value)} style={{marginBottom:10}}/>
+
+        {/* Botão consultar IA */}
+        {ia==='idle'&&(
+          <button onClick={consultarIA} disabled={!name.trim()} style={{width:'100%',padding:'11px',borderRadius:12,border:'2px dashed #D6CCA6',background:'#fffdf5',color:'#00313C',fontWeight:800,fontSize:13,cursor:name.trim()?'pointer':'default',marginBottom:12,display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
+            🤖 Consultar características com IA
+            <span style={{fontSize:11,fontWeight:600,color:'#A2B34C'}}>(requer internet)</span>
+          </button>
+        )}
+
+        {ia==='loading'&&(
+          <div style={{background:'#f0f8fa',borderRadius:12,padding:'14px',marginBottom:12,textAlign:'center'}}>
+            <div style={{fontSize:22,marginBottom:6}}>🔍</div>
+            <div style={{fontWeight:700,fontSize:13,color:'#006E85'}}>Consultando base de dados agrícola...</div>
+            <div style={{fontSize:12,color:'#999',marginTop:4}}>Buscando formulação, ingrediente ativo e fabricante</div>
+          </div>
+        )}
+
+        {ia==='error'&&(
+          <div style={{background:'#fff3e0',borderRadius:12,padding:'10px 12px',marginBottom:12,fontSize:13,color:'#E65100',fontWeight:600}}>
+            ⚠️ {iaMsg}
+          </div>
+        )}
+
+        {ia==='done'&&iaResult&&(
+          <div style={{background:'#e8f5e9',borderRadius:12,padding:'12px 14px',marginBottom:12,border:'1.5px solid #A2B34C'}}>
+            <div style={{fontWeight:800,fontSize:13,color:'#2e7d32',marginBottom:8}}>✅ Produto identificado pela IA</div>
+            {iaResult.classe&&<div style={{fontSize:12,marginBottom:3}}><b>Classe:</b> {iaResult.classe}</div>}
+            {iaResult.ativo&&<div style={{fontSize:12,marginBottom:3}}><b>Ingrediente ativo:</b> {iaResult.ativo}</div>}
+            {iaResult.empresa&&<div style={{fontSize:12,marginBottom:3}}><b>Fabricante:</b> {iaResult.empresa}</div>}
+            {iaResult.obs&&<div style={{fontSize:12,color:'#555',marginTop:4,fontStyle:'italic'}}>{iaResult.obs}</div>}
+          </div>
+        )}
+
+        <label className="lbl">Tipo de formulação *</label>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:6,marginBottom:16}}>
+          {tipos.map(t=>(
+            <button key={t} onClick={()=>setType(t)} style={{padding:'8px 4px',borderRadius:10,border:'2px solid '+(type===t?FC[t]:'#eee'),background:type===t?FC[t]+'22':'#fafafa',fontWeight:800,fontSize:12,color:type===t?FC[t]:'#999',cursor:'pointer',display:'flex',flexDirection:'column',alignItems:'center',gap:2}}>
+              <span style={{fontSize:16}}>{FI[t]}</span>
+              <span>{t}</span>
+            </button>
+          ))}
+        </div>
+
+        <button className="btn" onClick={salvar} disabled={!name.trim()||!type}>
+          💾 Salvar produto no app
+        </button>
+        <div style={{fontSize:11,color:'#bbb',textAlign:'center',marginTop:8}}>Ficará salvo neste dispositivo para uso futuro</div>
+      </div>
+    </div>
+  )
+}
 
 function ProductPicker({onAdd}){
   const[search,setSearch]=useState('')
-  const[picking,setPicking]=useState(null) // produto selecionado esperando dose
+  const[picking,setPicking]=useState(null)
   const[doseVal,setDoseVal]=useState('')
   const[doseUnit,setDoseUnit]=useState('L/ha')
+  const[showNewModal,setShowNewModal]=useState(false)
+  const[newProductName,setNewProductName]=useState('')
+  const[allProducts,setAllProducts]=useState(()=>getAllProducts())
   const inputRef=useRef(null)
 
   const filtered=useMemo(()=>{
     if(!search.trim()) return []
     const q=nrm(search)
-    return ALL_PRODUCTS.filter(p=>nrm(p.name).includes(q)||nrm(FL[p.type]).includes(q)).slice(0,8)
-  },[search])
+    return allProducts.filter(p=>nrm(p.name).includes(q)||nrm(FL[p.type]||'').includes(q)).slice(0,8)
+  },[search,allProducts])
 
   const selectProduct=(p)=>{
     setPicking(p)
@@ -497,6 +630,18 @@ function ProductPicker({onAdd}){
     setDoseVal('')
     setDoseUnit('L/ha')
     setTimeout(()=>document.getElementById('dose-input')?.focus(),100)
+  }
+
+  const openNewModal=()=>{
+    setNewProductName(search.trim())
+    setShowNewModal(true)
+    setSearch('')
+  }
+
+  const handleNewProductSaved=(p)=>{
+    setAllProducts(getAllProducts())
+    setShowNewModal(false)
+    selectProduct(p)
   }
 
   const confirm=()=>{
@@ -510,6 +655,8 @@ function ProductPicker({onAdd}){
 
   return(
     <div>
+      {showNewModal&&<NewProductModal productName={newProductName} onSave={handleNewProductSaved} onClose={()=>setShowNewModal(false)}/>}
+
       {/* Campo de busca */}
       {!picking&&(
         <div style={{position:'relative'}}>
@@ -521,7 +668,7 @@ function ProductPicker({onAdd}){
             onChange={e=>setSearch(e.target.value)}
             autoComplete="off"
           />
-          {filtered.length>0&&(
+          {search.trim()&&(
             <div style={{position:'absolute',top:'100%',left:0,right:0,background:'#fff',border:'1.5px solid #006E85',borderRadius:12,zIndex:100,boxShadow:'0 8px 24px rgba(0,0,0,.15)',overflow:'hidden',marginTop:4}}>
               {filtered.map((p,i)=>(
                 <div key={i} onClick={()=>selectProduct(p)} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px',borderBottom:'1px solid #f5f5f5',cursor:'pointer',background:'#fff'}}
@@ -529,19 +676,20 @@ function ProductPicker({onAdd}){
                   onMouseLeave={e=>e.currentTarget.style.background='#fff'}>
                   <span style={{fontSize:18}}>{FI[p.type]}</span>
                   <div style={{flex:1}}>
-                    <div style={{fontWeight:700,fontSize:14}}>{p.name}</div>
+                    <div style={{fontWeight:700,fontSize:14}}>{p.name}{p.custom&&<span style={{fontSize:10,marginLeft:6,color:'#A2B34C',fontWeight:800}}>★ MEU</span>}</div>
                     <div style={{fontSize:11,color:'#999'}}>{FL[p.type]}</div>
                   </div>
                   <span style={{fontSize:11,fontWeight:800,color:'#fff',background:FC[p.type],padding:'2px 8px',borderRadius:20}}>{p.type}</span>
                 </div>
               ))}
-              {search.trim()&&(
-                <div onClick={()=>selectProduct({name:search.trim(),nameKey:nrm(search.trim()),type:detectType(search.trim())})}
-                  style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px',cursor:'pointer',background:'#f8f8f8'}}>
-                  <span style={{fontSize:18}}>➕</span>
-                  <div style={{fontSize:13,color:'#555'}}>Adicionar <b>"{search.trim()}"</b> como produto personalizado</div>
+              {/* Botão cadastrar novo */}
+              <div onClick={openNewModal} style={{display:'flex',alignItems:'center',gap:10,padding:'11px 12px',cursor:'pointer',background:'#fffdf5',borderTop:'1px solid #f5f5f5'}}>
+                <span style={{fontSize:18,background:'#A2B34C',borderRadius:'50%',width:28,height:28,display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontWeight:900,fontSize:16,flexShrink:0}}>+</span>
+                <div>
+                  <div style={{fontWeight:800,fontSize:13,color:'#00313C'}}>Cadastrar "{search.trim()}"</div>
+                  <div style={{fontSize:11,color:'#A2B34C',fontWeight:600}}>Identificar características com IA</div>
                 </div>
-              )}
+              </div>
             </div>
           )}
         </div>
