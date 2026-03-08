@@ -23,73 +23,152 @@ input,textarea,button{font-family:'DM Sans',sans-serif}
 .btn-ghost{background:transparent;color:#00313C;border:1.5px solid #e0e0e0;border-radius:12px;padding:13px;width:100%;font-size:15px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif}
 .card{background:#fff;border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
 .badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700}
-.bg{background-color:#f5f5f5}.bg-green{background:#e0f4f7;color:#006E85}.bg-orange{background:#fff3e0;color:#e65100}.bg-red{background:#ffebee;color:#c62828}.bg-gray{background:#f5f5f5;color:#757575}
-.tab-bar{background:#fff;border-top:1px solid #eee;display:flex;padding-bottom:env(safe-area-inset-bottom)}
+.bg-green{background:#e0f4f7;color:#006E85}.bg-orange{background:#fff3e0;color:#e65100}.bg-red{background:#ffebee;color:#c62828}.bg-gray{background:#f5f5f5;color:#757575}
+.tab-bar{background:#fff;border-top:1px solid #eee;display:flex;padding-bottom:env(safe-area-inset-bottom);flex-shrink:0}
 .tab-btn{flex:1;display:flex;flex-direction:column;align-items:center;padding:8px 4px;border:none;background:transparent;cursor:pointer;color:#9e9e9e;font-size:10px;font-weight:700;gap:2px;font-family:'DM Sans',sans-serif}
 .tab-btn.active{color:#00313C}
 .lbl{font-size:11px;font-weight:700;color:#666;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px;display:block}
-@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.15)}}
 @media print{.np{display:none!important}body,#root{background:#fff;max-width:100%}}
 </style>
 </head>
 <body>
 <div id="root"></div>
 <script type="text/babel" data-presets="react">
-const{useState,useEffect,useRef,useMemo}=React
+const{useState,useEffect,useRef,useMemo,useCallback}=React
 
-// ── LocalDB (offline) ──────────────────────────────────────────
-const DB={
-  get lots(){return JSON.parse(localStorage.getItem('ft_lots')||'[]')},
-  get telem(){return JSON.parse(localStorage.getItem('ft_telem')||'[]')},
-  get jars(){return JSON.parse(localStorage.getItem('ft_jars')||'[]')},
-  saveLots(d){localStorage.setItem('ft_lots',JSON.stringify(d))},
-  saveTelem(d){localStorage.setItem('ft_telem',JSON.stringify(d))},
-  saveJars(d){localStorage.setItem('ft_jars',JSON.stringify(d))},
-}
+// ── LocalDB ────────────────────────────────────────────────────
+function loadDB(k,def){try{return JSON.parse(localStorage.getItem(k)||def)}catch{return JSON.parse(def)}}
+function saveDB(k,d){localStorage.setItem(k,JSON.stringify(d))}
 function uid(){return Date.now()+'-'+Math.random().toString(36).slice(2,6)}
-async function insert(table,row){
-  if(table==='lots'){const d=DB.lots;d.unshift(row);DB.saveLots(d)}
-  else if(table==='telem'){const d=DB.telem;d.unshift(row);DB.saveTelem(d)}
-  else if(table==='jars'){const d=DB.jars;d.unshift(row);DB.saveJars(d)}
+
+async function dbInsert(table,row){
+  const key='ft_'+table
+  const d=loadDB(key,'[]')
+  d.unshift(row)
+  saveDB(key,d)
 }
-async function update(table,id,patch){
-  if(table==='lots'){const d=DB.lots;const i=d.findIndex(r=>r.id===id);if(i>-1){d[i]={...d[i],...patch};DB.saveLots(d)}}
+const insert=dbInsert
+async function dbUpdate(table,id,patch){
+  const key='ft_'+table
+  const d=loadDB(key,'[]')
+  const i=d.findIndex(r=>r.id===id)
+  if(i>-1){d[i]={...d[i],...patch};saveDB(key,d)}
 }
-async function selectAll(table){
-  if(table==='lots') return DB.lots
-  if(table==='telem') return DB.telem
-  if(table==='jars') return DB.jars
-  return []
+async function dbSelect(table,filter){
+  const d=loadDB('ft_'+table,'[]')
+  if(!filter) return d
+  return d.filter(r=>Object.entries(filter).every(([k,v])=>r[k]===v))
 }
 
 // ── Recipe Parser ──────────────────────────────────────────────
-const PDB={'ácido cítrico':'PH','acido citrico':'PH','ph down':'PH','ph minus':'PH','ph up':'PH','aquafix':'PH','buffer':'PH','redutor de ph':'PH','bicarbonato':'PH','condicionador de água':'PH','sequestran':'PH','ácido fosfórico':'PH','mancozebe':'WP','mancozeb':'WP','dithane':'WP','manzate':'WP','persist':'WP','unizeb':'WP','oxicloreto':'WP','cuproxat':'WP','kocide':'WP','champion':'WP','calda bordalesa':'WP','cupravi':'WP','captan':'WP','captana':'WP','enxofre':'WP','kumulus':'WP','thiovit':'WP','cobox':'WP','priori xtra':'SC','priori':'SC','azoxistrobina':'SC','piraclostrobina':'SC','opera':'SC','orkestra':'SC','abamectina':'SC','vertimec':'SC','belt':'SC','folicur':'SC','tebuconazol':'SC','propiconazol':'SC','ciproconazol':'SC','nativo':'SC','glifosato':'SL','gliz':'SL','roundup':'SL','zapp':'SL','trop':'SL','2,4-d':'SL','tordon':'SL','dicamba':'SL','nimbus':'ADJ','assist':'ADJ','aureo':'ADJ','áureo':'ADJ','energic':'ADJ','dash':'ADJ','haiten':'ADJ','agral':'ADJ','silwet':'ADJ','nitrogênio':'FERT','boro':'FERT','zinco':'FERT','mapfert':'FERT','trichoderma':'BIO','bacillus':'BIO','beauveria':'BIO','serenade':'BIO','naturalis':'BIO','trico':'BIO'}
+const PDB={
+  // ── Corretores de pH ──
+  'acido citrico':'PH','ácido cítrico':'PH','ph down':'PH','ph minus':'PH','ph up':'PH',
+  'aquafix':'PH','buffer':'PH','redutor de ph':'PH','bicarbonato':'PH','condicionador':'PH','sequestran':'PH',
+  'acido fosforico':'PH','ácido fosfórico':'PH','acido acetico':'PH',
+  // ── Pós Molháveis / Granulados WP/WG ──
+  'mancozebe':'WP','mancozeb':'WP','dithane':'WP','dithane nt':'WP','manzate':'WP','manzate wg':'WP',
+  'persist':'WP','unizeb':'WP','oxicloreto':'WP','cuproxat':'WP','kocide':'WP','champion':'WP',
+  'calda bordalesa':'WP','cupravi':'WP','captan':'WP','captana':'WP','enxofre':'WP','kumulus':'WP',
+  'thiovit':'WP','cobox':'WP','cuprofix':'WP','saaf':'WP','heat':'WP','cabrio':'WP',
+  'delegate':'WP','rexade':'WP','transform':'WP','authority':'WP','altacor':'WP','ulala':'WP',
+  'asataf':'WP','safari':'WP',"terrad'or":'WP',
+  'nova pekacid':'WP','actara 250':'WP','actend':'WP','actigard':'WP','bion':'WP','chess':'WP',
+  'desali':'WP','envoke':'WP','fulfill':'WP','invict':'WP','krismat wg':'WP','ridomil gold':'WP',
+  'switch':'WP','trigard':'WP','unix':'WP','zapp wg':'WP',
+  // ── Suspensões SC ──
+  'priori xtra':'SC','priori':'SC','priori top':'SC','azoxistrobina':'SC','piraclostrobina':'SC',
+  'opera':'SC','orkestra':'SC','abamectina':'SC','vertimec':'SC','kraft':'SC','belt':'SC','folicur':'SC',
+  'tebuconazol':'SC','propiconazol':'SC','ciproconazol':'SC','nativo':'SC','tilt':'SC',
+  'movento':'SC','luna experience':'SC','fox':'SC','fox supra':'SC','oberon':'SC','alion':'SC','poncho':'SC',
+  'callisto':'SC','elatus':'SC','ampligo':'SC','karate':'SC','karate zeon':'SC','cruiser':'SC',
+  'cruiser advanced':'SC','cruiser opti':'SC','headline':'SC','facet':'SC','stamina':'SC',
+  'closer':'SC','approach':'SC','aproach premium':'SC','intrepid edge':'SC','coragen':'SC',
+  'benevia':'SC','prevathon':'SC','shenzi':'SC','nominee':'SC','custodia':'SC','goltix':'SC',
+  'voliam':'SC','voliam targo':'SC','acramite':'SC','talus':'SC','courier':'SC','kendo':'SC',
+  'torac':'SC','pylon':'SC',
+  'fox supra':'SC','gapper':'SC','lumitreo':'SC','agroleaf power':'SC',
+  'actara 750':'SC','actara nirvana':'SC','adage':'SC','adante xtra':'SC','alika':'SC',
+  'amistar top':'SC','ankor':'SC','apron':'SC','aptika':'SC','arvatico':'SC','avicta':'SC',
+  'avura':'SC','bedane':'SC','benefic':'SC','bleran':'SC','bravonil':'SC','bravonil top':'SC',
+  'calaris':'SC','calipen':'SC','calipen sc':'SC','carial':'SC','celest':'SC','certano':'SC',
+  'clariva':'SC','curanza':'SC','daconil':'SC','durivo':'SC','eddus':'SC','eforia':'SC',
+  'elestal neo':'SC','engeo pleno':'SC','engeo pleno s':'SC','fixade':'SC','flare':'SC',
+  'fleris':'SC','folio gold':'SC','fortenza':'SC','galixid':'SC','gardomil':'SC','gesagard':'SC',
+  'gesapax':'SC','gesaprim':'SC','gorgon':'SC','graduate':'SC','gravun':'SC','grover':'SC',
+  'grover se':'SC','inssimo':'SC','instivo':'SC','inzak':'SC','joiner':'SC','klerat':'SC',
+  'lagare':'SC','lecar':'SC','lumica':'SC','margaren':'SC','masumo':'SC','maxim':'SC',
+  'memory':'SC','meristo':'SC','mertec':'SC','mertin 400':'SC','minecto pro':'SC',
+  'miravis':'SC','miravis duo':'SC','miravis pro':'SC','mitrion':'SC','monaris':'SC',
+  'natera':'SC','ochima':'SC','orondis ultra':'SC','platinum neo':'SC','polo':'SC',
+  'primaiz':'SC','primaiz gold':'SC','primatop':'SC','primeplus':'SC','primestra gold':'SC',
+  'proclaim':'SC','proof':'SC','quadris':'SC','raigen':'SC','raprus':'SC','ratak':'SC',
+  'rebron':'SC','revus':'SC','savivo':'SC','score':'SC','score flexi':'SC','spectro':'SC',
+  'sponta':'SC','tecto':'SC','truzon':'SC','vantigo':'SC','verdadero':'SC','verdavis':'SC',
+  'volubilis':'SC','zagrone':'SC',
+  // ── Emulsões EC/EW ──
+  'dual gold':'EC','fastac':'EC','goal':'EC','hero':'EC','capture':'EC','fury':'EC',
+  'talstar':'EC','brigade':'EC','rifit':'EC','aramo':'EC','nimitz':'EC','mavrik':'EC',
+  'orius':'EC','rimon':'EC','battlefront':'EC','trifluralin':'EC','danitol':'EC',
+  'sumithion':'EC','agri-mek':'EC','shark':'EC',
+  'verdict max':'EC','actellic':'EC','actelliclambda':'EC','alto':'EC','artea':'EC',
+  'axial':'EC','boundary':'EC','curyoim 550 ec':'EC','curyom':'EC','cypress':'EC',
+  'epimec':'EC','flex':'EC','fuoro':'EC','fusiflex':'EC','fusilade':'EC',
+  'fusilade 250':'EC','match':'EC','match ec':'EC','mirato':'EC','moddus':'EC',
+  'polytrin':'EC','primoleo':'EC','sequence':'EC','topik':'EC',
+  // ── Soluções SL ──
+  'glifosato':'SL','gliz':'SL','roundup':'SL','zapp':'SL','zapp qi':'SL','trop':'SL',
+  '2,4-d':'SL','2.4-d':'SL','tordon':'SL','dicamba':'SL','banvel':'SL',
+  'sivanto':'SL','gramoxone':'SL','reglone':'SL','engenia':'SL','lontrel':'SL',
+  'zeba':'SL','weedmaster':'SL','credit':'SL','charger':'SL','weedar':'SL',
+  'stinger':'SL','panther':'SL','raptor':'SL',
+  'fertiláqua':'SL','cultar':'SL','extravon':'SL','fitter':'SL','gopan':'SL',
+  'influx':'SL','protecta':'SL','touchdown':'SL',
+  // ── Adjuvantes ──
+  'nimbus':'ADJ','assist':'ADJ','aureo':'ADJ','áureo':'ADJ','energic':'ADJ',
+  'dash':'ADJ','haiten':'ADJ','agral':'ADJ','silwet':'ADJ','oleo':'ADJ','óleo':'ADJ','break thru':'ADJ',
+  // ── Fertilizantes foliares ──
+  'nitrogênio':'FERT','boro':'FERT','zinco':'FERT','mapfert':'FERT','ureafert':'FERT',
+  // ── Biológicos ──
+  'trichoderma':'BIO','bacillus':'BIO','beauveria':'BIO','metarhizium':'BIO',
+  'serenade':'BIO','naturalis':'BIO','trico':'BIO','agrobio':'BIO','entrust':'BIO',
+}
 const ORD={PH:1,WP:2,SC:3,EC:4,SL:5,FERT:6,ADJ:7,BIO:8,'?':9}
 const FC={PH:'#1565C0',WP:'#6A1B9A',SC:'#00838F',EC:'#E65100',SL:'#2E7D32',ADJ:'#BF360C',FERT:'#558B2F',BIO:'#00695C','?':'#9E9E9E'}
 const FL={PH:'Corretor pH',WP:'Pó Molhável',SC:'Suspensão SC',EC:'Emulsão EC',SL:'Solução SL',ADJ:'Adjuvante',FERT:'Fertilizante',BIO:'Biológico','?':'Desconhecido'}
 const FI={PH:'⚗️',WP:'🧂',SC:'🔵',EC:'🟡',SL:'💧',ADJ:'🛢️',FERT:'🌿',BIO:'🦠','?':'🔬'}
-const FT={PH:'Adicione PRIMEIRO para ajustar o pH.',WP:'Pré-dissolva em água antes de adicionar ao tanque (10 min).',SC:'Adicione com agitação constante. Aguarde 1 min.',EC:'Adicione lentamente em fio contínuo.',SL:'Miscível. Adicione com agitação por 30s.',ADJ:'Adicione SEMPRE POR ÚLTIMO.',FERT:'Adicione após sólidos e antes dos óleos.',BIO:'Adicione por último. Evite luz solar direta.','?':'Consulte a bula.'}
+const FT={PH:'Adicione PRIMEIRO para ajustar o pH.',WP:'Pré-dissolva em água por 10 min antes de adicionar ao tanque.',SC:'Adicione com agitação constante. Aguarde 1 min.',EC:'Adicione lentamente em fio contínuo com agitação.',SL:'Miscível. Adicione com agitação por 30s.',ADJ:'Adicione SEMPRE POR ÚLTIMO.',FERT:'Adicione após sólidos e antes dos óleos.',BIO:'Adicione por último. Evite luz solar direta.','?':'Consulte a bula para instruções específicas.'}
 const FTm={PH:60,WP:900,SC:60,EC:90,SL:60,ADJ:60,FERT:60,BIO:60,'?':60}
 
-function nrm(s){return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')}
+function nrm(s){
+  return String(s).toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-z0-9\s,\.]/g,' ')
+    .replace(/\s+/g,' ').trim()
+}
+
 function detectType(name){
   const n=nrm(name)
-  for(const[k,t] of Object.entries(PDB)){if(n.includes(nrm(k))) return t}
-  if(/\b(ec|ew|emulsão)\b/.test(n)) return 'EC'
-  if(/\b(sl|solução)\b/.test(n)) return 'SL'
-  if(/\b(óleo|oleo|oil)\b/.test(n)) return 'ADJ'
+  for(const[k,t] of Object.entries(PDB)){
+    if(n.includes(nrm(k))) return t
+  }
+  if(/\bec\b|\bew\b/.test(n)) return 'EC'
+  if(/\bsl\b/.test(n)) return 'SL'
   return '?'
 }
+
 function parseRecipe(txt){
   if(!txt||!txt.trim()) return []
-  return txt.split(/[+;\n]/).map(s=>s.trim()).filter(Boolean).map(raw=>{
-    const dm=raw.match(/[\d,\.]+\s*(L|mL|ml|g|kg|%)\s*(?:\/\s*(?:ha|vc|100L|hL))?/i)
+  const lines=txt.split(/[+;\n]+/).map(s=>s.trim()).filter(Boolean)
+  return lines.map(raw=>{
+    const dm=raw.match(/([\d,\.]+)\s*(L|mL|ml|g|kg|%)\s*(?:\/\s*(?:ha|vc|100\s*[Ll]|hL))?/i)
     const dose=dm?dm[0]:''
-    const name=raw.replace(dose,'').replace(/\s+/g,' ').trim()||raw
+    const name=(raw.replace(dose,'').replace(/\s+/g,' ').trim()||raw).replace(/^\s*-\s*/,'')
     const type=detectType(name)
-    return{raw,name,dose,type,order:ORD[type]||9}
+    return{raw,name:name||raw,dose,type,order:ORD[type]||9}
   }).sort((a,b)=>a.order-b.order)
 }
+
 function calcTotal(dose,area){
   if(!dose||!area) return null
   const m=dose.replace(',','.').match(/([\d.]+)\s*(L|mL|ml|g|kg)\s*\/\s*ha/i)
@@ -101,40 +180,90 @@ function calcTotal(dose,area){
 }
 
 // ── Incompatibility Engine ─────────────────────────────────────
+// Cada regra tem grupos (g). A regra dispara se TODOS os grupos
+// tiverem pelo menos 1 produto que bata algum padrão do grupo.
 const RULES=[
-  {id:'C1',sev:'danger',icon:'⛔',title:'Cobre + Enxofre',g:[['cobre','oxicloreto','calda bordalesa','cupravi','kocide'],['enxofre','kumulus','thiovit']],msg:'Reação química — precipitado e fitotoxidez (esp. >25°C).',rec:'Aplique em dias separados.'},
-  {id:'C2',sev:'danger',icon:'⛔',title:'Trichoderma + Fungicida sistêmico',g:[['trichoderma','trico'],['tebuconazol','propiconazol','carbendazim','cercobin','ciproconazol']],msg:'Fungicidas sistêmicos eliminam Trichoderma spp.',rec:'Aplique o biológico 3–5 dias antes/depois.'},
-  {id:'C3',sev:'danger',icon:'⛔',title:'Cloreto de Potássio + Glifosato',g:[['cloreto de potássio','kcl'],['glifosato','roundup','gliz']],msg:'Íon cloreto precipita o glifosato — perda total de eficácia.',rec:'Nunca misturar.'},
-  {id:'C4',sev:'warning',icon:'⚠️',title:'Mancozebe + Cobre',g:[['mancozebe','dithane','manzate'],['cobre','oxicloreto','kocide']],msg:'Precipitação e redução de eficácia. pH do cobre degrada mancozebe.',rec:'Ajuste pH 6,0–6,5 e faça jar test.'},
-  {id:'C5',sev:'warning',icon:'⚠️',title:'Glifosato + Produto alcalino',g:[['glifosato','roundup','gliz'],['cobre','oxicloreto','calda bordalesa']],msg:'Em pH >7 o glifosato precipita — reduz absorção foliar.',rec:'Ajuste pH para 4,5–6,5 antes de adicionar glifosato.'},
-  {id:'C6',sev:'warning',icon:'⚠️',title:'Abamectina + Produto alcalino',g:[['abamectina','vertimec','kraft'],['calda bordalesa','cobre','oxicloreto']],msg:'Abamectina se hidrolisa em pH >8 — perde eficácia.',rec:'Ajuste pH 5,5–6,5 antes de adicionar abamectina.'},
-  {id:'C7',sev:'warning',icon:'⚠️',title:'Bacillus + Cobre',g:[['bacillus','serenade'],['cobre','oxicloreto','calda bordalesa']],msg:'Íons cobre eliminam Bacillus subtilis e outros bioagentes.',rec:'Aplique biológico 48h antes do cobre.'},
+  {id:'C1',sev:'danger',icon:'⛔',title:'Cobre + Enxofre',
+   g:[['cobre','oxicloreto','calda bordalesa','cupravi','kocide','cuproxat','cobox'],
+      ['enxofre','kumulus','thiovit','microthiol']],
+   msg:'Reação química — precipitado insolúvel e fitotoxidez (esp. >25°C).',
+   rec:'Aplique em dias separados.'},
+  {id:'C2',sev:'danger',icon:'⛔',title:'Trichoderma + Fungicida sistêmico',
+   g:[['trichoderma','trico','trichodermil','ecotrich'],
+      ['tebuconazol','propiconazol','carbendazim','cercobin','ciproconazol','tiofanato']],
+   msg:'Fungicidas sistêmicos eliminam Trichoderma spp. antes da colonização.',
+   rec:'Aplique o biológico 3–5 dias antes ou depois.'},
+  {id:'C3',sev:'danger',icon:'⛔',title:'Cloreto de Potássio + Glifosato',
+   g:[['cloreto de potassio','kcl','cloreto potassio'],
+      ['glifosato','roundup','gliz','zapp','trop']],
+   msg:'Íon cloreto precipita o glifosato — perda total de eficácia.',
+   rec:'Nunca misturar.'},
+  {id:'C4',sev:'warning',icon:'⚠️',title:'Mancozebe + Cobre',
+   g:[['mancozebe','mancozeb','dithane','manzate','unizeb','persist'],
+      ['cobre','oxicloreto','kocide','cupravi','calda bordalesa']],
+   msg:'pH alcalino do cobre degrada o mancozebe — redução de eficácia.',
+   rec:'Ajuste pH 6,0–6,5 e faça jar test antes de aplicar.'},
+  {id:'C5',sev:'warning',icon:'⚠️',title:'Glifosato + Produto alcalino',
+   g:[['glifosato','roundup','gliz','zapp'],
+      ['cobre','oxicloreto','calda bordalesa','sulfato de cobre']],
+   msg:'Em pH >7 o glifosato precipita e perde absorção foliar.',
+   rec:'Ajuste pH para 4,5–6,5 antes de adicionar glifosato.'},
+  {id:'C6',sev:'warning',icon:'⚠️',title:'Abamectina + Produto alcalino',
+   g:[['abamectina','vertimec','kraft','abamax'],
+      ['calda bordalesa','cobre','oxicloreto']],
+   msg:'Abamectina se hidrolisa em pH >8 — perde eficácia em horas.',
+   rec:'Ajuste pH 5,5–6,5 antes de adicionar abamectina.'},
+  {id:'C7',sev:'warning',icon:'⚠️',title:'Bacillus + Cobre',
+   g:[['bacillus','serenade','agrobio','sonata'],
+      ['cobre','oxicloreto','calda bordalesa']],
+   msg:'Íons de cobre eliminam Bacillus subtilis e outros bioagentes.',
+   rec:'Aplique o biológico 48h antes do cobre.'},
+  {id:'C8',sev:'danger',icon:'⛔',title:'Biológico + Fungicida sistêmico',
+   g:[['trichoderma','bacillus','beauveria','metarhizium','trico','serenade','naturalis'],
+      ['tebuconazol','propiconazol','carbendazim','ciproconazol','azoxistrobina','piraclostrobina']],
+   msg:'Fungicidas matam os microrganismos benéficos do produto biológico.',
+   rec:'Nunca misturar. Aplique em dias diferentes.'},
 ]
+
 function detectIncompat(products){
-  return RULES.filter(rule=>{
-    return rule.g.every(group=>products.some(p=>group.some(pat=>nrm(p.name).includes(nrm(pat)))))
-  }).map(rule=>({...rule,matched:products.filter(p=>rule.g.flat().some(pat=>nrm(p.name).includes(nrm(pat)))).map(p=>p.name)}))
+  if(!products||products.length<2) return []
+  const alerts=[]
+  for(const rule of RULES){
+    const groupMatches=rule.g.map(group=>{
+      return products.filter(p=>{
+        const pn=nrm(p.name)
+        return group.some(pat=>pn.includes(nrm(pat)))
+      })
+    })
+    // dispara se TODOS os grupos têm pelo menos 1 produto
+    if(groupMatches.every(m=>m.length>0)){
+      const matched=[...new Set(groupMatches.flat().map(p=>p.name))]
+      alerts.push({...rule,matched})
+    }
+  }
+  return alerts
 }
 
 // ── Water Evaluation ───────────────────────────────────────────
-function evalPH(ph){return ph>=5.5&&ph<=6.5?'OK':((ph>=4.5&&ph<5.5)||(ph>6.5&&ph<=7))?'Atenção':'Risco'}
+function evalPH(ph){return ph>=5.5&&ph<=6.5?'OK':(ph>=4.5&&ph<5.5)||(ph>6.5&&ph<=7)?'Atenção':'Risco'}
 function evalTemp(t){return t>=10&&t<=25?'OK':(t>=5&&t<=30)?'Atenção':'Risco'}
 function evalCond(c){return !c?'OK':c<=200?'OK':c<=500?'Atenção':'Risco'}
-function overallEval(...vals){return vals.includes('Risco')?'Risco':vals.includes('Atenção')?'Atenção':'OK'}
 const EC={OK:'#4caf50',Atenção:'#ff9800',Risco:'#f44336'}
 const EB={OK:'#e8f5e9',Atenção:'#fff3e0',Risco:'#ffebee'}
 
-// ── Status Helpers ─────────────────────────────────────────────
+// ── Status ─────────────────────────────────────────────────────
 const SO=['REQUESTED','WATER_OK','PREPARING','JAR_TEST','READY','APPLIED']
 const SL={REQUESTED:'Solicitada',WATER_OK:'Água OK',PREPARING:'Em Preparo',JAR_TEST:'Jar Test',READY:'Pronta',APPLIED:'Aplicada'}
 const SC2={REQUESTED:'bg-gray',WATER_OK:'bg-green',PREPARING:'bg-orange',JAR_TEST:'bg-orange',READY:'bg-green',APPLIED:'bg-gray'}
 
-// ── Timer ──────────────────────────────────────────────────────
-function Timer({seconds}){
-  const[rem,setRem]=useState(seconds)
+// ── Timer (com ajuste de tempo) ────────────────────────────────
+function Timer({seconds:initSec}){
+  const[base,setBase]=useState(initSec)
+  const[rem,setRem]=useState(initSec)
   const[running,setRunning]=useState(false)
   const[done,setDone]=useState(false)
   const ref=useRef(null)
+
   useEffect(()=>{
     if(running){
       ref.current=setInterval(()=>setRem(p=>{
@@ -144,30 +273,57 @@ function Timer({seconds}){
     } else clearInterval(ref.current)
     return()=>clearInterval(ref.current)
   },[running])
+
+  const adjust=(delta)=>{
+    if(running||done) return
+    const novo=Math.max(30,base+delta)
+    setBase(novo);setRem(novo)
+  }
+
   const mm=Math.floor(rem/60),ss=rem%60
   return(
-    <div style={{background:'#00313C',borderRadius:14,padding:16,textAlign:'center',marginTop:12}}>
-      <div style={{fontSize:40,fontWeight:900,color:'#fff',letterSpacing:3}}>{String(mm).padStart(2,'0')}:{String(ss).padStart(2,'0')}</div>
-      {!running&&!done&&<button className="btn" style={{marginTop:10,width:'auto',padding:'8px 24px',fontSize:14}} onClick={()=>setRunning(true)}>▶ Iniciar Timer</button>}
-      {running&&<button onClick={()=>setRunning(false)} style={{marginTop:10,background:'rgba(255,255,255,.15)',border:'none',color:'#fff',padding:'8px 24px',borderRadius:20,cursor:'pointer',fontWeight:700}}>⏸ Pausar</button>}
-      {done&&<div style={{color:'#7EC8D8',fontWeight:800,marginTop:8,fontSize:14}}>✅ Tempo concluído!</div>}
+    <div style={{background:'#00313C',borderRadius:14,padding:16,marginTop:12}}>
+      {!running&&!done&&(
+        <div style={{display:'flex',justifyContent:'center',alignItems:'center',gap:12,marginBottom:10}}>
+          <button onClick={()=>adjust(-60)} style={{background:'rgba(255,255,255,.15)',border:'none',color:'#fff',borderRadius:20,padding:'4px 12px',cursor:'pointer',fontWeight:700,fontSize:13}}>−1min</button>
+          <button onClick={()=>adjust(-30)} style={{background:'rgba(255,255,255,.1)',border:'none',color:'#fff',borderRadius:20,padding:'4px 10px',cursor:'pointer',fontWeight:700,fontSize:12}}>−30s</button>
+          <button onClick={()=>adjust(30)} style={{background:'rgba(255,255,255,.1)',border:'none',color:'#fff',borderRadius:20,padding:'4px 10px',cursor:'pointer',fontWeight:700,fontSize:12}}>+30s</button>
+          <button onClick={()=>adjust(60)} style={{background:'rgba(255,255,255,.15)',border:'none',color:'#fff',borderRadius:20,padding:'4px 12px',cursor:'pointer',fontWeight:700,fontSize:13}}>+1min</button>
+        </div>
+      )}
+      <div style={{fontSize:44,fontWeight:900,color:'#fff',textAlign:'center',letterSpacing:3,fontVariantNumeric:'tabular-nums'}}>
+        {String(mm).padStart(2,'0')}:{String(ss).padStart(2,'0')}
+      </div>
+      <div style={{textAlign:'center',marginTop:10}}>
+        {!running&&!done&&<button className="btn" style={{width:'auto',padding:'8px 28px',fontSize:14}} onClick={()=>setRunning(true)}>▶ Iniciar Timer</button>}
+        {running&&<button onClick={()=>setRunning(false)} style={{background:'rgba(255,255,255,.15)',border:'none',color:'#fff',padding:'8px 24px',borderRadius:20,cursor:'pointer',fontWeight:700,fontSize:14}}>⏸ Pausar</button>}
+        {done&&<div style={{color:'#7EC8D8',fontWeight:800,fontSize:15}}>✅ Tempo concluído!</div>}
+      </div>
     </div>
   )
 }
 
 // ── Header ─────────────────────────────────────────────────────
-function Hdr({title,onBack}){
+function Hdr({title,onBack,right}){
   return(
     <div style={{background:'#00313C',padding:'14px 16px',display:'flex',alignItems:'center',gap:12,flexShrink:0}}>
-      {onBack&&<button onClick={onBack} style={{background:'none',border:'none',color:'#7EC8D8',fontSize:24,fontWeight:900,cursor:'pointer',lineHeight:1,padding:0}}>‹</button>}
-      <span style={{color:'#fff',fontWeight:800,fontSize:16}}>{title}</span>
+      {onBack&&<button onClick={onBack} style={{background:'none',border:'none',color:'#7EC8D8',fontSize:26,fontWeight:900,cursor:'pointer',lineHeight:1,padding:'0 4px 0 0'}}>‹</button>}
+      <span style={{color:'#fff',fontWeight:800,fontSize:16,flex:1}}>{title}</span>
+      {right}
     </div>
   )
 }
 
-// ═══════════════════════════════════════════════════════════════════
+// ── FAB ────────────────────────────────────────────────────────
+function Fab({onClick}){
+  return(
+    <button onClick={onClick} style={{position:'absolute',bottom:16,right:16,width:54,height:54,background:'#00313C',borderRadius:'50%',border:'none',color:'#fff',fontSize:28,cursor:'pointer',boxShadow:'0 4px 14px rgba(0,49,60,.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:20}}>+</button>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════
 // SCREENS
-// ═══════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
 
 function LoginScreen({onLogin}){
   const[name,setName]=useState('')
@@ -219,10 +375,10 @@ function HomeScreen({op,onLogout,onNav,lots,onNew}){
     {icon:'📋',label:'Hoje',val:lots.filter(l=>new Date(l.created_at).toDateString()===today).length,c:'#006E85'},
     {icon:'⏳',label:'Pendentes',val:lots.filter(l=>!['READY','APPLIED'].includes(l.status)).length,c:'#e65100'},
     {icon:'🧪',label:'pH médio',val:phs.length?(phs.reduce((a,b)=>a+b,0)/phs.length).toFixed(1):'—',c:'#006E85'},
-    {icon:'⚠️',label:'Riscos',val:lots.filter(l=>l.last_ph&&(l.last_ph<5||l.last_ph>7)).length,c:'#c62828'},
+    {icon:'⚠️',label:'Riscos pH',val:lots.filter(l=>l.last_ph&&(l.last_ph<5||l.last_ph>7)).length,c:'#c62828'},
   ]
   return(
-    <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
+    <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden',position:'relative'}}>
       <div style={{background:'#00313C',padding:'14px 16px 18px',flexShrink:0}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:10}}>
           <div>
@@ -240,7 +396,7 @@ function HomeScreen({op,onLogout,onNav,lots,onNew}){
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:14}}>
           {kpis.map(k=>(
             <div key={k.label} className="card" style={{textAlign:'center',marginBottom:0}}>
-              <div style={{fontSize:22,marginBottom:4}}>{k.icon}</div>
+              <div style={{fontSize:22,marginBottom:3}}>{k.icon}</div>
               <div style={{fontSize:24,fontWeight:900,color:k.c}}>{k.val}</div>
               <div style={{fontSize:11,color:'#777',fontWeight:600}}>{k.label}</div>
             </div>
@@ -257,7 +413,7 @@ function HomeScreen({op,onLogout,onNav,lots,onNew}){
             <button className="btn" style={{width:'auto',padding:'10px 24px',fontSize:14}} onClick={onNew}>+ Criar primeira mistura</button>
           </div>
         ):lots.slice(0,6).map(lot=>(
-          <div key={lot.id} className="card" onClick={()=>onNav('detail',lot)} style={{cursor:'pointer',display:'flex',alignItems:'center',gap:10,marginBottom:8,padding:'12px 14px'}}>
+          <div key={lot.id} className="card" onClick={()=>onNav('detail',lot)} style={{cursor:'pointer',display:'flex',alignItems:'center',gap:10,padding:'12px 14px',marginBottom:8}}>
             <div style={{flex:1}}>
               <div style={{fontWeight:800,fontSize:13}}>{lot.farm}</div>
               <div style={{fontSize:11,color:'#777'}}>{lot.field} · {lot.volume_liters}L</div>
@@ -269,7 +425,7 @@ function HomeScreen({op,onLogout,onNav,lots,onNew}){
           </div>
         ))}
       </div>
-      <button onClick={onNew} style={{position:'fixed',bottom:72,right:16,width:54,height:54,background:'#00313C',borderRadius:'50%',border:'none',color:'#fff',fontSize:26,cursor:'pointer',boxShadow:'0 4px 14px rgba(0,49,60,.5)',zIndex:10}}>+</button>
+      <Fab onClick={onNew}/>
     </div>
   )
 }
@@ -277,9 +433,12 @@ function HomeScreen({op,onLogout,onNav,lots,onNew}){
 function LotsScreen({lots,onNav,onNew}){
   const[filter,setFilter]=useState('ALL')
   const[search,setSearch]=useState('')
-  const filtered=lots.filter(l=>(filter==='ALL'||l.status===filter)&&(!search||l.farm.toLowerCase().includes(search.toLowerCase())||l.field.toLowerCase().includes(search.toLowerCase())))
+  const filtered=lots.filter(l=>
+    (filter==='ALL'||l.status===filter)&&
+    (!search||l.farm.toLowerCase().includes(search.toLowerCase())||l.field.toLowerCase().includes(search.toLowerCase()))
+  )
   return(
-    <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
+    <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden',position:'relative'}}>
       <div style={{background:'#00313C',padding:'14px 16px 12px',flexShrink:0}}>
         <div style={{color:'#fff',fontWeight:800,fontSize:16,marginBottom:10}}>⚗️ Misturas</div>
         <input className="field" placeholder="Buscar fazenda ou talhão..." value={search} onChange={e=>setSearch(e.target.value)} style={{background:'rgba(255,255,255,.12)',border:'1px solid rgba(255,255,255,.2)',color:'#fff',fontSize:13}}/>
@@ -304,7 +463,127 @@ function LotsScreen({lots,onNav,onNew}){
           </div>
         ))}
       </div>
-      <button onClick={onNew} style={{position:'fixed',bottom:72,right:16,width:54,height:54,background:'#00313C',borderRadius:'50%',border:'none',color:'#fff',fontSize:26,cursor:'pointer',boxShadow:'0 4px 14px rgba(0,49,60,.5)',zIndex:10}}>+</button>
+      <Fab onClick={onNew}/>
+    </div>
+  )
+}
+
+// ── Product Picker ─────────────────────────────────────────────
+// Lista completa de produtos para busca (nome + tipo)
+const ALL_PRODUCTS = Object.entries(PDB).map(([name,type])=>({
+  name: name.charAt(0).toUpperCase()+name.slice(1),
+  nameKey: name,
+  type
+})).sort((a,b)=>a.name.localeCompare(b.name))
+
+const DOSE_UNITS=['L/ha','mL/ha','kg/ha','g/ha','L/100L','mL/100L','g/100L','kg/100L','L/vc','mL/vc']
+
+function ProductPicker({onAdd}){
+  const[search,setSearch]=useState('')
+  const[picking,setPicking]=useState(null) // produto selecionado esperando dose
+  const[doseVal,setDoseVal]=useState('')
+  const[doseUnit,setDoseUnit]=useState('L/ha')
+  const inputRef=useRef(null)
+
+  const filtered=useMemo(()=>{
+    if(!search.trim()) return []
+    const q=nrm(search)
+    return ALL_PRODUCTS.filter(p=>nrm(p.name).includes(q)||nrm(FL[p.type]).includes(q)).slice(0,8)
+  },[search])
+
+  const selectProduct=(p)=>{
+    setPicking(p)
+    setSearch('')
+    setDoseVal('')
+    setDoseUnit('L/ha')
+    setTimeout(()=>document.getElementById('dose-input')?.focus(),100)
+  }
+
+  const confirm=()=>{
+    if(!picking) return
+    const dose=doseVal.trim()?(doseVal.trim().replace(',','.')+' '+doseUnit):''
+    onAdd({name:picking.name,nameKey:picking.nameKey,type:picking.type,dose})
+    setPicking(null)
+    setSearch('')
+    setTimeout(()=>inputRef.current?.focus(),50)
+  }
+
+  return(
+    <div>
+      {/* Campo de busca */}
+      {!picking&&(
+        <div style={{position:'relative'}}>
+          <input
+            ref={inputRef}
+            className="field"
+            placeholder="🔍 Buscar produto... (ex: Priori, Nimbus, Dithane)"
+            value={search}
+            onChange={e=>setSearch(e.target.value)}
+            autoComplete="off"
+          />
+          {filtered.length>0&&(
+            <div style={{position:'absolute',top:'100%',left:0,right:0,background:'#fff',border:'1.5px solid #006E85',borderRadius:12,zIndex:100,boxShadow:'0 8px 24px rgba(0,0,0,.15)',overflow:'hidden',marginTop:4}}>
+              {filtered.map((p,i)=>(
+                <div key={i} onClick={()=>selectProduct(p)} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px',borderBottom:'1px solid #f5f5f5',cursor:'pointer',background:'#fff'}}
+                  onMouseEnter={e=>e.currentTarget.style.background='#f0f8fa'}
+                  onMouseLeave={e=>e.currentTarget.style.background='#fff'}>
+                  <span style={{fontSize:18}}>{FI[p.type]}</span>
+                  <div style={{flex:1}}>
+                    <div style={{fontWeight:700,fontSize:14}}>{p.name}</div>
+                    <div style={{fontSize:11,color:'#999'}}>{FL[p.type]}</div>
+                  </div>
+                  <span style={{fontSize:11,fontWeight:800,color:'#fff',background:FC[p.type],padding:'2px 8px',borderRadius:20}}>{p.type}</span>
+                </div>
+              ))}
+              {search.trim()&&(
+                <div onClick={()=>selectProduct({name:search.trim(),nameKey:nrm(search.trim()),type:detectType(search.trim())})}
+                  style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px',cursor:'pointer',background:'#f8f8f8'}}>
+                  <span style={{fontSize:18}}>➕</span>
+                  <div style={{fontSize:13,color:'#555'}}>Adicionar <b>"{search.trim()}"</b> como produto personalizado</div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Painel de dose após seleção */}
+      {picking&&(
+        <div style={{background:'#e0f4f7',borderRadius:12,padding:'12px 14px',border:'2px solid #006E85'}}>
+          <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:10}}>
+            <span style={{fontSize:22}}>{FI[picking.type]}</span>
+            <div style={{flex:1}}>
+              <div style={{fontWeight:800,fontSize:15}}>{picking.name}</div>
+              <span style={{fontSize:11,fontWeight:800,color:'#fff',background:FC[picking.type],padding:'2px 8px',borderRadius:20}}>{FL[picking.type]}</span>
+            </div>
+            <button onClick={()=>setPicking(null)} style={{background:'none',border:'none',color:'#999',fontSize:20,cursor:'pointer',padding:0}}>✕</button>
+          </div>
+          <label className="lbl">Dose (opcional)</label>
+          <div style={{display:'flex',gap:8}}>
+            <input
+              id="dose-input"
+              className="field"
+              type="number"
+              placeholder="Ex: 0,4"
+              value={doseVal}
+              onChange={e=>setDoseVal(e.target.value)}
+              style={{flex:1}}
+              onKeyDown={e=>e.key==='Enter'&&confirm()}
+            />
+            <select
+              className="field"
+              value={doseUnit}
+              onChange={e=>setDoseUnit(e.target.value)}
+              style={{flex:1.2,appearance:'none',paddingRight:8}}
+            >
+              {DOSE_UNITS.map(u=><option key={u} value={u}>{u}</option>)}
+            </select>
+          </div>
+          <button className="btn" style={{marginTop:10}} onClick={confirm}>
+            ✅ Adicionar à mistura
+          </button>
+        </div>
+      )}
     </div>
   )
 }
@@ -314,26 +593,66 @@ function NewLotScreen({onBack,onSaved}){
   const[field,setField]=useState('')
   const[vol,setVol]=useState('')
   const[area,setArea]=useState('')
-  const[recipe,setRecipe]=useState('')
+  const[selectedProducts,setSelectedProducts]=useState([]) // [{name,type,dose}]
   const[saving,setSaving]=useState(false)
   const[err,setErr]=useState('')
-  const products=useMemo(()=>parseRecipe(recipe),[recipe])
-  const incompats=useMemo(()=>detectIncompat(products),[products])
+
   const areaNum=parseFloat(area)||0
-  const save=async()=>{
+
+  // Monta recipe_text a partir dos produtos selecionados
+  const recipeText=selectedProducts.map(p=>p.dose?`${p.name} ${p.dose}`:p.name).join(' + ')
+
+  // Ordena por tipo (ordem de adição) para exibição
+  const sortedProducts=useMemo(()=>[...selectedProducts].sort((a,b)=>(ORD[a.type]||9)-(ORD[b.type]||9)),[selectedProducts])
+  const incompats=useMemo(()=>detectIncompat(sortedProducts),[sortedProducts])
+
+  const addProduct=(p)=>{
+    setSelectedProducts(prev=>[...prev,p])
+    setErr('')
+  }
+
+  const removeProduct=(idx)=>{
+    setSelectedProducts(prev=>prev.filter((_,i)=>i!==idx))
+  }
+
+  const moveUp=(idx)=>{
+    if(idx===0) return
+    setSelectedProducts(prev=>{const a=[...prev];[a[idx-1],a[idx]]=[a[idx],a[idx-1]];return a})
+  }
+
+  const save=async(goWater)=>{
     if(!farm.trim()){setErr('Informe a fazenda');return}
     if(!field.trim()){setErr('Informe o talhão');return}
     if(!vol){setErr('Informe o volume');return}
     setSaving(true)
-    const lot={id:uid(),created_at:Date.now(),farm:farm.trim(),field:field.trim(),volume_liters:parseFloat(vol),area_ha:areaNum||undefined,recipe_text:recipe.trim(),status:'REQUESTED'}
+    const lot={id:uid(),created_at:Date.now(),farm:farm.trim(),field:field.trim(),
+      volume_liters:parseFloat(vol),area_ha:areaNum||undefined,
+      recipe_text:recipeText,status:'REQUESTED'}
     await insert('lots',lot)
     setSaving(false)
-    onSaved(lot)
+    onSaved(lot,goWater)
   }
+
   return(
     <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
       <Hdr title="Nova Mistura" onBack={onBack}/>
       <div className="sc" style={{flex:1,padding:12,paddingBottom:100}}>
+
+        {/* Alerta incompatibilidade */}
+        {incompats.length>0&&(
+          <div style={{background:'#c62828',borderRadius:14,padding:'12px 14px',marginBottom:10}}>
+            <div style={{fontWeight:900,fontSize:14,color:'#fff',marginBottom:8}}>⛔ Incompatibilidade detectada!</div>
+            {incompats.map((inc,i)=>(
+              <div key={i} style={{background:'rgba(255,255,255,.15)',borderRadius:10,padding:'9px 11px',marginBottom:6}}>
+                <div style={{fontWeight:800,fontSize:13,color:'#fff',marginBottom:2}}>{inc.icon} {inc.title}</div>
+                <div style={{fontSize:12,color:'rgba(255,255,255,.9)',marginBottom:3}}>{inc.msg}</div>
+                <div style={{fontSize:12,color:'#ffcc80',fontWeight:700}}>✅ {inc.rec}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Identificação */}
         <div className="card">
           <div style={{fontWeight:800,fontSize:13,color:'#00313C',marginBottom:10}}>📍 Identificação</div>
           <label className="lbl">Fazenda *</label>
@@ -341,55 +660,66 @@ function NewLotScreen({onBack,onSaved}){
           <label className="lbl">Talhão *</label>
           <input className="field" placeholder="Ex: Talhão 5 – Soja" value={field} onChange={e=>setField(e.target.value)}/>
         </div>
+
+        {/* Volume e área */}
         <div className="card">
           <div style={{fontWeight:800,fontSize:13,color:'#00313C',marginBottom:10}}>⚗️ Calda</div>
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:10}}>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
             <div><label className="lbl">Volume (L) *</label><input className="field" type="number" placeholder="Ex: 4000" value={vol} onChange={e=>setVol(e.target.value)}/></div>
             <div><label className="lbl">Área (ha)</label><input className="field" type="number" placeholder="Opcional" value={area} onChange={e=>setArea(e.target.value)}/></div>
           </div>
-          {areaNum>0&&<div style={{background:'#e0f4f7',borderRadius:8,padding:'7px 12px',fontSize:12,fontWeight:700,color:'#006E85',marginBottom:10}}>📐 {areaNum} ha — totais calculados abaixo</div>}
-          <label className="lbl">Receita / Plano de Aplicação</label>
-          <textarea className="field" rows={4} placeholder="Ex: Priori Xtra 0,4 L/ha + Nimbus 0,5 L/vc + Dithane 2 kg/ha" value={recipe} onChange={e=>setRecipe(e.target.value)} style={{resize:'none'}}/>
-          <div style={{fontSize:11,color:'#bbb',marginTop:5}}>Separe com + · Inclua dose e unidade para calcular total</div>
+          {areaNum>0&&<div style={{background:'#e0f4f7',borderRadius:8,padding:'7px 12px',fontSize:12,fontWeight:700,color:'#006E85',marginTop:10}}>📐 Área: {areaNum} ha — totais calculados automaticamente</div>}
         </div>
-        {products.length>0&&(
-          <div className="card">
-            <div style={{fontWeight:800,fontSize:13,color:'#00313C',marginBottom:8}}>🧴 Produtos detectados ({products.length})</div>
-            {products.map((p,i)=>{
-              const total=areaNum>0?calcTotal(p.dose,areaNum):null
-              return(
-                <div key={i} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 10px',background:'#f8f8f8',borderRadius:10,marginBottom:6}}>
-                  <span style={{fontSize:18}}>{FI[p.type]}</span>
-                  <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontWeight:700,fontSize:13,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.name}</div>
-                    {p.dose&&<div style={{fontSize:11,color:'#777'}}>{p.dose}</div>}
-                  </div>
-                  <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:3,flexShrink:0}}>
-                    <span style={{fontSize:10,fontWeight:800,color:'#fff',background:FC[p.type],padding:'2px 7px',borderRadius:20,whiteSpace:'nowrap'}}>{FL[p.type]}</span>
-                    {total&&<span style={{fontSize:10,fontWeight:800,color:'#006E85',background:'#e0f4f7',padding:'2px 7px',borderRadius:20}}>= {total}</span>}
-                  </div>
-                </div>
-              )
-            })}
+
+        {/* Seletor de produtos */}
+        <div className="card">
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
+            <div style={{fontWeight:800,fontSize:13,color:'#00313C'}}>🧴 Produtos da mistura</div>
+            {selectedProducts.length>0&&<span style={{fontSize:12,fontWeight:700,color:'#006E85'}}>{selectedProducts.length} produto{selectedProducts.length>1?'s':''}</span>}
           </div>
-        )}
-        {incompats.length>0&&(
-          <div className="card" style={{borderLeft:'4px solid #f44336'}}>
-            <div style={{fontWeight:800,fontSize:13,color:'#c62828',marginBottom:8}}>Alertas de incompatibilidade</div>
-            {incompats.map((inc,i)=>(
-              <div key={i} style={{background:'#ffebee',borderRadius:8,padding:'8px 10px',marginBottom:6}}>
-                <div style={{fontWeight:700,fontSize:12,color:'#c62828',marginBottom:2}}>{inc.icon} {inc.title}</div>
-                <div style={{fontSize:11,color:'#b71c1c',marginBottom:3}}>{inc.msg}</div>
-                <div style={{fontSize:11,color:'#333',fontWeight:600}}>✅ {inc.rec}</div>
-              </div>
-            ))}
-          </div>
-        )}
+
+          <ProductPicker onAdd={addProduct}/>
+
+          {/* Lista de produtos selecionados */}
+          {sortedProducts.length>0&&(
+            <div style={{marginTop:12}}>
+              <div style={{fontSize:11,fontWeight:700,color:'#999',textTransform:'uppercase',marginBottom:8,letterSpacing:.5}}>Ordem de adição ao tanque</div>
+              {sortedProducts.map((p,i)=>{
+                const origIdx=selectedProducts.indexOf(p)
+                const total=areaNum>0&&p.dose?calcTotal(p.dose,areaNum):null
+                return(
+                  <div key={i} style={{display:'flex',alignItems:'center',gap:8,padding:'9px 10px',background:'#f8f8f8',borderRadius:10,marginBottom:6}}>
+                    <div style={{width:24,height:24,borderRadius:'50%',background:'#00313C',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:900,fontSize:11,flexShrink:0}}>{i+1}</div>
+                    <span style={{fontSize:18,flexShrink:0}}>{FI[p.type]}</span>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontWeight:700,fontSize:13,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{p.name}</div>
+                      <div style={{display:'flex',gap:6,alignItems:'center',marginTop:2,flexWrap:'wrap'}}>
+                        <span style={{fontSize:10,fontWeight:800,color:'#fff',background:FC[p.type],padding:'1px 7px',borderRadius:20}}>{FL[p.type]}</span>
+                        {p.dose&&<span style={{fontSize:11,color:'#777'}}>{p.dose}</span>}
+                        {total&&<span style={{fontSize:10,fontWeight:800,color:'#006E85',background:'#e0f4f7',padding:'1px 7px',borderRadius:20}}>= {total}</span>}
+                      </div>
+                    </div>
+                    <button onClick={()=>removeProduct(origIdx)} style={{background:'none',border:'none',color:'#e57373',fontSize:18,cursor:'pointer',padding:'2px 4px',flexShrink:0}}>✕</button>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {selectedProducts.length===0&&(
+            <div style={{textAlign:'center',padding:'16px 0',color:'#bbb',fontSize:13}}>
+              Nenhum produto adicionado ainda
+            </div>
+          )}
+        </div>
+
         {err&&<div style={{background:'#ffebee',color:'#c62828',padding:'9px 12px',borderRadius:10,fontSize:13,fontWeight:700,marginBottom:8}}>⚠️ {err}</div>}
       </div>
-      <div style={{padding:'10px 12px 16px',background:'#fff',borderTop:'1px solid #eee',display:'flex',flexDirection:'column',gap:8}}>
-        <button className="btn" onClick={save} disabled={saving}>{saving?'Salvando...':'Salvar e Analisar Água →'}</button>
-        <button className="btn-ghost" onClick={onBack}>Cancelar</button>
+
+      <div style={{padding:'10px 12px 16px',background:'#fff',borderTop:'1px solid #eee',display:'flex',flexDirection:'column',gap:8,flexShrink:0}}>
+        <button className="btn" onClick={()=>save(true)} disabled={saving}>{saving?'Salvando...':'Salvar e Analisar Água →'}</button>
+        <button className="btn-ghost" onClick={()=>save(false)} disabled={saving}>💾 Salvar e criar outra mistura</button>
+        <button className="btn-ghost" onClick={onBack} style={{color:'#bbb',borderColor:'#f0f0f0'}}>Cancelar</button>
       </div>
     </div>
   )
@@ -402,12 +732,12 @@ function WaterScreen({lot,onBack,onDone}){
   const[saving,setSaving]=useState(false)
   const phN=parseFloat(ph)||0,tempN=parseFloat(temp)||0,condN=parseFloat(cond)||undefined
   const phE=evalPH(phN),tempE=evalTemp(tempN),condE=evalCond(condN)
-  const overall=overallEval(phE,tempE,condE)
+  const overall=[phE,tempE,...(condN?[condE]:[])].includes('Risco')?'Risco':[phE,tempE,...(condN?[condE]:[])].includes('Atenção')?'Atenção':'OK'
   const save=async()=>{
     setSaving(true)
     const t={id:uid(),lot_id:lot.id,ph:phN,temp_c:tempN,conductivity:condN,evaluation:overall,created_at:Date.now()}
-    await insert('telem',t)
-    await update('lots',lot.id,{status:'WATER_OK',last_ph:phN,last_temp_c:tempN})
+    await dbInsert('telem',t)
+    await dbUpdate('lots',lot.id,{status:'WATER_OK',last_ph:phN,last_temp_c:tempN})
     setSaving(false)
     onDone({...lot,status:'WATER_OK',last_ph:phN},t)
   }
@@ -427,7 +757,7 @@ function WaterScreen({lot,onBack,onDone}){
         </div>
         <div className="card" style={{borderLeft:`4px solid ${EC[overall]}`,background:EB[overall]}}>
           <div style={{display:'flex',justifyContent:'space-between',marginBottom:10}}>
-            <span style={{fontWeight:800,fontSize:13}}>Resultado da Análise</span>
+            <span style={{fontWeight:800,fontSize:13}}>Resultado</span>
             <span style={{fontWeight:800,fontSize:14,color:EC[overall]}}>{overall}</span>
           </div>
           {[['pH',phN.toFixed(1),phE],['Temperatura',`${tempN}°C`,tempE],...(condN?[['Condutividade',`${condN} µS/cm`,condE]]:[])] .map(([l,v,e])=>(
@@ -439,13 +769,13 @@ function WaterScreen({lot,onBack,onDone}){
         </div>
         {phE!=='OK'&&(
           <div className="card" style={{borderLeft:'4px solid #1565C0',background:'#e3f2fd'}}>
-            <div style={{fontWeight:800,fontSize:13,color:'#1565C0',marginBottom:6}}>💡 Sugestão de correção</div>
-            {phN>6.5&&<div style={{fontSize:12,color:'#0d47a1'}}>pH alto → <b>Ácido cítrico</b>: 0,5–1,0 g por 100L para cada unidade de pH a reduzir.<br/><span style={{color:'#42a5f5'}}>Alt: pH Down comercial (1–5 mL/100L)</span></div>}
+            <div style={{fontWeight:800,fontSize:13,color:'#1565C0',marginBottom:6}}>💡 Sugestão de correção de pH</div>
+            {phN>6.5&&<div style={{fontSize:12,color:'#0d47a1'}}>pH alto → <b>Ácido cítrico</b>: 0,5–1,0 g por 100L para cada unidade de pH a reduzir.<br/><span style={{color:'#1976d2'}}>Alternativa: pH Down comercial (1–5 mL/100L)</span></div>}
             {phN<5.5&&<div style={{fontSize:12,color:'#0d47a1'}}>pH baixo → <b>Bicarbonato de sódio</b>: 0,5–1,0 g/100L. Meça novamente antes de continuar.</div>}
           </div>
         )}
       </div>
-      <div style={{padding:'10px 12px 16px',background:'#fff',borderTop:'1px solid #eee'}}>
+      <div style={{padding:'10px 12px 16px',background:'#fff',borderTop:'1px solid #eee',flexShrink:0}}>
         <button className="btn" onClick={save} disabled={saving}>{saving?'Salvando...':'Salvar e Continuar →'}</button>
       </div>
     </div>
@@ -457,7 +787,7 @@ function PrepScreen({lot,onBack,onDone}){
   const steps=useMemo(()=>{
     const s=[{icon:'💧',title:'Encher tanque a 50–75%',detail:'Adicione água limpa e ligue o agitador antes de qualquer produto.',fixed:true,timer:null}]
     products.forEach(p=>s.push({icon:FI[p.type],title:`Adicionar: ${p.name}`,dose:p.dose,sub:FL[p.type],color:FC[p.type],detail:FT[p.type],timer:FTm[p.type],fixed:false}))
-    s.push({icon:'🪣',title:'Completar volume',detail:'Adicione água até o volume total. Mantenha agitação.',fixed:true,timer:null})
+    s.push({icon:'💧',title:'Completar volume',detail:'Adicione água até o volume total. Mantenha agitação constante.',fixed:true,timer:null})
     s.push({icon:'🔍',title:'Verificar aspecto final',detail:'Observe cor, homogeneidade e ausência de grumos. Pronto para Jar Test!',fixed:true,timer:null})
     return s
   },[products])
@@ -471,7 +801,7 @@ function PrepScreen({lot,onBack,onDone}){
     if(cur<steps.length-1){ setCur(c=>c+1) }
     else{
       setSaving(true)
-      await update('lots',lot.id,{status:'JAR_TEST'})
+      await dbUpdate('lots',lot.id,{status:'JAR_TEST'})
       setSaving(false)
       onDone({...lot,status:'JAR_TEST'})
     }
@@ -480,7 +810,7 @@ function PrepScreen({lot,onBack,onDone}){
     <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
       <div style={{background:'#00313C',padding:'14px 16px 18px',flexShrink:0}}>
         <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:10}}>
-          <button onClick={onBack} style={{background:'none',border:'none',color:'#7EC8D8',fontSize:24,fontWeight:900,cursor:'pointer',padding:0}}>‹</button>
+          <button onClick={onBack} style={{background:'none',border:'none',color:'#7EC8D8',fontSize:26,fontWeight:900,cursor:'pointer',padding:0}}>‹</button>
           <span style={{color:'#fff',fontWeight:800,fontSize:16,flex:1}}>Guia de Preparo</span>
           <span style={{color:'#7EC8D8',fontSize:12,fontWeight:700}}>{cur+1}/{steps.length}</span>
         </div>
@@ -504,9 +834,9 @@ function PrepScreen({lot,onBack,onDone}){
         </div>
         {cur<steps.length-1&&(
           <div className="card" style={{display:'flex',alignItems:'center',gap:10,padding:'10px 14px'}}>
-            <span style={{fontSize:11,color:'#bbb',fontWeight:700}}>A SEGUIR →</span>
-            <span style={{fontSize:16}}>{steps[cur+1].icon}</span>
-            <span style={{fontSize:13,fontWeight:700,color:'#555',flex:1}}>{steps[cur+1].title.replace('Adicionar: ','')}</span>
+            <span style={{fontSize:11,color:'#bbb',fontWeight:700,flexShrink:0}}>A SEGUIR →</span>
+            <span style={{fontSize:16,flexShrink:0}}>{steps[cur+1].icon}</span>
+            <span style={{fontSize:13,fontWeight:700,color:'#555',flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{steps[cur+1].title.replace('Adicionar: ','')}</span>
           </div>
         )}
         <div className="card">
@@ -519,7 +849,7 @@ function PrepScreen({lot,onBack,onDone}){
           ))}
         </div>
       </div>
-      <div style={{padding:'10px 12px 16px',background:'#fff',borderTop:'1px solid #eee',display:'flex',flexDirection:'column',gap:8}}>
+      <div style={{padding:'10px 12px 16px',background:'#fff',borderTop:'1px solid #eee',display:'flex',flexDirection:'column',gap:8,flexShrink:0}}>
         <button className="btn" onClick={next} disabled={saving}>{saving?'Salvando...':cur===steps.length-1?'✅ Concluir → Jar Test':`Etapa ${cur+1} ✓ → Próxima`}</button>
         {cur>0&&<button className="btn-ghost" onClick={()=>setCur(c=>c-1)}>← Voltar etapa</button>}
       </div>
@@ -541,8 +871,8 @@ function JarTestScreen({lot,onBack,onDone}){
   const save=async()=>{
     setSaving(true)
     const jt={id:uid(),lot_id:lot.id,result:sel,notes:notes.trim()||undefined,created_at:Date.now()}
-    await insert('jars',jt)
-    await update('lots',lot.id,{status:'READY'})
+    await dbInsert('jars',jt)
+    await dbUpdate('lots',lot.id,{status:'READY'})
     setSaving(false)
     onDone({...lot,status:'READY'},jt)
   }
@@ -554,7 +884,7 @@ function JarTestScreen({lot,onBack,onDone}){
           <div style={{fontWeight:800,fontSize:13,color:'#006E85',marginBottom:6}}>Como realizar</div>
           <div style={{fontSize:12,color:'#444',lineHeight:1.9}}>1. Encha um pote de 500 mL com amostra da mistura<br/>2. Agite vigorosamente por 30 segundos<br/>3. Deixe em repouso por 3 minutos<br/>4. Observe precipitação, separação, espuma e consistência</div>
         </div>
-        <div style={{fontWeight:800,fontSize:13,marginBottom:8}}>Resultado</div>
+        <div style={{fontWeight:800,fontSize:13,marginBottom:8}}>Resultado observado</div>
         {JAROPTS.map(opt=>(
           <div key={opt.r} className="card" onClick={()=>setSel(opt.r)} style={{cursor:'pointer',display:'flex',alignItems:'center',gap:12,border:`2px solid ${sel===opt.r?'#006E85':'transparent'}`,background:sel===opt.r?'#e0f4f7':'#fff',marginBottom:8,padding:'11px 14px'}}>
             <span style={{fontSize:22}}>{opt.icon}</span>
@@ -567,7 +897,7 @@ function JarTestScreen({lot,onBack,onDone}){
           <textarea className="field" rows={3} placeholder="Anote detalhes sobre a calda..." value={notes} onChange={e=>setNotes(e.target.value)} style={{resize:'none'}}/>
         </div>
       </div>
-      <div style={{padding:'10px 12px 16px',background:'#fff',borderTop:'1px solid #eee'}}>
+      <div style={{padding:'10px 12px 16px',background:'#fff',borderTop:'1px solid #eee',flexShrink:0}}>
         <button className="btn" onClick={save} disabled={saving}>{saving?'Salvando...':'💾 Salvar Jar Test'}</button>
       </div>
     </div>
@@ -580,23 +910,30 @@ function LotDetailScreen({lot:initLot,op,onBack,onNav,onLotUpdate}){
   const[jar,setJar]=useState(null)
   const[applying,setApplying]=useState(false)
   useEffect(()=>{
-    selectAll('telem').then(d=>{const r=d.filter(t=>t.lot_id===lot.id);if(r.length)setTelem(r[0])})
-    selectAll('jars').then(d=>{const r=d.filter(j=>j.lot_id===lot.id);if(r.length)setJar(r[0])})
+    dbSelect('telem',{lot_id:lot.id}).then(d=>{if(d.length)setTelem(d[0])})
+    dbSelect('jars',{lot_id:lot.id}).then(d=>{if(d.length)setJar(d[0])})
   },[lot.id])
   const TL=[{s:'WATER_OK',icon:'💧',label:'Água'},{s:'PREPARING',icon:'⚗️',label:'Preparo'},{s:'JAR_TEST',icon:'🧪',label:'Jar Test'},{s:'READY',icon:'✅',label:'Pronta'},{s:'APPLIED',icon:'🚜',label:'Aplicada'}]
   const li=SO.indexOf(lot.status)
   const JarLabel={ESTAVEL:'Estável ✅',SEPARACAO:'Separação de fases ⚠️',SEDIMENTACAO:'Sedimentação ⚠️',ESPUMA:'Espuma excessiva ⚠️',GEL:'Virou gel ❌'}
   const apply=async()=>{
     setApplying(true)
-    await update('lots',lot.id,{status:'APPLIED'})
+    await dbUpdate('lots',lot.id,{status:'APPLIED'})
     const u={...lot,status:'APPLIED'}
     setLot(u);onLotUpdate&&onLotUpdate(u)
     setApplying(false)
   }
+  const incompats=lot.recipe_text?detectIncompat(parseRecipe(lot.recipe_text)):[]
   return(
     <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
       <Hdr title="Detalhe da Mistura" onBack={onBack}/>
       <div className="sc" style={{flex:1,padding:12,paddingBottom:24}}>
+        {incompats.length>0&&(
+          <div style={{background:'#c62828',borderRadius:14,padding:'10px 14px',marginBottom:10}}>
+            <div style={{fontWeight:800,fontSize:13,color:'#fff',marginBottom:4}}>⛔ Incompatibilidade na receita</div>
+            {incompats.map((inc,i)=><div key={i} style={{fontSize:12,color:'rgba(255,255,255,.9)',marginBottom:2}}>{inc.icon} {inc.title}</div>)}
+          </div>
+        )}
         <div className="card" style={{borderTop:'4px solid #006E85'}}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:10}}>
             <div><div style={{fontSize:17,fontWeight:900}}>{lot.farm}</div><div style={{fontSize:12,color:'#777'}}>{lot.field}</div></div>
@@ -641,12 +978,14 @@ function LotDetailScreen({lot:initLot,op,onBack,onNav,onLotUpdate}){
             {jar.notes&&<div style={{fontSize:12,color:'#777',marginTop:3,fontStyle:'italic'}}>{jar.notes}</div>}
           </div>
         )}
-        {lot.status==='REQUESTED'&&<button className="btn" style={{marginBottom:8}} onClick={()=>onNav('water',lot)}>→ Analisar Água</button>}
-        {(lot.status==='WATER_OK'||lot.status==='PREPARING')&&<button className="btn" style={{marginBottom:8}} onClick={()=>onNav('prep',lot)}>→ Guia de Preparo</button>}
-        {lot.status==='JAR_TEST'&&<button className="btn" style={{marginBottom:8}} onClick={()=>onNav('jartest',lot)}>→ Realizar Jar Test</button>}
-        {lot.status==='READY'&&<button className="btn" style={{background:'#2e7d32',marginBottom:8}} onClick={apply} disabled={applying}>{applying?'Registrando...':'🚜 Registrar Aplicação em Campo'}</button>}
-        {lot.status==='APPLIED'&&<div style={{background:'#e8f5e9',border:'1px solid #c8e6c9',borderRadius:12,padding:'11px 16px',textAlign:'center',fontWeight:700,color:'#2e7d32',marginBottom:8}}>✅ Calda aplicada em campo</div>}
-        <button className="btn" onClick={()=>onNav('laudo',lot,telem,jar)}>📄 Gerar Laudo de Qualidade</button>
+        <div style={{display:'flex',flexDirection:'column',gap:8}}>
+          {lot.status==='REQUESTED'&&<button className="btn" onClick={()=>onNav('water',lot)}>→ Analisar Água</button>}
+          {(lot.status==='WATER_OK'||lot.status==='PREPARING')&&<button className="btn" onClick={()=>onNav('prep',lot)}>→ Guia de Preparo</button>}
+          {lot.status==='JAR_TEST'&&<button className="btn" onClick={()=>onNav('jartest',lot)}>→ Realizar Jar Test</button>}
+          {lot.status==='READY'&&<button className="btn" style={{background:'#2e7d32'}} onClick={apply} disabled={applying}>{applying?'Registrando...':'🚜 Registrar Aplicação em Campo'}</button>}
+          {lot.status==='APPLIED'&&<div style={{background:'#e8f5e9',border:'1px solid #c8e6c9',borderRadius:12,padding:'11px 16px',textAlign:'center',fontWeight:700,color:'#2e7d32'}}>✅ Calda aplicada em campo</div>}
+          <button className="btn-ghost" onClick={()=>onNav('laudo',lot,telem,jar)}>📄 Gerar Laudo</button>
+        </div>
       </div>
     </div>
   )
@@ -675,13 +1014,15 @@ function LaudoScreen({lot,telem,jar,op,onBack}){
             </div>
             <S title="Dados da Mistura">
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}>
-                <F label="Fazenda" value={lot.farm}/><F label="Talhão" value={lot.field}/><F label="Volume" value={`${lot.volume_liters} L`}/>{lot.area_ha&&<F label="Área" value={`${lot.area_ha} ha`}/>}
+                <F label="Fazenda" value={lot.farm}/><F label="Talhão" value={lot.field}/>
+                <F label="Volume" value={`${lot.volume_liters} L`}/>{lot.area_ha&&<F label="Área" value={`${lot.area_ha} ha`}/>}
               </div>
               {lot.recipe_text&&<div style={{background:'#f5f5f5',borderRadius:8,padding:'7px 10px',marginTop:6}}><div style={{fontSize:9,fontWeight:700,color:'#9e9e9e',textTransform:'uppercase',marginBottom:2}}>Receita</div><div style={{fontSize:11,color:'#444'}}>{lot.recipe_text}</div></div>}
             </S>
             <S title="Responsável Técnico">
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}>
-                <F label="Nome" value={op?.name}/><F label="Função" value={op?.role}/>{op?.company&&<F label="Empresa" value={op.company}/>}{op?.crea&&<F label="CREA/CFTA" value={op.crea}/>}
+                <F label="Nome" value={op?.name}/><F label="Função" value={op?.role}/>
+                {op?.company&&<F label="Empresa" value={op.company}/>}{op?.crea&&<F label="CREA/CFTA" value={op.crea}/>}
               </div>
             </S>
             {telem&&(
@@ -702,12 +1043,12 @@ function LaudoScreen({lot,telem,jar,op,onBack}){
               {op?.crea&&<div style={{fontSize:10,color:'#9e9e9e'}}>CREA/CFTA: {op.crea}</div>}
             </div>
             <div style={{marginTop:16,textAlign:'center',fontSize:9,color:'#bbb',borderTop:'1px solid #f0f0f0',paddingTop:10}}>
-              Gerado em {dateStr}, {timeStr} — FertigeoTech · Fertigeo Inteligência Agrícola
+              {dateStr}, {timeStr} — FertigeoTech · Fertigeo Inteligência Agrícola
             </div>
           </div>
         </div>
       </div>
-      <div className="np" style={{padding:'10px 12px 16px',background:'#fff',borderTop:'1px solid #eee',display:'flex',flexDirection:'column',gap:8}}>
+      <div className="np" style={{padding:'10px 12px 16px',background:'#fff',borderTop:'1px solid #eee',display:'flex',flexDirection:'column',gap:8,flexShrink:0}}>
         <button className="btn" onClick={()=>window.print()}>🖨️ Imprimir / Salvar PDF</button>
         <button className="btn-ghost" onClick={onBack}>Voltar</button>
       </div>
@@ -796,31 +1137,93 @@ const MGROLES=['Engenheiro Agrônomo','Técnico Agrícola']
 
 function App(){
   const[op,setOp]=useState(()=>{try{return JSON.parse(localStorage.getItem('ft_op')||'null')}catch{return null}})
-  const[screen,setScreen]=useState('home')
+  const[screen,setScreen]=useState('tabs')
   const[ctx,setCtx]=useState({})
   const[lots,setLots]=useState([])
   const[tab,setTab]=useState('home')
 
   useEffect(()=>{ if(op) loadLots() },[op])
-  const loadLots=()=>selectAll('lots').then(d=>setLots(d))
+
+  const loadLots=useCallback(()=>{
+    dbSelect('lots').then(d=>setLots(d))
+  },[])
 
   const login=o=>{localStorage.setItem('ft_op',JSON.stringify(o));setOp(o)}
   const logout=()=>{localStorage.removeItem('ft_op');setOp(null);setLots([])}
-  const nav=(sc,lot=null,telem=null,jar=null)=>{setCtx({lot,telem,jar});setScreen(sc)}
-  const goTab=t=>{setTab(t);setScreen('home')}
-  const updateLot=u=>setLots(prev=>prev.map(l=>l.id===u.id?u:l))
+
+  const nav=useCallback((sc,lot=null,telem=null,jar=null)=>{
+    setCtx({lot,telem,jar})
+    setScreen(sc)
+  },[])
+
+  const goTab=useCallback(t=>{
+    setTab(t)
+    setScreen('tabs')
+    loadLots() // ← recarrega lista sempre que muda de aba ou volta
+  },[loadLots])
+
+  const updateLot=useCallback(u=>setLots(prev=>prev.map(l=>l.id===u.id?u:l)),[])
 
   if(!op) return <LoginScreen onLogin={login}/>
 
-  if(screen==='new') return <NewLotScreen onBack={()=>{setScreen('home')}} onSaved={lot=>{setLots(p=>[lot,...p]);nav('water',lot)}}/>
-  if(screen==='water') return <WaterScreen lot={ctx.lot} onBack={()=>nav('detail',ctx.lot)} onDone={(u,t)=>{updateLot(u);nav('prep',u)}}/>
-  if(screen==='prep') return <PrepScreen lot={ctx.lot} onBack={()=>nav('detail',ctx.lot)} onDone={u=>{updateLot(u);nav('jartest',u)}}/>
-  if(screen==='jartest') return <JarTestScreen lot={ctx.lot} onBack={()=>nav('detail',ctx.lot)} onDone={(u,j)=>{updateLot(u);nav('detail',u)}}/>
-  if(screen==='detail') return <LotDetailScreen lot={ctx.lot} op={op} onBack={()=>{loadLots();goTab(tab)}} onNav={nav} onLotUpdate={updateLot}/>
-  if(screen==='laudo') return <LaudoScreen lot={ctx.lot} telem={ctx.telem} jar={ctx.jar} op={op} onBack={()=>nav('detail',ctx.lot,ctx.telem,ctx.jar)}/>
+  // ── Telas modais (sobre as abas) ──────────────────────────────
+  if(screen==='new') return(
+    <NewLotScreen
+      onBack={()=>setScreen('tabs')}
+      onSaved={(lot,goWater)=>{
+        setLots(p=>[lot,...p])
+        if(goWater) nav('water',lot)
+        else setScreen('tabs')
+      }}
+    />
+  )
+  if(screen==='water') return(
+    <WaterScreen
+      lot={ctx.lot}
+      onBack={()=>nav('detail',ctx.lot)}
+      onDone={(u,t)=>{ updateLot(u); nav('prep',u) }}
+    />
+  )
+  if(screen==='prep') return(
+    <PrepScreen
+      lot={ctx.lot}
+      onBack={()=>nav('detail',ctx.lot)}
+      onDone={u=>{ updateLot(u); nav('jartest',u) }}
+    />
+  )
+  if(screen==='jartest') return(
+    <JarTestScreen
+      lot={ctx.lot}
+      onBack={()=>nav('detail',ctx.lot)}
+      onDone={(u)=>{ updateLot(u); nav('detail',u) }}
+    />
+  )
+  if(screen==='detail') return(
+    <LotDetailScreen
+      lot={ctx.lot}
+      op={op}
+      onBack={()=>goTab(tab)}
+      onNav={nav}
+      onLotUpdate={updateLot}
+    />
+  )
+  if(screen==='laudo') return(
+    <LaudoScreen
+      lot={ctx.lot}
+      telem={ctx.telem}
+      jar={ctx.jar}
+      op={op}
+      onBack={()=>nav('detail',ctx.lot,ctx.telem,ctx.jar)}
+    />
+  )
 
+  // ── Tela principal com abas ───────────────────────────────────
   const isManager=MGROLES.includes(op?.role)
-  const TABS=[{id:'home',icon:'🏠',label:'Início'},{id:'lots',icon:'⚗️',label:'Misturas'},isManager&&{id:'manager',icon:'📊',label:'Gestor'}].filter(Boolean)
+  const TABS=[
+    {id:'home',icon:'🏠',label:'Início'},
+    {id:'lots',icon:'⚗️',label:'Misturas'},
+    ...(isManager?[{id:'manager',icon:'📊',label:'Gestor'}]:[])
+  ]
 
   return(
     <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
