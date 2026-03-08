@@ -1,15 +1,847 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="pt-BR">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-    <title>FertigeoTech — Qualidade de Calda</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-    <meta name="theme-color" content="#00313C" />
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
+<title>FertigeoTech</title>
+<meta name="theme-color" content="#00313C"/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:'DM Sans',sans-serif;background:#0a1628;display:flex;justify-content:center;min-height:100vh}
+#root{width:100%;max-width:430px;min-height:100vh;background:#f0f2f0;display:flex;flex-direction:column}
+.sc{overflow-y:auto;-ms-overflow-style:none;scrollbar-width:none}
+.sc::-webkit-scrollbar{display:none}
+input,textarea,button{font-family:'DM Sans',sans-serif}
+.field{width:100%;border:1.5px solid #e0e0e0;border-radius:10px;padding:11px 13px;font-size:15px;color:#1a1a1a;background:#fafafa;outline:none;transition:border-color .15s}
+.field:focus{border-color:#006E85;background:#fff}
+.btn{width:100%;background:#00313C;color:#fff;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif}
+.btn:disabled{opacity:.6;cursor:default}
+.btn-ghost{background:transparent;color:#00313C;border:1.5px solid #e0e0e0;border-radius:12px;padding:13px;width:100%;font-size:15px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif}
+.card{background:#fff;border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700}
+.bg{background-color:#f5f5f5}.bg-green{background:#e0f4f7;color:#006E85}.bg-orange{background:#fff3e0;color:#e65100}.bg-red{background:#ffebee;color:#c62828}.bg-gray{background:#f5f5f5;color:#757575}
+.tab-bar{background:#fff;border-top:1px solid #eee;display:flex;padding-bottom:env(safe-area-inset-bottom)}
+.tab-btn{flex:1;display:flex;flex-direction:column;align-items:center;padding:8px 4px;border:none;background:transparent;cursor:pointer;color:#9e9e9e;font-size:10px;font-weight:700;gap:2px;font-family:'DM Sans',sans-serif}
+.tab-btn.active{color:#00313C}
+.lbl{font-size:11px;font-weight:700;color:#666;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px;display:block}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.15)}}
+@media print{.np{display:none!important}body,#root{background:#fff;max-width:100%}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="react">
+const{useState,useEffect,useRef,useMemo}=React
+
+// ── LocalDB (offline) ──────────────────────────────────────────
+const DB={
+  get lots(){return JSON.parse(localStorage.getItem('ft_lots')||'[]')},
+  get telem(){return JSON.parse(localStorage.getItem('ft_telem')||'[]')},
+  get jars(){return JSON.parse(localStorage.getItem('ft_jars')||'[]')},
+  saveLots(d){localStorage.setItem('ft_lots',JSON.stringify(d))},
+  saveTelem(d){localStorage.setItem('ft_telem',JSON.stringify(d))},
+  saveJars(d){localStorage.setItem('ft_jars',JSON.stringify(d))},
+}
+function uid(){return Date.now()+'-'+Math.random().toString(36).slice(2,6)}
+async function insert(table,row){
+  if(table==='lots'){const d=DB.lots;d.unshift(row);DB.saveLots(d)}
+  else if(table==='telem'){const d=DB.telem;d.unshift(row);DB.saveTelem(d)}
+  else if(table==='jars'){const d=DB.jars;d.unshift(row);DB.saveJars(d)}
+}
+async function update(table,id,patch){
+  if(table==='lots'){const d=DB.lots;const i=d.findIndex(r=>r.id===id);if(i>-1){d[i]={...d[i],...patch};DB.saveLots(d)}}
+}
+async function selectAll(table){
+  if(table==='lots') return DB.lots
+  if(table==='telem') return DB.telem
+  if(table==='jars') return DB.jars
+  return []
+}
+
+// ── Recipe Parser ──────────────────────────────────────────────
+const PDB={'ácido cítrico':'PH','acido citrico':'PH','ph down':'PH','ph minus':'PH','ph up':'PH','aquafix':'PH','buffer':'PH','redutor de ph':'PH','bicarbonato':'PH','condicionador de água':'PH','sequestran':'PH','ácido fosfórico':'PH','mancozebe':'WP','mancozeb':'WP','dithane':'WP','manzate':'WP','persist':'WP','unizeb':'WP','oxicloreto':'WP','cuproxat':'WP','kocide':'WP','champion':'WP','calda bordalesa':'WP','cupravi':'WP','captan':'WP','captana':'WP','enxofre':'WP','kumulus':'WP','thiovit':'WP','cobox':'WP','priori xtra':'SC','priori':'SC','azoxistrobina':'SC','piraclostrobina':'SC','opera':'SC','orkestra':'SC','abamectina':'SC','vertimec':'SC','belt':'SC','folicur':'SC','tebuconazol':'SC','propiconazol':'SC','ciproconazol':'SC','nativo':'SC','glifosato':'SL','gliz':'SL','roundup':'SL','zapp':'SL','trop':'SL','2,4-d':'SL','tordon':'SL','dicamba':'SL','nimbus':'ADJ','assist':'ADJ','aureo':'ADJ','áureo':'ADJ','energic':'ADJ','dash':'ADJ','haiten':'ADJ','agral':'ADJ','silwet':'ADJ','nitrogênio':'FERT','boro':'FERT','zinco':'FERT','mapfert':'FERT','trichoderma':'BIO','bacillus':'BIO','beauveria':'BIO','serenade':'BIO','naturalis':'BIO','trico':'BIO'}
+const ORD={PH:1,WP:2,SC:3,EC:4,SL:5,FERT:6,ADJ:7,BIO:8,'?':9}
+const FC={PH:'#1565C0',WP:'#6A1B9A',SC:'#00838F',EC:'#E65100',SL:'#2E7D32',ADJ:'#BF360C',FERT:'#558B2F',BIO:'#00695C','?':'#9E9E9E'}
+const FL={PH:'Corretor pH',WP:'Pó Molhável',SC:'Suspensão SC',EC:'Emulsão EC',SL:'Solução SL',ADJ:'Adjuvante',FERT:'Fertilizante',BIO:'Biológico','?':'Desconhecido'}
+const FI={PH:'⚗️',WP:'🧂',SC:'🔵',EC:'🟡',SL:'💧',ADJ:'🛢️',FERT:'🌿',BIO:'🦠','?':'🔬'}
+const FT={PH:'Adicione PRIMEIRO para ajustar o pH.',WP:'Pré-dissolva em água antes de adicionar ao tanque (10 min).',SC:'Adicione com agitação constante. Aguarde 1 min.',EC:'Adicione lentamente em fio contínuo.',SL:'Miscível. Adicione com agitação por 30s.',ADJ:'Adicione SEMPRE POR ÚLTIMO.',FERT:'Adicione após sólidos e antes dos óleos.',BIO:'Adicione por último. Evite luz solar direta.','?':'Consulte a bula.'}
+const FTm={PH:60,WP:900,SC:60,EC:90,SL:60,ADJ:60,FERT:60,BIO:60,'?':60}
+
+function nrm(s){return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')}
+function detectType(name){
+  const n=nrm(name)
+  for(const[k,t] of Object.entries(PDB)){if(n.includes(nrm(k))) return t}
+  if(/\b(ec|ew|emulsão)\b/.test(n)) return 'EC'
+  if(/\b(sl|solução)\b/.test(n)) return 'SL'
+  if(/\b(óleo|oleo|oil)\b/.test(n)) return 'ADJ'
+  return '?'
+}
+function parseRecipe(txt){
+  if(!txt||!txt.trim()) return []
+  return txt.split(/[+;\n]/).map(s=>s.trim()).filter(Boolean).map(raw=>{
+    const dm=raw.match(/[\d,\.]+\s*(L|mL|ml|g|kg|%)\s*(?:\/\s*(?:ha|vc|100L|hL))?/i)
+    const dose=dm?dm[0]:''
+    const name=raw.replace(dose,'').replace(/\s+/g,' ').trim()||raw
+    const type=detectType(name)
+    return{raw,name,dose,type,order:ORD[type]||9}
+  }).sort((a,b)=>a.order-b.order)
+}
+function calcTotal(dose,area){
+  if(!dose||!area) return null
+  const m=dose.replace(',','.').match(/([\d.]+)\s*(L|mL|ml|g|kg)\s*\/\s*ha/i)
+  if(!m) return null
+  let v=parseFloat(m[1])*area,u=m[2].toLowerCase()
+  if(u==='ml'&&v>=1000){v/=1000;u='L'}
+  if(u==='g'&&v>=1000){v/=1000;u='kg'}
+  return `${Number.isInteger(v)?v:v.toFixed(v<10?2:1)} ${u}`
+}
+
+// ── Incompatibility Engine ─────────────────────────────────────
+const RULES=[
+  {id:'C1',sev:'danger',icon:'⛔',title:'Cobre + Enxofre',g:[['cobre','oxicloreto','calda bordalesa','cupravi','kocide'],['enxofre','kumulus','thiovit']],msg:'Reação química — precipitado e fitotoxidez (esp. >25°C).',rec:'Aplique em dias separados.'},
+  {id:'C2',sev:'danger',icon:'⛔',title:'Trichoderma + Fungicida sistêmico',g:[['trichoderma','trico'],['tebuconazol','propiconazol','carbendazim','cercobin','ciproconazol']],msg:'Fungicidas sistêmicos eliminam Trichoderma spp.',rec:'Aplique o biológico 3–5 dias antes/depois.'},
+  {id:'C3',sev:'danger',icon:'⛔',title:'Cloreto de Potássio + Glifosato',g:[['cloreto de potássio','kcl'],['glifosato','roundup','gliz']],msg:'Íon cloreto precipita o glifosato — perda total de eficácia.',rec:'Nunca misturar.'},
+  {id:'C4',sev:'warning',icon:'⚠️',title:'Mancozebe + Cobre',g:[['mancozebe','dithane','manzate'],['cobre','oxicloreto','kocide']],msg:'Precipitação e redução de eficácia. pH do cobre degrada mancozebe.',rec:'Ajuste pH 6,0–6,5 e faça jar test.'},
+  {id:'C5',sev:'warning',icon:'⚠️',title:'Glifosato + Produto alcalino',g:[['glifosato','roundup','gliz'],['cobre','oxicloreto','calda bordalesa']],msg:'Em pH >7 o glifosato precipita — reduz absorção foliar.',rec:'Ajuste pH para 4,5–6,5 antes de adicionar glifosato.'},
+  {id:'C6',sev:'warning',icon:'⚠️',title:'Abamectina + Produto alcalino',g:[['abamectina','vertimec','kraft'],['calda bordalesa','cobre','oxicloreto']],msg:'Abamectina se hidrolisa em pH >8 — perde eficácia.',rec:'Ajuste pH 5,5–6,5 antes de adicionar abamectina.'},
+  {id:'C7',sev:'warning',icon:'⚠️',title:'Bacillus + Cobre',g:[['bacillus','serenade'],['cobre','oxicloreto','calda bordalesa']],msg:'Íons cobre eliminam Bacillus subtilis e outros bioagentes.',rec:'Aplique biológico 48h antes do cobre.'},
+]
+function detectIncompat(products){
+  return RULES.filter(rule=>{
+    return rule.g.every(group=>products.some(p=>group.some(pat=>nrm(p.name).includes(nrm(pat)))))
+  }).map(rule=>({...rule,matched:products.filter(p=>rule.g.flat().some(pat=>nrm(p.name).includes(nrm(pat)))).map(p=>p.name)}))
+}
+
+// ── Water Evaluation ───────────────────────────────────────────
+function evalPH(ph){return ph>=5.5&&ph<=6.5?'OK':((ph>=4.5&&ph<5.5)||(ph>6.5&&ph<=7))?'Atenção':'Risco'}
+function evalTemp(t){return t>=10&&t<=25?'OK':(t>=5&&t<=30)?'Atenção':'Risco'}
+function evalCond(c){return !c?'OK':c<=200?'OK':c<=500?'Atenção':'Risco'}
+function overallEval(...vals){return vals.includes('Risco')?'Risco':vals.includes('Atenção')?'Atenção':'OK'}
+const EC={OK:'#4caf50',Atenção:'#ff9800',Risco:'#f44336'}
+const EB={OK:'#e8f5e9',Atenção:'#fff3e0',Risco:'#ffebee'}
+
+// ── Status Helpers ─────────────────────────────────────────────
+const SO=['REQUESTED','WATER_OK','PREPARING','JAR_TEST','READY','APPLIED']
+const SL={REQUESTED:'Solicitada',WATER_OK:'Água OK',PREPARING:'Em Preparo',JAR_TEST:'Jar Test',READY:'Pronta',APPLIED:'Aplicada'}
+const SC2={REQUESTED:'bg-gray',WATER_OK:'bg-green',PREPARING:'bg-orange',JAR_TEST:'bg-orange',READY:'bg-green',APPLIED:'bg-gray'}
+
+// ── Timer ──────────────────────────────────────────────────────
+function Timer({seconds}){
+  const[rem,setRem]=useState(seconds)
+  const[running,setRunning]=useState(false)
+  const[done,setDone]=useState(false)
+  const ref=useRef(null)
+  useEffect(()=>{
+    if(running){
+      ref.current=setInterval(()=>setRem(p=>{
+        if(p<=1){clearInterval(ref.current);setRunning(false);setDone(true);return 0}
+        return p-1
+      }),1000)
+    } else clearInterval(ref.current)
+    return()=>clearInterval(ref.current)
+  },[running])
+  const mm=Math.floor(rem/60),ss=rem%60
+  return(
+    <div style={{background:'#00313C',borderRadius:14,padding:16,textAlign:'center',marginTop:12}}>
+      <div style={{fontSize:40,fontWeight:900,color:'#fff',letterSpacing:3}}>{String(mm).padStart(2,'0')}:{String(ss).padStart(2,'0')}</div>
+      {!running&&!done&&<button className="btn" style={{marginTop:10,width:'auto',padding:'8px 24px',fontSize:14}} onClick={()=>setRunning(true)}>▶ Iniciar Timer</button>}
+      {running&&<button onClick={()=>setRunning(false)} style={{marginTop:10,background:'rgba(255,255,255,.15)',border:'none',color:'#fff',padding:'8px 24px',borderRadius:20,cursor:'pointer',fontWeight:700}}>⏸ Pausar</button>}
+      {done&&<div style={{color:'#7EC8D8',fontWeight:800,marginTop:8,fontSize:14}}>✅ Tempo concluído!</div>}
+    </div>
+  )
+}
+
+// ── Header ─────────────────────────────────────────────────────
+function Hdr({title,onBack}){
+  return(
+    <div style={{background:'#00313C',padding:'14px 16px',display:'flex',alignItems:'center',gap:12,flexShrink:0}}>
+      {onBack&&<button onClick={onBack} style={{background:'none',border:'none',color:'#7EC8D8',fontSize:24,fontWeight:900,cursor:'pointer',lineHeight:1,padding:0}}>‹</button>}
+      <span style={{color:'#fff',fontWeight:800,fontSize:16}}>{title}</span>
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SCREENS
+// ═══════════════════════════════════════════════════════════════════
+
+function LoginScreen({onLogin}){
+  const[name,setName]=useState('')
+  const[role,setRole]=useState('')
+  const[company,setCompany]=useState('')
+  const[crea,setCrea]=useState('')
+  const[err,setErr]=useState('')
+  const ROLES=['Engenheiro Agrônomo','Técnico Agrícola','Operador Agrícola','Operador de Máquinas']
+  return(
+    <div style={{flex:1,display:'flex',flexDirection:'column',background:'#00313C',minHeight:'100vh'}}>
+      <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'32px 20px'}}>
+        <div style={{textAlign:'center',marginBottom:28}}>
+          <div style={{fontSize:34,fontWeight:900,color:'#fff',letterSpacing:-1}}>FertigeoTech</div>
+          <div style={{color:'#7EC8D8',fontSize:11,fontWeight:700,letterSpacing:3,marginTop:4,textTransform:'uppercase'}}>Qualidade de Calda</div>
+        </div>
+        <div style={{width:'100%',maxWidth:360,background:'#fff',borderRadius:20,padding:22,boxShadow:'0 20px 60px rgba(0,0,0,.4)'}}>
+          <div style={{fontWeight:800,fontSize:16,color:'#00313C',marginBottom:14}}>Identificação</div>
+          <label className="lbl">Nome *</label>
+          <input className="field" placeholder="Seu nome completo" value={name} onChange={e=>setName(e.target.value)} style={{marginBottom:12}}/>
+          <label className="lbl" style={{marginBottom:8}}>Função *</label>
+          <div style={{display:'flex',flexWrap:'wrap',gap:8,marginBottom:14}}>
+            {ROLES.map(r=>(
+              <button key={r} onClick={()=>setRole(r)} style={{padding:'7px 12px',borderRadius:20,border:'1.5px solid',fontSize:12,fontWeight:700,cursor:'pointer',background:role===r?'#00313C':'#fff',color:role===r?'#fff':'#555',borderColor:role===r?'#00313C':'#ddd'}}>
+                {r}
+              </button>
+            ))}
+          </div>
+          <label className="lbl">Empresa</label>
+          <input className="field" placeholder="(opcional)" value={company} onChange={e=>setCompany(e.target.value)} style={{marginBottom:12}}/>
+          <label className="lbl">CREA / CFTA</label>
+          <input className="field" placeholder="(opcional)" value={crea} onChange={e=>setCrea(e.target.value)} style={{marginBottom:14}}/>
+          {err&&<div style={{background:'#ffebee',color:'#c62828',padding:'8px 12px',borderRadius:8,fontSize:13,fontWeight:700,marginBottom:12}}>⚠️ {err}</div>}
+          <button className="btn" onClick={()=>{
+            if(!name.trim()){setErr('Informe seu nome');return}
+            if(!role){setErr('Selecione sua função');return}
+            onLogin({name:name.trim(),role,company:company.trim(),crea:crea.trim()})
+          }}>Entrar no FertigeoTech →</button>
+          <div style={{fontSize:11,color:'#9e9e9e',textAlign:'center',marginTop:10}}>💾 Dados salvos localmente no seu celular</div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function HomeScreen({op,onLogout,onNav,lots,onNew}){
+  const today=new Date().toDateString()
+  const phs=lots.filter(l=>l.last_ph).map(l=>l.last_ph)
+  const kpis=[
+    {icon:'📋',label:'Hoje',val:lots.filter(l=>new Date(l.created_at).toDateString()===today).length,c:'#006E85'},
+    {icon:'⏳',label:'Pendentes',val:lots.filter(l=>!['READY','APPLIED'].includes(l.status)).length,c:'#e65100'},
+    {icon:'🧪',label:'pH médio',val:phs.length?(phs.reduce((a,b)=>a+b,0)/phs.length).toFixed(1):'—',c:'#006E85'},
+    {icon:'⚠️',label:'Riscos',val:lots.filter(l=>l.last_ph&&(l.last_ph<5||l.last_ph>7)).length,c:'#c62828'},
+  ]
+  return(
+    <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
+      <div style={{background:'#00313C',padding:'14px 16px 18px',flexShrink:0}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:10}}>
+          <div>
+            <div style={{fontSize:22,fontWeight:900,color:'#fff'}}>FertigeoTech</div>
+            <div style={{color:'#7EC8D8',fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase'}}>Qualidade de Calda</div>
+          </div>
+          <button onClick={onLogout} style={{background:'rgba(255,255,255,.15)',border:'none',color:'#fff',padding:'5px 12px',borderRadius:20,fontSize:12,fontWeight:700,cursor:'pointer'}}>Sair</button>
+        </div>
+        <div style={{background:'rgba(255,255,255,.1)',borderRadius:10,padding:'9px 13px'}}>
+          <div style={{color:'#fff',fontWeight:700,fontSize:13}}>{op.name}</div>
+          <div style={{color:'#7EC8D8',fontSize:11}}>{op.role}{op.company?' · '+op.company:''}</div>
+        </div>
+      </div>
+      <div className="sc" style={{flex:1,padding:12,paddingBottom:80}}>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:14}}>
+          {kpis.map(k=>(
+            <div key={k.label} className="card" style={{textAlign:'center',marginBottom:0}}>
+              <div style={{fontSize:22,marginBottom:4}}>{k.icon}</div>
+              <div style={{fontSize:24,fontWeight:900,color:k.c}}>{k.val}</div>
+              <div style={{fontSize:11,color:'#777',fontWeight:600}}>{k.label}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+          <span style={{fontWeight:800,color:'#333',fontSize:14}}>Misturas recentes</span>
+          <button onClick={()=>onNav('lots')} style={{background:'none',border:'none',color:'#006E85',fontWeight:700,fontSize:13,cursor:'pointer'}}>Ver todas →</button>
+        </div>
+        {lots.length===0?(
+          <div className="card" style={{textAlign:'center',padding:'28px 16px'}}>
+            <div style={{fontSize:36,marginBottom:8}}>⚗️</div>
+            <div style={{color:'#9e9e9e',fontWeight:600,marginBottom:10}}>Nenhuma mistura ainda</div>
+            <button className="btn" style={{width:'auto',padding:'10px 24px',fontSize:14}} onClick={onNew}>+ Criar primeira mistura</button>
+          </div>
+        ):lots.slice(0,6).map(lot=>(
+          <div key={lot.id} className="card" onClick={()=>onNav('detail',lot)} style={{cursor:'pointer',display:'flex',alignItems:'center',gap:10,marginBottom:8,padding:'12px 14px'}}>
+            <div style={{flex:1}}>
+              <div style={{fontWeight:800,fontSize:13}}>{lot.farm}</div>
+              <div style={{fontSize:11,color:'#777'}}>{lot.field} · {lot.volume_liters}L</div>
+            </div>
+            <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:3}}>
+              <span className={`badge ${SC2[lot.status]}`}>{SL[lot.status]}</span>
+              <span style={{fontSize:10,color:'#bbb'}}>{new Date(lot.created_at).toLocaleDateString('pt-BR')}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+      <button onClick={onNew} style={{position:'fixed',bottom:72,right:16,width:54,height:54,background:'#00313C',borderRadius:'50%',border:'none',color:'#fff',fontSize:26,cursor:'pointer',boxShadow:'0 4px 14px rgba(0,49,60,.5)',zIndex:10}}>+</button>
+    </div>
+  )
+}
+
+function LotsScreen({lots,onNav,onNew}){
+  const[filter,setFilter]=useState('ALL')
+  const[search,setSearch]=useState('')
+  const filtered=lots.filter(l=>(filter==='ALL'||l.status===filter)&&(!search||l.farm.toLowerCase().includes(search.toLowerCase())||l.field.toLowerCase().includes(search.toLowerCase())))
+  return(
+    <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
+      <div style={{background:'#00313C',padding:'14px 16px 12px',flexShrink:0}}>
+        <div style={{color:'#fff',fontWeight:800,fontSize:16,marginBottom:10}}>⚗️ Misturas</div>
+        <input className="field" placeholder="Buscar fazenda ou talhão..." value={search} onChange={e=>setSearch(e.target.value)} style={{background:'rgba(255,255,255,.12)',border:'1px solid rgba(255,255,255,.2)',color:'#fff',fontSize:13}}/>
+      </div>
+      <div style={{display:'flex',gap:8,padding:'8px 12px',overflowX:'auto',background:'#fff',borderBottom:'1px solid #eee',flexShrink:0}}>
+        {['ALL',...Object.keys(SL)].map(s=>(
+          <button key={s} onClick={()=>setFilter(s)} style={{flexShrink:0,padding:'5px 12px',borderRadius:20,border:'1.5px solid',fontSize:11,fontWeight:700,cursor:'pointer',background:filter===s?'#00313C':'#fff',color:filter===s?'#fff':'#666',borderColor:filter===s?'#00313C':'#ddd',whiteSpace:'nowrap'}}>
+            {s==='ALL'?'Todas':SL[s]}
+          </button>
+        ))}
+      </div>
+      <div className="sc" style={{flex:1,padding:12,paddingBottom:80}}>
+        {filtered.length===0&&<div className="card" style={{textAlign:'center',padding:'28px'}}><div style={{fontSize:32,marginBottom:8}}>🔍</div><div style={{color:'#9e9e9e'}}>Nenhuma mistura encontrada</div></div>}
+        {filtered.map(lot=>(
+          <div key={lot.id} className="card" onClick={()=>onNav('detail',lot)} style={{cursor:'pointer',display:'flex',alignItems:'center',gap:10,padding:'12px 14px',marginBottom:8}}>
+            <div style={{flex:1}}>
+              <div style={{fontWeight:800,fontSize:13}}>{lot.farm}</div>
+              <div style={{fontSize:11,color:'#777'}}>{lot.field} · {lot.volume_liters}L · {new Date(lot.created_at).toLocaleDateString('pt-BR')}</div>
+              {lot.last_ph&&<div style={{fontSize:11,color:'#006E85',fontWeight:700,marginTop:1}}>pH {lot.last_ph.toFixed(1)}</div>}
+            </div>
+            <span className={`badge ${SC2[lot.status]}`}>{SL[lot.status]}</span>
+          </div>
+        ))}
+      </div>
+      <button onClick={onNew} style={{position:'fixed',bottom:72,right:16,width:54,height:54,background:'#00313C',borderRadius:'50%',border:'none',color:'#fff',fontSize:26,cursor:'pointer',boxShadow:'0 4px 14px rgba(0,49,60,.5)',zIndex:10}}>+</button>
+    </div>
+  )
+}
+
+function NewLotScreen({onBack,onSaved}){
+  const[farm,setFarm]=useState('')
+  const[field,setField]=useState('')
+  const[vol,setVol]=useState('')
+  const[area,setArea]=useState('')
+  const[recipe,setRecipe]=useState('')
+  const[saving,setSaving]=useState(false)
+  const[err,setErr]=useState('')
+  const products=useMemo(()=>parseRecipe(recipe),[recipe])
+  const incompats=useMemo(()=>detectIncompat(products),[products])
+  const areaNum=parseFloat(area)||0
+  const save=async()=>{
+    if(!farm.trim()){setErr('Informe a fazenda');return}
+    if(!field.trim()){setErr('Informe o talhão');return}
+    if(!vol){setErr('Informe o volume');return}
+    setSaving(true)
+    const lot={id:uid(),created_at:Date.now(),farm:farm.trim(),field:field.trim(),volume_liters:parseFloat(vol),area_ha:areaNum||undefined,recipe_text:recipe.trim(),status:'REQUESTED'}
+    await insert('lots',lot)
+    setSaving(false)
+    onSaved(lot)
+  }
+  return(
+    <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
+      <Hdr title="Nova Mistura" onBack={onBack}/>
+      <div className="sc" style={{flex:1,padding:12,paddingBottom:100}}>
+        <div className="card">
+          <div style={{fontWeight:800,fontSize:13,color:'#00313C',marginBottom:10}}>📍 Identificação</div>
+          <label className="lbl">Fazenda *</label>
+          <input className="field" placeholder="Ex: Fazenda São João" value={farm} onChange={e=>setFarm(e.target.value)} style={{marginBottom:10}}/>
+          <label className="lbl">Talhão *</label>
+          <input className="field" placeholder="Ex: Talhão 5 – Soja" value={field} onChange={e=>setField(e.target.value)}/>
+        </div>
+        <div className="card">
+          <div style={{fontWeight:800,fontSize:13,color:'#00313C',marginBottom:10}}>⚗️ Calda</div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:10}}>
+            <div><label className="lbl">Volume (L) *</label><input className="field" type="number" placeholder="Ex: 4000" value={vol} onChange={e=>setVol(e.target.value)}/></div>
+            <div><label className="lbl">Área (ha)</label><input className="field" type="number" placeholder="Opcional" value={area} onChange={e=>setArea(e.target.value)}/></div>
+          </div>
+          {areaNum>0&&<div style={{background:'#e0f4f7',borderRadius:8,padding:'7px 12px',fontSize:12,fontWeight:700,color:'#006E85',marginBottom:10}}>📐 {areaNum} ha — totais calculados abaixo</div>}
+          <label className="lbl">Receita / Plano de Aplicação</label>
+          <textarea className="field" rows={4} placeholder="Ex: Priori Xtra 0,4 L/ha + Nimbus 0,5 L/vc + Dithane 2 kg/ha" value={recipe} onChange={e=>setRecipe(e.target.value)} style={{resize:'none'}}/>
+          <div style={{fontSize:11,color:'#bbb',marginTop:5}}>Separe com + · Inclua dose e unidade para calcular total</div>
+        </div>
+        {products.length>0&&(
+          <div className="card">
+            <div style={{fontWeight:800,fontSize:13,color:'#00313C',marginBottom:8}}>🧴 Produtos detectados ({products.length})</div>
+            {products.map((p,i)=>{
+              const total=areaNum>0?calcTotal(p.dose,areaNum):null
+              return(
+                <div key={i} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 10px',background:'#f8f8f8',borderRadius:10,marginBottom:6}}>
+                  <span style={{fontSize:18}}>{FI[p.type]}</span>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontWeight:700,fontSize:13,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.name}</div>
+                    {p.dose&&<div style={{fontSize:11,color:'#777'}}>{p.dose}</div>}
+                  </div>
+                  <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:3,flexShrink:0}}>
+                    <span style={{fontSize:10,fontWeight:800,color:'#fff',background:FC[p.type],padding:'2px 7px',borderRadius:20,whiteSpace:'nowrap'}}>{FL[p.type]}</span>
+                    {total&&<span style={{fontSize:10,fontWeight:800,color:'#006E85',background:'#e0f4f7',padding:'2px 7px',borderRadius:20}}>= {total}</span>}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+        {incompats.length>0&&(
+          <div className="card" style={{borderLeft:'4px solid #f44336'}}>
+            <div style={{fontWeight:800,fontSize:13,color:'#c62828',marginBottom:8}}>Alertas de incompatibilidade</div>
+            {incompats.map((inc,i)=>(
+              <div key={i} style={{background:'#ffebee',borderRadius:8,padding:'8px 10px',marginBottom:6}}>
+                <div style={{fontWeight:700,fontSize:12,color:'#c62828',marginBottom:2}}>{inc.icon} {inc.title}</div>
+                <div style={{fontSize:11,color:'#b71c1c',marginBottom:3}}>{inc.msg}</div>
+                <div style={{fontSize:11,color:'#333',fontWeight:600}}>✅ {inc.rec}</div>
+              </div>
+            ))}
+          </div>
+        )}
+        {err&&<div style={{background:'#ffebee',color:'#c62828',padding:'9px 12px',borderRadius:10,fontSize:13,fontWeight:700,marginBottom:8}}>⚠️ {err}</div>}
+      </div>
+      <div style={{padding:'10px 12px 16px',background:'#fff',borderTop:'1px solid #eee',display:'flex',flexDirection:'column',gap:8}}>
+        <button className="btn" onClick={save} disabled={saving}>{saving?'Salvando...':'Salvar e Analisar Água →'}</button>
+        <button className="btn-ghost" onClick={onBack}>Cancelar</button>
+      </div>
+    </div>
+  )
+}
+
+function WaterScreen({lot,onBack,onDone}){
+  const[ph,setPh]=useState('6.5')
+  const[temp,setTemp]=useState('22')
+  const[cond,setCond]=useState('')
+  const[saving,setSaving]=useState(false)
+  const phN=parseFloat(ph)||0,tempN=parseFloat(temp)||0,condN=parseFloat(cond)||undefined
+  const phE=evalPH(phN),tempE=evalTemp(tempN),condE=evalCond(condN)
+  const overall=overallEval(phE,tempE,condE)
+  const save=async()=>{
+    setSaving(true)
+    const t={id:uid(),lot_id:lot.id,ph:phN,temp_c:tempN,conductivity:condN,evaluation:overall,created_at:Date.now()}
+    await insert('telem',t)
+    await update('lots',lot.id,{status:'WATER_OK',last_ph:phN,last_temp_c:tempN})
+    setSaving(false)
+    onDone({...lot,status:'WATER_OK',last_ph:phN},t)
+  }
+  return(
+    <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
+      <Hdr title="💧 Qualidade da Água" onBack={onBack}/>
+      <div className="sc" style={{flex:1,padding:12,paddingBottom:100}}>
+        <div style={{background:'#e0f4f7',borderRadius:10,padding:'7px 12px',fontSize:12,fontWeight:700,color:'#006E85',marginBottom:10}}>{lot.farm} — {lot.field} · {lot.volume_liters}L</div>
+        <div className="card">
+          <div style={{fontWeight:800,fontSize:13,color:'#00313C',marginBottom:10}}>Medições</div>
+          <label className="lbl">pH <span style={{color:'#bbb',textTransform:'none',fontWeight:400,letterSpacing:0}}>(ideal: 5,5–6,5)</span></label>
+          <input className="field" type="number" step="0.1" min="0" max="14" value={ph} onChange={e=>setPh(e.target.value)} style={{marginBottom:10}}/>
+          <label className="lbl">Temperatura °C <span style={{color:'#bbb',textTransform:'none',fontWeight:400,letterSpacing:0}}>(ideal: 10–25)</span></label>
+          <input className="field" type="number" step="0.5" value={temp} onChange={e=>setTemp(e.target.value)} style={{marginBottom:10}}/>
+          <label className="lbl">Condutividade µS/cm <span style={{color:'#bbb',textTransform:'none',fontWeight:400,letterSpacing:0}}>(opcional, ideal: &lt;200)</span></label>
+          <input className="field" type="number" placeholder="Ex: 155" value={cond} onChange={e=>setCond(e.target.value)}/>
+        </div>
+        <div className="card" style={{borderLeft:`4px solid ${EC[overall]}`,background:EB[overall]}}>
+          <div style={{display:'flex',justifyContent:'space-between',marginBottom:10}}>
+            <span style={{fontWeight:800,fontSize:13}}>Resultado da Análise</span>
+            <span style={{fontWeight:800,fontSize:14,color:EC[overall]}}>{overall}</span>
+          </div>
+          {[['pH',phN.toFixed(1),phE],['Temperatura',`${tempN}°C`,tempE],...(condN?[['Condutividade',`${condN} µS/cm`,condE]]:[])] .map(([l,v,e])=>(
+            <div key={l} style={{display:'flex',justifyContent:'space-between',padding:'7px 0',borderTop:'1px solid rgba(0,0,0,.06)'}}>
+              <span style={{fontSize:13,color:'#555'}}>{l}</span>
+              <div style={{display:'flex',alignItems:'center',gap:8}}><span style={{fontWeight:800,fontSize:13}}>{v}</span><span style={{fontSize:11,fontWeight:700,color:EC[e]}}>{e}</span></div>
+            </div>
+          ))}
+        </div>
+        {phE!=='OK'&&(
+          <div className="card" style={{borderLeft:'4px solid #1565C0',background:'#e3f2fd'}}>
+            <div style={{fontWeight:800,fontSize:13,color:'#1565C0',marginBottom:6}}>💡 Sugestão de correção</div>
+            {phN>6.5&&<div style={{fontSize:12,color:'#0d47a1'}}>pH alto → <b>Ácido cítrico</b>: 0,5–1,0 g por 100L para cada unidade de pH a reduzir.<br/><span style={{color:'#42a5f5'}}>Alt: pH Down comercial (1–5 mL/100L)</span></div>}
+            {phN<5.5&&<div style={{fontSize:12,color:'#0d47a1'}}>pH baixo → <b>Bicarbonato de sódio</b>: 0,5–1,0 g/100L. Meça novamente antes de continuar.</div>}
+          </div>
+        )}
+      </div>
+      <div style={{padding:'10px 12px 16px',background:'#fff',borderTop:'1px solid #eee'}}>
+        <button className="btn" onClick={save} disabled={saving}>{saving?'Salvando...':'Salvar e Continuar →'}</button>
+      </div>
+    </div>
+  )
+}
+
+function PrepScreen({lot,onBack,onDone}){
+  const products=useMemo(()=>parseRecipe(lot.recipe_text||''),[lot.recipe_text])
+  const steps=useMemo(()=>{
+    const s=[{icon:'💧',title:'Encher tanque a 50–75%',detail:'Adicione água limpa e ligue o agitador antes de qualquer produto.',fixed:true,timer:null}]
+    products.forEach(p=>s.push({icon:FI[p.type],title:`Adicionar: ${p.name}`,dose:p.dose,sub:FL[p.type],color:FC[p.type],detail:FT[p.type],timer:FTm[p.type],fixed:false}))
+    s.push({icon:'🪣',title:'Completar volume',detail:'Adicione água até o volume total. Mantenha agitação.',fixed:true,timer:null})
+    s.push({icon:'🔍',title:'Verificar aspecto final',detail:'Observe cor, homogeneidade e ausência de grumos. Pronto para Jar Test!',fixed:true,timer:null})
+    return s
+  },[products])
+  const[cur,setCur]=useState(0)
+  const[done,setDone]=useState(new Set())
+  const[saving,setSaving]=useState(false)
+  const s=steps[cur]
+  const pct=Math.round(((cur+1)/steps.length)*100)
+  const next=async()=>{
+    setDone(prev=>new Set([...prev,cur]))
+    if(cur<steps.length-1){ setCur(c=>c+1) }
+    else{
+      setSaving(true)
+      await update('lots',lot.id,{status:'JAR_TEST'})
+      setSaving(false)
+      onDone({...lot,status:'JAR_TEST'})
+    }
+  }
+  return(
+    <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
+      <div style={{background:'#00313C',padding:'14px 16px 18px',flexShrink:0}}>
+        <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:10}}>
+          <button onClick={onBack} style={{background:'none',border:'none',color:'#7EC8D8',fontSize:24,fontWeight:900,cursor:'pointer',padding:0}}>‹</button>
+          <span style={{color:'#fff',fontWeight:800,fontSize:16,flex:1}}>Guia de Preparo</span>
+          <span style={{color:'#7EC8D8',fontSize:12,fontWeight:700}}>{cur+1}/{steps.length}</span>
+        </div>
+        <div style={{height:4,background:'rgba(255,255,255,.2)',borderRadius:4,overflow:'hidden'}}><div style={{height:'100%',background:'#7EC8D8',width:`${pct}%`,transition:'width .3s'}}/></div>
+        <div style={{display:'flex',justifyContent:'center',gap:5,marginTop:8,flexWrap:'wrap'}}>
+          {steps.map((_,i)=><div key={i} style={{width:7,height:7,borderRadius:'50%',background:done.has(i)?'#7EC8D8':i===cur?'#fff':'rgba(255,255,255,.25)'}}/>)}
+        </div>
+      </div>
+      <div className="sc" style={{flex:1,padding:12,paddingBottom:100}}>
+        <div className="card" style={{textAlign:'center',padding:20}}>
+          <div style={{fontSize:46,marginBottom:8}}>{s.icon}</div>
+          <div style={{fontSize:17,fontWeight:900,marginBottom:10}}>{s.title}</div>
+          {!s.fixed&&(
+            <div style={{textAlign:'left',marginBottom:10}}>
+              <span style={{fontSize:11,fontWeight:800,color:'#fff',background:s.color,padding:'3px 10px',borderRadius:20,display:'inline-block',marginBottom:8}}>{s.sub}</span>
+              {s.dose&&<div style={{background:'#e0f4f7',borderRadius:8,padding:'7px 12px',fontSize:13,fontWeight:700,color:'#006E85',marginBottom:8}}>📏 Dose: {s.dose}</div>}
+            </div>
+          )}
+          <div style={{background:'#f5f5f5',borderRadius:10,padding:'9px 13px',fontSize:13,color:'#555',textAlign:'left'}}>{s.detail}</div>
+          {s.timer&&<Timer key={cur} seconds={s.timer}/>}
+        </div>
+        {cur<steps.length-1&&(
+          <div className="card" style={{display:'flex',alignItems:'center',gap:10,padding:'10px 14px'}}>
+            <span style={{fontSize:11,color:'#bbb',fontWeight:700}}>A SEGUIR →</span>
+            <span style={{fontSize:16}}>{steps[cur+1].icon}</span>
+            <span style={{fontSize:13,fontWeight:700,color:'#555',flex:1}}>{steps[cur+1].title.replace('Adicionar: ','')}</span>
+          </div>
+        )}
+        <div className="card">
+          <div style={{fontSize:11,fontWeight:700,color:'#999',textTransform:'uppercase',marginBottom:8}}>Checklist ({done.size}/{steps.length})</div>
+          {steps.map((st,i)=>(
+            <div key={i} style={{display:'flex',alignItems:'center',gap:8,padding:'5px 8px',borderRadius:8,background:i===cur?'#e0f4f7':'transparent',marginBottom:2}}>
+              <span style={{fontSize:13}}>{done.has(i)?'✅':i===cur?'👉':'⬜'}</span>
+              <span style={{fontSize:12,fontWeight:700,color:done.has(i)?'#bbb':'#333',textDecoration:done.has(i)?'line-through':'none'}}>{st.title.replace('Adicionar: ','')}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div style={{padding:'10px 12px 16px',background:'#fff',borderTop:'1px solid #eee',display:'flex',flexDirection:'column',gap:8}}>
+        <button className="btn" onClick={next} disabled={saving}>{saving?'Salvando...':cur===steps.length-1?'✅ Concluir → Jar Test':`Etapa ${cur+1} ✓ → Próxima`}</button>
+        {cur>0&&<button className="btn-ghost" onClick={()=>setCur(c=>c-1)}>← Voltar etapa</button>}
+      </div>
+    </div>
+  )
+}
+
+const JAROPTS=[
+  {r:'ESTAVEL',icon:'✅',label:'Estável',desc:'Calda homogênea, sem precipitados.'},
+  {r:'SEPARACAO',icon:'⚠️',label:'Separação de fases',desc:'Óleo ou produto separou da fase aquosa.'},
+  {r:'SEDIMENTACAO',icon:'⚠️',label:'Sedimentação',desc:'Precipitado no fundo — pode entupir bicos.'},
+  {r:'ESPUMA',icon:'⚠️',label:'Espuma excessiva',desc:'Espuma persistente após agitação.'},
+  {r:'GEL',icon:'❌',label:'Virou gel',desc:'Gelatinização — mistura inaplicável.'},
+]
+function JarTestScreen({lot,onBack,onDone}){
+  const[sel,setSel]=useState('ESTAVEL')
+  const[notes,setNotes]=useState('')
+  const[saving,setSaving]=useState(false)
+  const save=async()=>{
+    setSaving(true)
+    const jt={id:uid(),lot_id:lot.id,result:sel,notes:notes.trim()||undefined,created_at:Date.now()}
+    await insert('jars',jt)
+    await update('lots',lot.id,{status:'READY'})
+    setSaving(false)
+    onDone({...lot,status:'READY'},jt)
+  }
+  return(
+    <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
+      <Hdr title="🧪 Jar Test" onBack={onBack}/>
+      <div className="sc" style={{flex:1,padding:12,paddingBottom:100}}>
+        <div className="card" style={{borderLeft:'4px solid #006E85',background:'#e0f4f7'}}>
+          <div style={{fontWeight:800,fontSize:13,color:'#006E85',marginBottom:6}}>Como realizar</div>
+          <div style={{fontSize:12,color:'#444',lineHeight:1.9}}>1. Encha um pote de 500 mL com amostra da mistura<br/>2. Agite vigorosamente por 30 segundos<br/>3. Deixe em repouso por 3 minutos<br/>4. Observe precipitação, separação, espuma e consistência</div>
+        </div>
+        <div style={{fontWeight:800,fontSize:13,marginBottom:8}}>Resultado</div>
+        {JAROPTS.map(opt=>(
+          <div key={opt.r} className="card" onClick={()=>setSel(opt.r)} style={{cursor:'pointer',display:'flex',alignItems:'center',gap:12,border:`2px solid ${sel===opt.r?'#006E85':'transparent'}`,background:sel===opt.r?'#e0f4f7':'#fff',marginBottom:8,padding:'11px 14px'}}>
+            <span style={{fontSize:22}}>{opt.icon}</span>
+            <div style={{flex:1}}><div style={{fontWeight:800,fontSize:13}}>{opt.label}</div><div style={{fontSize:11,color:'#777',marginTop:1}}>{opt.desc}</div></div>
+            {sel===opt.r&&<span style={{color:'#006E85',fontWeight:900,fontSize:18}}>✓</span>}
+          </div>
+        ))}
+        <div className="card">
+          <label className="lbl">Observações (opcional)</label>
+          <textarea className="field" rows={3} placeholder="Anote detalhes sobre a calda..." value={notes} onChange={e=>setNotes(e.target.value)} style={{resize:'none'}}/>
+        </div>
+      </div>
+      <div style={{padding:'10px 12px 16px',background:'#fff',borderTop:'1px solid #eee'}}>
+        <button className="btn" onClick={save} disabled={saving}>{saving?'Salvando...':'💾 Salvar Jar Test'}</button>
+      </div>
+    </div>
+  )
+}
+
+function LotDetailScreen({lot:initLot,op,onBack,onNav,onLotUpdate}){
+  const[lot,setLot]=useState(initLot)
+  const[telem,setTelem]=useState(null)
+  const[jar,setJar]=useState(null)
+  const[applying,setApplying]=useState(false)
+  useEffect(()=>{
+    selectAll('telem').then(d=>{const r=d.filter(t=>t.lot_id===lot.id);if(r.length)setTelem(r[0])})
+    selectAll('jars').then(d=>{const r=d.filter(j=>j.lot_id===lot.id);if(r.length)setJar(r[0])})
+  },[lot.id])
+  const TL=[{s:'WATER_OK',icon:'💧',label:'Água'},{s:'PREPARING',icon:'⚗️',label:'Preparo'},{s:'JAR_TEST',icon:'🧪',label:'Jar Test'},{s:'READY',icon:'✅',label:'Pronta'},{s:'APPLIED',icon:'🚜',label:'Aplicada'}]
+  const li=SO.indexOf(lot.status)
+  const JarLabel={ESTAVEL:'Estável ✅',SEPARACAO:'Separação de fases ⚠️',SEDIMENTACAO:'Sedimentação ⚠️',ESPUMA:'Espuma excessiva ⚠️',GEL:'Virou gel ❌'}
+  const apply=async()=>{
+    setApplying(true)
+    await update('lots',lot.id,{status:'APPLIED'})
+    const u={...lot,status:'APPLIED'}
+    setLot(u);onLotUpdate&&onLotUpdate(u)
+    setApplying(false)
+  }
+  return(
+    <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
+      <Hdr title="Detalhe da Mistura" onBack={onBack}/>
+      <div className="sc" style={{flex:1,padding:12,paddingBottom:24}}>
+        <div className="card" style={{borderTop:'4px solid #006E85'}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:10}}>
+            <div><div style={{fontSize:17,fontWeight:900}}>{lot.farm}</div><div style={{fontSize:12,color:'#777'}}>{lot.field}</div></div>
+            <span className={`badge ${SC2[lot.status]}`}>{SL[lot.status]}</span>
+          </div>
+          <div style={{display:'flex',borderTop:'1px solid #f0f0f0',paddingTop:8,marginBottom:10}}>
+            {[['Volume',`${lot.volume_liters}L`],['Área',lot.area_ha?`${lot.area_ha}ha`:'—'],['pH',lot.last_ph?lot.last_ph.toFixed(1):'—']].map(([l,v])=>(
+              <div key={l} style={{flex:1,textAlign:'center'}}><div style={{fontWeight:800,fontSize:14}}>{v}</div><div style={{fontSize:10,color:'#9e9e9e'}}>{l}</div></div>
+            ))}
+          </div>
+          {lot.recipe_text&&<div style={{background:'#f5f5f5',borderRadius:8,padding:'7px 11px',marginBottom:10}}><div style={{fontSize:9,fontWeight:700,color:'#9e9e9e',textTransform:'uppercase',marginBottom:2}}>Receita</div><div style={{fontSize:11,color:'#555'}}>{lot.recipe_text}</div></div>}
+          <div style={{display:'flex',alignItems:'center'}}>
+            {TL.map((step,i)=>{
+              const si=SO.indexOf(step.s),isDone=li>si,isActive=li===si
+              return(<React.Fragment key={step.s}>
+                <div style={{display:'flex',flexDirection:'column',alignItems:'center',flexShrink:0}}>
+                  <div style={{width:30,height:30,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:800,background:isDone?'#006E85':isActive?'#e65100':'#e0e0e0',color:(isDone||isActive)?'#fff':'#9e9e9e'}}>{isDone?'✓':step.icon}</div>
+                  <div style={{fontSize:8,fontWeight:800,color:isDone?'#006E85':isActive?'#e65100':'#bbb',marginTop:2,textAlign:'center',lineHeight:1.1}}>{step.label}</div>
+                </div>
+                {i<TL.length-1&&<div style={{flex:1,height:2,background:isDone?'#006E85':'#e0e0e0',margin:'0 3px',marginBottom:14}}/>}
+              </React.Fragment>)
+            })}
+          </div>
+        </div>
+        {telem&&(
+          <div className="card">
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+              <span style={{fontWeight:800,fontSize:13}}>💧 Qualidade da Água</span>
+              <span style={{fontSize:12,fontWeight:700,color:EC[telem.evaluation]||'#333'}}>{telem.evaluation}</span>
+            </div>
+            <div style={{display:'flex',gap:16}}>
+              {[['pH',telem.ph],['Temp.',`${telem.temp_c}°C`],...(telem.conductivity?[['Cond.',telem.conductivity]]:[])] .map(([l,v])=>(
+                <div key={l} style={{textAlign:'center'}}><div style={{fontWeight:800,fontSize:14}}>{v}</div><div style={{fontSize:10,color:'#9e9e9e'}}>{l}</div></div>
+              ))}
+            </div>
+          </div>
+        )}
+        {jar&&(
+          <div className="card">
+            <div style={{fontWeight:800,fontSize:13,marginBottom:5}}>🧪 Jar Test</div>
+            <div style={{fontSize:15,fontWeight:800}}>{JarLabel[jar.result]||jar.result}</div>
+            {jar.notes&&<div style={{fontSize:12,color:'#777',marginTop:3,fontStyle:'italic'}}>{jar.notes}</div>}
+          </div>
+        )}
+        {lot.status==='REQUESTED'&&<button className="btn" style={{marginBottom:8}} onClick={()=>onNav('water',lot)}>→ Analisar Água</button>}
+        {(lot.status==='WATER_OK'||lot.status==='PREPARING')&&<button className="btn" style={{marginBottom:8}} onClick={()=>onNav('prep',lot)}>→ Guia de Preparo</button>}
+        {lot.status==='JAR_TEST'&&<button className="btn" style={{marginBottom:8}} onClick={()=>onNav('jartest',lot)}>→ Realizar Jar Test</button>}
+        {lot.status==='READY'&&<button className="btn" style={{background:'#2e7d32',marginBottom:8}} onClick={apply} disabled={applying}>{applying?'Registrando...':'🚜 Registrar Aplicação em Campo'}</button>}
+        {lot.status==='APPLIED'&&<div style={{background:'#e8f5e9',border:'1px solid #c8e6c9',borderRadius:12,padding:'11px 16px',textAlign:'center',fontWeight:700,color:'#2e7d32',marginBottom:8}}>✅ Calda aplicada em campo</div>}
+        <button className="btn" onClick={()=>onNav('laudo',lot,telem,jar)}>📄 Gerar Laudo de Qualidade</button>
+      </div>
+    </div>
+  )
+}
+
+function LaudoScreen({lot,telem,jar,op,onBack}){
+  const now=new Date(),dateStr=now.toLocaleDateString('pt-BR'),timeStr=now.toLocaleTimeString('pt-BR')
+  const phColor=!telem?'#333':EC[telem.evaluation]||'#333'
+  const phBg=!telem?'#f5f5f5':EB[telem.evaluation]||'#f5f5f5'
+  const JarLabel={ESTAVEL:'Estável ✅',SEPARACAO:'Separação de fases ⚠️',SEDIMENTACAO:'Sedimentação ⚠️',ESPUMA:'Espuma excessiva ⚠️',GEL:'Virou gel ❌'}
+  const S=({title,children})=>(<div style={{marginBottom:16}}><div style={{fontSize:11,fontWeight:800,color:'#00313C',borderBottom:'2px solid #e0f4f7',paddingBottom:5,marginBottom:8,textTransform:'uppercase',letterSpacing:.5}}>{title}</div>{children}</div>)
+  const F=({label,value})=>(<div style={{marginBottom:7}}><div style={{fontSize:9,fontWeight:700,color:'#9e9e9e',textTransform:'uppercase',marginBottom:1}}>{label}</div><div style={{fontSize:13,fontWeight:700}}>{value||'—'}</div></div>)
+  return(
+    <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
+      <div className="np"><Hdr title="📄 Laudo de Qualidade" onBack={onBack}/></div>
+      <div className="sc" style={{flex:1,padding:12,paddingBottom:100}}>
+        <div id="laudo" style={{background:'#fff',borderRadius:16,overflow:'hidden'}}>
+          <div style={{background:'#00313C',padding:'18px 22px',textAlign:'center'}}>
+            <div style={{color:'#fff',fontSize:20,fontWeight:900,letterSpacing:-1}}>FertigeoTech</div>
+            <div style={{color:'#7EC8D8',fontSize:9,fontWeight:700,letterSpacing:3,marginTop:3,textTransform:'uppercase'}}>Laudo de Qualidade de Calda</div>
+          </div>
+          <div style={{padding:'18px 20px'}}>
+            <div style={{display:'flex',justifyContent:'space-between',borderBottom:'1px solid #eee',paddingBottom:8,marginBottom:14,fontSize:10,color:'#9e9e9e'}}>
+              <span>Gerado em {dateStr} às {timeStr}</span>
+              <span style={{fontWeight:700,color:'#00313C'}}>#{lot.id.slice(-6).toUpperCase()}</span>
+            </div>
+            <S title="Dados da Mistura">
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}>
+                <F label="Fazenda" value={lot.farm}/><F label="Talhão" value={lot.field}/><F label="Volume" value={`${lot.volume_liters} L`}/>{lot.area_ha&&<F label="Área" value={`${lot.area_ha} ha`}/>}
+              </div>
+              {lot.recipe_text&&<div style={{background:'#f5f5f5',borderRadius:8,padding:'7px 10px',marginTop:6}}><div style={{fontSize:9,fontWeight:700,color:'#9e9e9e',textTransform:'uppercase',marginBottom:2}}>Receita</div><div style={{fontSize:11,color:'#444'}}>{lot.recipe_text}</div></div>}
+            </S>
+            <S title="Responsável Técnico">
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}>
+                <F label="Nome" value={op?.name}/><F label="Função" value={op?.role}/>{op?.company&&<F label="Empresa" value={op.company}/>}{op?.crea&&<F label="CREA/CFTA" value={op.crea}/>}
+              </div>
+            </S>
+            {telem&&(
+              <S title="Qualidade da Água">
+                <div style={{display:'flex',gap:8,marginBottom:8}}>
+                  {[['pH',telem.ph],['Temperatura',`${telem.temp_c}°C`],...(telem.conductivity?[['Condutividade',`${telem.conductivity} µS/cm`]]:[])] .map(([l,v])=>(
+                    <div key={l} style={{flex:1,background:'#f5f5f5',borderRadius:8,padding:'7px 10px',textAlign:'center'}}><div style={{fontSize:9,fontWeight:700,color:'#9e9e9e',textTransform:'uppercase'}}>{l}</div><div style={{fontSize:16,fontWeight:900,color:'#00313C',marginTop:1}}>{v}</div></div>
+                  ))}
+                </div>
+                <div style={{background:phBg,borderRadius:8,padding:'6px 10px',display:'inline-flex'}}><span style={{fontSize:12,fontWeight:700,color:phColor}}>Avaliação: {telem.evaluation}</span></div>
+              </S>
+            )}
+            {jar&&(<S title="Resultado do Jar Test"><div style={{fontSize:14,fontWeight:800,marginBottom:3}}>{JarLabel[jar.result]||jar.result}</div>{jar.notes&&<div style={{fontSize:12,color:'#666',fontStyle:'italic'}}>{jar.notes}</div>}</S>)}
+            <div style={{marginTop:18,paddingTop:14,borderTop:'1px solid #eee'}}>
+              <div style={{fontSize:10,color:'#9e9e9e',marginBottom:6}}>Assinatura do responsável técnico</div>
+              <div style={{borderBottom:'2px solid #333',width:180,height:36,marginBottom:5}}/>
+              <div style={{fontSize:11,color:'#555'}}>{op?.name} · {op?.role}</div>
+              {op?.crea&&<div style={{fontSize:10,color:'#9e9e9e'}}>CREA/CFTA: {op.crea}</div>}
+            </div>
+            <div style={{marginTop:16,textAlign:'center',fontSize:9,color:'#bbb',borderTop:'1px solid #f0f0f0',paddingTop:10}}>
+              Gerado em {dateStr}, {timeStr} — FertigeoTech · Fertigeo Inteligência Agrícola
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="np" style={{padding:'10px 12px 16px',background:'#fff',borderTop:'1px solid #eee',display:'flex',flexDirection:'column',gap:8}}>
+        <button className="btn" onClick={()=>window.print()}>🖨️ Imprimir / Salvar PDF</button>
+        <button className="btn-ghost" onClick={onBack}>Voltar</button>
+      </div>
+    </div>
+  )
+}
+
+function ManagerScreen({lots,onNav}){
+  const today=new Date().toDateString()
+  const kpis=[
+    {icon:'📋',label:'Hoje',val:lots.filter(l=>new Date(l.created_at).toDateString()===today).length,c:'#006E85'},
+    {icon:'✅',label:'Prontas',val:lots.filter(l=>l.status==='READY').length,c:'#4caf50'},
+    {icon:'⚗️',label:'Em andamento',val:lots.filter(l=>!['READY','APPLIED','REQUESTED'].includes(l.status)).length,c:'#e65100'},
+    {icon:'⚠️',label:'Riscos',val:lots.filter(l=>l.last_ph&&(l.last_ph<5||l.last_ph>7)).length,c:'#c62828'},
+  ]
+  const active=lots.filter(l=>l.status!=='APPLIED')
+  const risks=lots.filter(l=>l.last_ph&&(l.last_ph<5||l.last_ph>7))
+  const TL=[{s:'WATER_OK',icon:'💧'},{s:'PREPARING',icon:'⚗️'},{s:'JAR_TEST',icon:'🧪'},{s:'READY',icon:'✅'},{s:'APPLIED',icon:'🚜'}]
+  return(
+    <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
+      <div style={{background:'#00313C',padding:'14px 16px',flexShrink:0}}>
+        <div style={{color:'#fff',fontWeight:800,fontSize:16}}>📊 Painel do Gestor</div>
+        <div style={{color:'#7EC8D8',fontSize:11,marginTop:2}}>Visão geral de operações</div>
+      </div>
+      <div className="sc" style={{flex:1,padding:12,paddingBottom:24}}>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:12}}>
+          {kpis.map(k=>(
+            <div key={k.label} className="card" style={{textAlign:'center',marginBottom:0}}>
+              <div style={{fontSize:22,marginBottom:3}}>{k.icon}</div>
+              <div style={{fontSize:24,fontWeight:900,color:k.c}}>{k.val}</div>
+              <div style={{fontSize:11,color:'#777',fontWeight:600}}>{k.label}</div>
+            </div>
+          ))}
+        </div>
+        {risks.length>0&&(
+          <div className="card" style={{borderLeft:'4px solid #f44336',background:'#ffebee',marginBottom:10}}>
+            <div style={{fontWeight:800,fontSize:13,color:'#c62828',marginBottom:5}}>⚠️ pH fora do ideal</div>
+            {risks.map(l=><div key={l.id} style={{fontSize:12,color:'#b71c1c',marginBottom:1}}>• {l.farm} / {l.field} — pH {l.last_ph?.toFixed(1)}</div>)}
+          </div>
+        )}
+        <div style={{fontWeight:800,fontSize:13,marginBottom:8}}>Operações em andamento</div>
+        {active.length===0&&<div className="card" style={{textAlign:'center',padding:'20px',color:'#9e9e9e',fontSize:13}}>Nenhuma operação ativa</div>}
+        {active.map(lot=>{
+          const li=SO.indexOf(lot.status)
+          return(
+            <div key={lot.id} className="card" onClick={()=>onNav('detail',lot)} style={{cursor:'pointer',marginBottom:8}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+                <div><div style={{fontWeight:800,fontSize:13}}>{lot.farm}</div><div style={{fontSize:11,color:'#777'}}>{lot.field} · {lot.volume_liters}L</div></div>
+                <span className={`badge ${SC2[lot.status]}`}>{SL[lot.status]}</span>
+              </div>
+              <div style={{display:'flex',alignItems:'center',gap:3}}>
+                {TL.map((step,i)=>{
+                  const si=SO.indexOf(step.s),isDone=li>si,isActive=li===si
+                  return(<React.Fragment key={step.s}>
+                    <div style={{width:26,height:26,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:800,background:isDone?'#006E85':isActive?'#e65100':'#e0e0e0',color:(isDone||isActive)?'#fff':'#9e9e9e',flexShrink:0}}>{isDone?'✓':step.icon}</div>
+                    {i<TL.length-1&&<div style={{flex:1,height:2,background:isDone?'#006E85':'#e0e0e0'}}/>}
+                  </React.Fragment>)
+                })}
+              </div>
+            </div>
+          )
+        })}
+        {lots.filter(l=>l.last_ph).length>0&&(
+          <div className="card" style={{marginTop:4}}>
+            <div style={{fontWeight:800,fontSize:13,marginBottom:8}}>pH por talhão</div>
+            {lots.filter(l=>l.last_ph).slice(0,8).map(l=>{
+              const ph=l.last_ph,cls=ph>=5.5&&ph<=6.5?'bg-green':ph>=4.5&&ph<=7?'bg-orange':'bg-red'
+              return(
+                <div key={l.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'7px 0',borderBottom:'1px solid #f5f5f5'}}>
+                  <div><span style={{fontWeight:700,fontSize:13}}>{l.farm}</span><span style={{color:'#9e9e9e',fontSize:11}}> — {l.field}</span></div>
+                  <span className={`badge ${cls}`}>pH {ph.toFixed(1)}</span>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MAIN APP
+// ═══════════════════════════════════════════════════════════════
+const MGROLES=['Engenheiro Agrônomo','Técnico Agrícola']
+
+function App(){
+  const[op,setOp]=useState(()=>{try{return JSON.parse(localStorage.getItem('ft_op')||'null')}catch{return null}})
+  const[screen,setScreen]=useState('home')
+  const[ctx,setCtx]=useState({})
+  const[lots,setLots]=useState([])
+  const[tab,setTab]=useState('home')
+
+  useEffect(()=>{ if(op) loadLots() },[op])
+  const loadLots=()=>selectAll('lots').then(d=>setLots(d))
+
+  const login=o=>{localStorage.setItem('ft_op',JSON.stringify(o));setOp(o)}
+  const logout=()=>{localStorage.removeItem('ft_op');setOp(null);setLots([])}
+  const nav=(sc,lot=null,telem=null,jar=null)=>{setCtx({lot,telem,jar});setScreen(sc)}
+  const goTab=t=>{setTab(t);setScreen('home')}
+  const updateLot=u=>setLots(prev=>prev.map(l=>l.id===u.id?u:l))
+
+  if(!op) return <LoginScreen onLogin={login}/>
+
+  if(screen==='new') return <NewLotScreen onBack={()=>{setScreen('home')}} onSaved={lot=>{setLots(p=>[lot,...p]);nav('water',lot)}}/>
+  if(screen==='water') return <WaterScreen lot={ctx.lot} onBack={()=>nav('detail',ctx.lot)} onDone={(u,t)=>{updateLot(u);nav('prep',u)}}/>
+  if(screen==='prep') return <PrepScreen lot={ctx.lot} onBack={()=>nav('detail',ctx.lot)} onDone={u=>{updateLot(u);nav('jartest',u)}}/>
+  if(screen==='jartest') return <JarTestScreen lot={ctx.lot} onBack={()=>nav('detail',ctx.lot)} onDone={(u,j)=>{updateLot(u);nav('detail',u)}}/>
+  if(screen==='detail') return <LotDetailScreen lot={ctx.lot} op={op} onBack={()=>{loadLots();goTab(tab)}} onNav={nav} onLotUpdate={updateLot}/>
+  if(screen==='laudo') return <LaudoScreen lot={ctx.lot} telem={ctx.telem} jar={ctx.jar} op={op} onBack={()=>nav('detail',ctx.lot,ctx.telem,ctx.jar)}/>
+
+  const isManager=MGROLES.includes(op?.role)
+  const TABS=[{id:'home',icon:'🏠',label:'Início'},{id:'lots',icon:'⚗️',label:'Misturas'},isManager&&{id:'manager',icon:'📊',label:'Gestor'}].filter(Boolean)
+
+  return(
+    <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
+      <div style={{flex:1,overflow:'hidden',display:'flex',flexDirection:'column'}}>
+        {tab==='home'&&<HomeScreen op={op} onLogout={logout} onNav={nav} lots={lots} onNew={()=>setScreen('new')}/>}
+        {tab==='lots'&&<LotsScreen lots={lots} onNav={nav} onNew={()=>setScreen('new')}/>}
+        {tab==='manager'&&isManager&&<ManagerScreen lots={lots} onNav={nav}/>}
+      </div>
+      <div className="tab-bar np">
+        {TABS.map(t=>(
+          <button key={t.id} className={`tab-btn${tab===t.id?' active':''}`} onClick={()=>goTab(t.id)}>
+            <span style={{fontSize:20}}>{t.icon}</span>
+            <span>{t.label}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>)
+</script>
+</body>
 </html>
