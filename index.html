@@ -33,33 +33,7 @@ input,textarea,button{font-family:'DM Sans',sans-serif}
 </head>
 <body>
 <div id="root"></div>
-<script type="text/babel" data-presets="react">
-const{useState,useEffect,useRef,useMemo,useCallback}=React
-
-// ── LocalDB ────────────────────────────────────────────────────
-function loadDB(k,def){try{return JSON.parse(localStorage.getItem(k)||def)}catch{return JSON.parse(def)}}
-function saveDB(k,d){localStorage.setItem(k,JSON.stringify(d))}
-function uid(){return Date.now()+'-'+Math.random().toString(36).slice(2,6)}
-
-async function dbInsert(table,row){
-  const key='ft_'+table
-  const d=loadDB(key,'[]')
-  d.unshift(row)
-  saveDB(key,d)
-}
-const insert=dbInsert
-async function dbUpdate(table,id,patch){
-  const key='ft_'+table
-  const d=loadDB(key,'[]')
-  const i=d.findIndex(r=>r.id===id)
-  if(i>-1){d[i]={...d[i],...patch};saveDB(key,d)}
-}
-async function dbSelect(table,filter){
-  const d=loadDB('ft_'+table,'[]')
-  if(!filter) return d
-  return d.filter(r=>Object.entries(filter).every(([k,v])=>r[k]===v))
-}
-
+<script>
 // ── Recipe Parser ──────────────────────────────────────────────
 const PDB={
   // ── Corretores de pH ──
@@ -284,31 +258,34 @@ const PDB={
   'zethamaxx':'SL','zethamaxx evo':'SL','zetium':'SL','zonic':'SL',
   '2,4 d (240) + picloram (64) sl':'SL','aminopyralid + 2,4 d 360 sl yonon':'SL','amylo-x sl':'SL','atrivo sl':'SL','atulamina 806 sl':'SL','bunema 330 sl 27':'SL','campestre 240 sl':'SL','dharma100 sl':'SL','diquate 200 sl 43 alamos':'SL','diquate 200 sl crotect':'SL','elglysate 480 sl':'SL','ginete 212 sl':'SL','gli-up 480 sl':'SL','glifocopa 480 sl':'SL','gliforce sl':'SL','glifosato 480 sl alamos':'SL','glifosato 480 sl crotect':'SL','glifosato 480 sl perterra':'SL','glifosato ccab 620 sl':'SL','glifosato k 660 sl alamos':'SL','glifosato k 660 sl crotect':'SL','glifosato nortox sl':'SL','glifosato wynca 480 sl':'SL','glufos-wyn 200 sl':'SL','glufosinate- ammonium 200 sl yonon':'SL','glufosinate- ammonium 200 g/l sl':'SL','glufosinato 200 sl crotect':'SL','glufosinato 200 sl lier':'SL','glufosinato 200 sl perterra':'SL','glufosinato ccab 200 sl':'SL','glufosinato ynn 200 sl perterra':'SL','imazetapir ccab 106 sl':'SL','kick off 480 sl':'SL','krost 806 sl':'SL','krugar 250 sl':'SL','lacano 200 sl':'SL','loyer sl':'SL','lubaquat 200 sl':'SL','7m4 acroquat 200 sl':'SL','mol 2,4-d 806 sl':'SL','offer 200 sl':'SL','patriol sl':'SL','picloran ccab 240 sl':'SL','pique 240 sl':'SL','pocco 480 sl':'SL','randell 648 sl':'SL','rateio 200 sl':'SL','shadow 480 sl':'SL','stimulate sl 111':'SL','verlon sl':'SL','zeta 106 sl':'SL','zethapyr 106 sl':'SL','zura 806 sl':'SL',
   '2,4 d 806 sl agcn':'SL','2,4 d 806 sl alamos':'SL','2,4 d amina ccab 806 sl':'SL','2,4 d crop 806 sl':'SL','2,4 d 806 sl crotect':'SL','dorai':'SL','2,4 d r 806 sl perterra':'SL','torban':'SL','aminopyralid 2,4 d 360 sl yonon':'SL',
-  // ── Adjuvantes ──
-  'nimbus':'ADJ','assist':'ADJ','aureo':'ADJ','áureo':'ADJ','energic':'ADJ',
-  'dash':'ADJ','haiten':'ADJ','agral':'ADJ','silwet':'ADJ','oleo':'ADJ','óleo':'ADJ','break thru':'ADJ',
+  // ── Dispersantes (antes de WP e SC) ──
+  'agral':'DISP','silwet':'DISP','break thru':'DISP','energic':'DISP','haiten':'DISP',
+  // ── Óleos minerais/vegetais (sempre por último) ──
+  'nimbus':'OIL','assist':'OIL','aureo':'OIL','áureo':'OIL',
+  'dash':'OIL','oleo':'OIL','óleo':'OIL',
   // ── Fertilizantes foliares ──
   'nitrogênio':'FERT','boro':'FERT','zinco':'FERT','mapfert':'FERT','ureafert':'FERT',
   // ── Biológicos ──
   'trichoderma':'BIO','bacillus':'BIO','beauveria':'BIO','metarhizium':'BIO',
   'serenade':'BIO','naturalis':'BIO','trico':'BIO','agrobio':'BIO','entrust':'BIO',
 }
-const ORD={PH:1,WP:2,SC:3,EC:4,SL:5,FERT:6,ADJ:7,BIO:8,'?':9}
-const FC={PH:'#1565C0',WP:'#6A1B9A',SC:'#00838F',EC:'#E65100',SL:'#2E7D32',ADJ:'#BF360C',FERT:'#558B2F',BIO:'#00695C','?':'#9E9E9E'}
-const FL={PH:'Corretor pH',WP:'Pó Molhável',SC:'Suspensão SC',EC:'Emulsão EC',SL:'Solução SL',ADJ:'Adjuvante',FERT:'Fertilizante',BIO:'Biológico','?':'Desconhecido'}
-const FI={PH:'⚗️',WP:'🧂',SC:'🔵',EC:'🟡',SL:'💧',ADJ:'🛢️',FERT:'🌿',BIO:'🦠','?':'🔬'}
+const ORD={PH:1,DISP:2,WP:3,SC:4,EC:5,SL:6,FERT:7,OIL:8,BIO:9,'?':10}
+const FC={PH:'#1565C0',DISP:'#6D4C41',WP:'#6A1B9A',SC:'#00838F',EC:'#E65100',SL:'#2E7D32',FERT:'#558B2F',OIL:'#BF360C',BIO:'#00695C','?':'#9E9E9E'}
+const FL={PH:'Corretor pH',DISP:'Dispersante',WP:'Pó Molhável',SC:'Suspensão SC',EC:'Emulsão EC',SL:'Solução SL',FERT:'Fertilizante',OIL:'Óleo Mineral',BIO:'Biológico','?':'Desconhecido'}
+const FI={PH:'⚗️',DISP:'🧴',WP:'🧂',SC:'🔵',EC:'🟡',SL:'💧',FERT:'🌿',OIL:'🛢️',BIO:'🦠','?':'🔬'}
 const FT={
   PH:'1º — Adicione o corretor de pH com agitação e verifique o pH antes de prosseguir.',
-  WP:'2º — Pré-dissolva em um balde com água antes de adicionar ao tanque. Adicione em fio com agitação constante.',
-  SC:'3º — Adicione a suspensão diretamente no tanque com agitação. Aguarde homogeneizar (≈1 min) entre produtos.',
-  EC:'4º — Adicione a emulsão lentamente em fio contínuo com agitação vigorosa.',
-  SL:'5º — Miscível em água. Adicione com agitação por 30 segundos.',
-  FERT:'6º — Adicione fertilizantes foliares após os sólidos e antes dos óleos/adjuvantes.',
-  ADJ:'⚠️ ÚLTIMO — Adjuvantes e óleos sempre por último. Adicione devagar.',
+  DISP:'2º — Dispersante/espalhante adesivo: adicione ANTES dos pós e suspensões para melhorar a dispersão.',
+  WP:'3º — Pré-dissolva em um balde com água antes de adicionar ao tanque. Adicione em fio com agitação constante.',
+  SC:'4º — Adicione a suspensão diretamente no tanque com agitação. Aguarde homogeneizar (≈1 min) entre produtos.',
+  EC:'5º — Adicione a emulsão lentamente em fio contínuo com agitação vigorosa.',
+  SL:'6º — Miscível em água. Adicione com agitação por 30 segundos.',
+  FERT:'7º — Adicione fertilizantes foliares após os sólidos e antes dos óleos.',
+  OIL:'⚠️ ÚLTIMO — Óleo mineral/vegetal sempre por último. Adicione devagar com agitação.',
   BIO:'⚠️ ÚLTIMO — Adicione biológicos por último, longe de luz solar. Não misture com fungicidas.',
   '?':'Consulte a bula para instruções específicas de mistura.'
 }
-const FTm={PH:60,WP:120,SC:60,EC:90,SL:30,ADJ:30,FERT:60,BIO:30,'?':60}
+const FTm={PH:60,DISP:30,WP:120,SC:60,EC:90,SL:30,FERT:60,OIL:30,BIO:30,'?':60}
 
 function nrm(s){
   return String(s).toLowerCase()
@@ -638,6 +615,38 @@ function LotsScreen({lots,onNav,onNew}){
   )
 }
 
+
+</script>
+<script type="text/babel" data-presets="react">
+const{useState,useEffect,useRef,useMemo,useCallback}=React
+
+
+const{useState,useEffect,useRef,useMemo,useCallback}=React
+
+// ── LocalDB ────────────────────────────────────────────────────
+function loadDB(k,def){try{return JSON.parse(localStorage.getItem(k)||def)}catch{return JSON.parse(def)}}
+function saveDB(k,d){localStorage.setItem(k,JSON.stringify(d))}
+function uid(){return Date.now()+'-'+Math.random().toString(36).slice(2,6)}
+
+async function dbInsert(table,row){
+  const key='ft_'+table
+  const d=loadDB(key,'[]')
+  d.unshift(row)
+  saveDB(key,d)
+}
+const insert=dbInsert
+async function dbUpdate(table,id,patch){
+  const key='ft_'+table
+  const d=loadDB(key,'[]')
+  const i=d.findIndex(r=>r.id===id)
+  if(i>-1){d[i]={...d[i],...patch};saveDB(key,d)}
+}
+async function dbSelect(table,filter){
+  const d=loadDB('ft_'+table,'[]')
+  if(!filter) return d
+  return d.filter(r=>Object.entries(filter).every(([k,v])=>r[k]===v))
+}
+
 // ── Product Picker ─────────────────────────────────────────────
 const DOSE_UNITS=['L/ha','mL/ha','kg/ha','g/ha','L/100L','mL/100L','g/100L','kg/100L','L/vc','mL/vc']
 
@@ -664,7 +673,8 @@ const TYPE_HINTS=[
   {keys:['fungicida','fungic','azox','piraclost','tebucon','propiconaz','ciproconaz','mancoz','dithane','oxiclor','enxofre','cobre','cupr'],type:'SC',label:'Fungicida'},
   {keys:['herbicida','herbic','glifos','2,4-d','dicamba','atrazina','ametrina','paraquat','diquat','metolachlor'],type:'SL',label:'Herbicida'},
   {keys:['inseticida','insetic','abamect','cloran','spinosad','cipermet','deltametrina','lambdacial','bifentr','imidacloprid','tiameto'],type:'SC',label:'Inseticida'},
-  {keys:['adjuvante','adj','nimbus','assist','aureo','silwet','agral','oleo','óleo','mineral','vegetal'],type:'ADJ',label:'Adjuvante'},
+  {keys:['dispersante','espalhante','adesivo','agral','silwet','break thru','energic','haiten'],type:'DISP',label:'Dispersante'},
+  {keys:['adjuvante','nimbus','assist','aureo','oleo','óleo','mineral','vegetal','dash'],type:'OIL',label:'Óleo Mineral'},
   {keys:['biológico','biologico','bio','trichoderma','bacillus','beauveria','metarhizium','spinosyn'],type:'BIO',label:'Biológico'},
   {keys:['fertilizante','fertil','boro','zinco','manganes','cálcio','calcio','nitrogênio','nitrogenio','fósforo','fosforo','potássio','potassio'],type:'FERT',label:'Fertilizante'},
   {keys:['ph','ácido','acido','buffer','aquafix','bicarbonato','corretor'],type:'PH',label:'Corretor pH'},
@@ -711,7 +721,8 @@ function NewProductModal({productName, onSave, onClose}){
     EC:'Emulsões (EC, EW)',
     SL:'Soluções líquidas (SL)',
     FERT:'Fertilizantes foliares',
-    ADJ:'Adjuvantes e óleos',
+    DISP:'Dispersante/espalhante (antes de WP e SC)',
+    OIL:'Óleo mineral/vegetal (sempre por último)',
     BIO:'Produtos biológicos',
   }
 
