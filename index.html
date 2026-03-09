@@ -1263,51 +1263,157 @@ function LaudoScreen({lot,telem,jar,op,onBack}){
   const now=new Date(),dateStr=now.toLocaleDateString('pt-BR'),timeStr=now.toLocaleTimeString('pt-BR')
   const phColor=!telem?'#333':EC[telem.evaluation]||'#333'
   const phBg=!telem?'#f5f5f5':EB[telem.evaluation]||'#f5f5f5'
-  const JarLabel={ESTAVEL:'Estável ✅',SEPARACAO:'Separação de fases ⚠️',SEDIMENTACAO:'Sedimentação ⚠️',ESPUMA:'Espuma excessiva ⚠️',GEL:'Virou gel ❌'}
-  const S=({title,children})=>(<div style={{marginBottom:16}}><div style={{fontSize:11,fontWeight:800,color:'#00313C',borderBottom:'2px solid #e0f4f7',paddingBottom:5,marginBottom:8,textTransform:'uppercase',letterSpacing:.5}}>{title}</div>{children}</div>)
+  const JarLabel={ESTAVEL:'Estável',SEPARACAO:'Separação de fases',SEDIMENTACAO:'Sedimentação',ESPUMA:'Espuma excessiva',GEL:'Virou gel'}
+  const JarOk={ESTAVEL:true}
+  const JarColor={ESTAVEL:'#2e7d32',SEPARACAO:'#e65100',SEDIMENTACAO:'#e65100',ESPUMA:'#e65100',GEL:'#c62828'}
+  const JarBg={ESTAVEL:'#e8f5e9',SEPARACAO:'#fff3e0',SEDIMENTACAO:'#fff3e0',ESPUMA:'#fff3e0',GEL:'#ffebee'}
+
+  const produtos=lot.recipe_text?parseRecipe(lot.recipe_text):[]
+
+  // Timeline events com timestamps reais
+  const timeline=[
+    {icon:'📋',label:'Mistura criada',ts:lot.created_at,color:'#006E85'},
+    telem&&{icon:'💧',label:'Água analisada',sub:`pH ${telem.ph} · ${telem.temp_c}°C · ${telem.evaluation}`,ts:telem.created_at,color:phColor},
+    {icon:'⚗️',label:'Preparo concluído',ts:jar?.created_at||(telem?.created_at||lot.created_at)+60000,color:'#6D4C41'},
+    jar&&{icon:'🧪',label:'Jar Test realizado',sub:JarLabel[jar.result]||jar.result,ts:jar.created_at,color:JarColor[jar.result]||'#006E85'},
+    lot.status==='APPLIED'&&{icon:'🚜',label:'Aplicado em campo',ts:lot.applied_at||jar?.created_at,color:'#2e7d32'},
+  ].filter(Boolean)
+
+  const fmtTs=ts=>{
+    if(!ts) return ''
+    const d=new Date(ts)
+    return d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+' · '+d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})
+  }
+
+  const S=({title,children,accent='#006E85'})=>(
+    <div style={{marginBottom:16}}>
+      <div style={{fontSize:11,fontWeight:800,color:accent,borderBottom:`2px solid ${accent}22`,paddingBottom:5,marginBottom:10,textTransform:'uppercase',letterSpacing:.5,display:'flex',alignItems:'center',gap:6}}>
+        {title}
+      </div>
+      {children}
+    </div>
+  )
   const F=({label,value})=>(<div style={{marginBottom:7}}><div style={{fontSize:9,fontWeight:700,color:'#9e9e9e',textTransform:'uppercase',marginBottom:1}}>{label}</div><div style={{fontSize:13,fontWeight:700}}>{value||'—'}</div></div>)
+
   return(
     <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
       <div className="np"><Hdr title="📄 Laudo de Qualidade" onBack={onBack}/></div>
       <div className="sc" style={{flex:1,padding:12,paddingBottom:100}}>
         <div id="laudo" style={{background:'#fff',borderRadius:16,overflow:'hidden'}}>
+
+          {/* Header */}
           <div style={{background:'#00313C',padding:'18px 22px',textAlign:'center'}}>
             <div style={{color:'#fff',fontSize:20,fontWeight:900,letterSpacing:-1}}>FertigeoTech</div>
             <div style={{color:'#7EC8D8',fontSize:9,fontWeight:700,letterSpacing:3,marginTop:3,textTransform:'uppercase'}}>Laudo de Qualidade de Calda</div>
           </div>
+
           <div style={{padding:'18px 20px'}}>
+            {/* ID + data */}
             <div style={{display:'flex',justifyContent:'space-between',borderBottom:'1px solid #eee',paddingBottom:8,marginBottom:14,fontSize:10,color:'#9e9e9e'}}>
               <span>Gerado em {dateStr} às {timeStr}</span>
               <span style={{fontWeight:700,color:'#00313C'}}>#{lot.id.slice(-6).toUpperCase()}</span>
             </div>
-            <S title="Dados da Mistura">
+
+            {/* Identificação */}
+            <S title="📍 Identificação">
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}>
-                <F label="Fazenda" value={lot.farm}/><F label="Talhão" value={lot.field}/><F label="Volume" value={`${lot.volume_liters} L`}/>{lot.area_ha&&<F label="Área" value={`${lot.area_ha} ha`}/>}
-              </div>
-              {lot.recipe_text&&<div style={{background:'#f5f5f5',borderRadius:8,padding:'7px 10px',marginTop:6}}><div style={{fontSize:9,fontWeight:700,color:'#9e9e9e',textTransform:'uppercase',marginBottom:2}}>Receita</div><div style={{fontSize:11,color:'#444'}}>{lot.recipe_text}</div></div>}
-            </S>
-            <S title="Responsável Técnico">
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}>
-                <F label="Nome" value={op?.name}/><F label="Função" value={op?.role}/>{op?.company&&<F label="Empresa" value={op.company}/>}{op?.crea&&<F label="CREA/CFTA" value={op.crea}/>}
+                <F label="Fazenda" value={lot.farm}/>
+                <F label="Talhão" value={lot.field}/>
+                <F label="Volume" value={`${lot.volume_liters} L`}/>
+                {lot.area_ha&&<F label="Área" value={`${lot.area_ha} ha`}/>}
               </div>
             </S>
-            {telem&&(
-              <S title="Qualidade da Água">
-                <div style={{display:'flex',gap:8,marginBottom:8}}>
-                  {[['pH',telem.ph],['Temperatura',`${telem.temp_c}°C`],...(telem.conductivity?[['Condutividade',`${telem.conductivity} µS/cm`]]:[])] .map(([l,v])=>(
-                    <div key={l} style={{flex:1,background:'#f5f5f5',borderRadius:8,padding:'7px 10px',textAlign:'center'}}><div style={{fontSize:9,fontWeight:700,color:'#9e9e9e',textTransform:'uppercase'}}>{l}</div><div style={{fontSize:16,fontWeight:900,color:'#00313C',marginTop:1}}>{v}</div></div>
+
+            {/* Produtos em destaque */}
+            {produtos.length>0&&(
+              <S title="🧴 Produtos da Mistura" accent="#006E85">
+                <div style={{display:'flex',flexDirection:'column',gap:6}}>
+                  {produtos.map((p,i)=>(
+                    <div key={i} style={{display:'flex',alignItems:'center',gap:10,background:'#f8fbfc',borderRadius:10,padding:'9px 12px',border:'1px solid #e0f4f7'}}>
+                      <div style={{width:26,height:26,borderRadius:'50%',background:'#00313C',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:900,fontSize:11,flexShrink:0}}>{i+1}</div>
+                      <span style={{fontSize:17,flexShrink:0}}>{FI[p.type]||'🔬'}</span>
+                      <div style={{flex:1}}>
+                        <div style={{fontWeight:800,fontSize:13,color:'#00313C'}}>{p.name}</div>
+                        <div style={{fontSize:10,color:'#9e9e9e'}}>{FL[p.type]||'Produto'}</div>
+                      </div>
+                      {p.dose&&(
+                        <div style={{background:'#006E85',borderRadius:8,padding:'3px 10px',textAlign:'center',flexShrink:0}}>
+                          <div style={{fontSize:12,fontWeight:900,color:'#fff'}}>{p.dose}</div>
+                        </div>
+                      )}
+                    </div>
                   ))}
                 </div>
-                <div style={{background:phBg,borderRadius:8,padding:'6px 10px',display:'inline-flex'}}><span style={{fontSize:12,fontWeight:700,color:phColor}}>Avaliação: {telem.evaluation}</span></div>
               </S>
             )}
-            {jar&&(<S title="Resultado do Jar Test"><div style={{fontSize:14,fontWeight:800,marginBottom:3}}>{JarLabel[jar.result]||jar.result}</div>{jar.notes&&<div style={{fontSize:12,color:'#666',fontStyle:'italic'}}>{jar.notes}</div>}</S>)}
+
+            {/* Qualidade da Água */}
+            {telem&&(
+              <S title="💧 Qualidade da Água" accent={phColor}>
+                <div style={{display:'flex',gap:8,marginBottom:8}}>
+                  {[['pH',telem.ph],['Temperatura',`${telem.temp_c}°C`],...(telem.conductivity?[['Condutividade',`${telem.conductivity} µS/cm`]]:[])]
+                    .map(([l,v])=>(
+                    <div key={l} style={{flex:1,background:'#f5f5f5',borderRadius:10,padding:'9px 10px',textAlign:'center'}}>
+                      <div style={{fontSize:9,fontWeight:700,color:'#9e9e9e',textTransform:'uppercase'}}>{l}</div>
+                      <div style={{fontSize:18,fontWeight:900,color:'#00313C',marginTop:2}}>{v}</div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{background:phBg,borderRadius:8,padding:'7px 12px',display:'flex',alignItems:'center',gap:6}}>
+                  <span style={{fontSize:13,fontWeight:800,color:phColor}}>Avaliação: {telem.evaluation}</span>
+                </div>
+              </S>
+            )}
+
+            {/* Jar Test */}
+            {jar&&(
+              <S title="🧪 Jar Test" accent={JarColor[jar.result]||'#006E85'}>
+                <div style={{background:JarBg[jar.result]||'#f5f5f5',borderRadius:10,padding:'11px 14px',border:`1px solid ${JarColor[jar.result]||'#ddd'}33`}}>
+                  <div style={{fontSize:15,fontWeight:900,color:JarColor[jar.result]||'#333',marginBottom:jar.notes?4:0}}>
+                    {JarOk[jar.result]?'✅':'⚠️'} {JarLabel[jar.result]||jar.result}
+                  </div>
+                  {jar.notes&&<div style={{fontSize:12,color:'#666',fontStyle:'italic'}}>{jar.notes}</div>}
+                </div>
+              </S>
+            )}
+
+            {/* Linha do tempo */}
+            <S title="🕐 Linha do Tempo" accent="#6D4C41">
+              <div style={{position:'relative',paddingLeft:22}}>
+                <div style={{position:'absolute',left:7,top:6,bottom:6,width:2,background:'#e0e0e0',borderRadius:2}}/>
+                {timeline.map((ev,i)=>(
+                  <div key={i} style={{position:'relative',marginBottom:i<timeline.length-1?14:0,display:'flex',alignItems:'flex-start',gap:10}}>
+                    <div style={{position:'absolute',left:-22,width:16,height:16,borderRadius:'50%',background:ev.color,display:'flex',alignItems:'center',justifyContent:'center',fontSize:8,flexShrink:0,zIndex:1}}/>
+                    <div style={{flex:1,paddingLeft:4}}>
+                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline'}}>
+                        <span style={{fontSize:12,fontWeight:800,color:'#00313C'}}>{ev.icon} {ev.label}</span>
+                        <span style={{fontSize:10,color:'#9e9e9e',marginLeft:8,flexShrink:0}}>{fmtTs(ev.ts)}</span>
+                      </div>
+                      {ev.sub&&<div style={{fontSize:11,color:'#777',marginTop:1}}>{ev.sub}</div>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </S>
+
+            {/* Responsável */}
+            <S title="👤 Responsável Técnico" accent="#00313C">
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}>
+                <F label="Nome" value={op?.name}/>
+                <F label="Função" value={op?.role}/>
+                {op?.company&&<F label="Empresa" value={op.company}/>}
+                {op?.crea&&<F label="CREA/CFTA" value={op.crea}/>}
+              </div>
+            </S>
+
+            {/* Assinatura */}
             <div style={{marginTop:18,paddingTop:14,borderTop:'1px solid #eee'}}>
               <div style={{fontSize:10,color:'#9e9e9e',marginBottom:6}}>Assinatura do responsável técnico</div>
               <div style={{borderBottom:'2px solid #333',width:180,height:36,marginBottom:5}}/>
               <div style={{fontSize:11,color:'#555'}}>{op?.name} · {op?.role}</div>
               {op?.crea&&<div style={{fontSize:10,color:'#9e9e9e'}}>CREA/CFTA: {op.crea}</div>}
             </div>
+
             <div style={{marginTop:16,textAlign:'center',fontSize:9,color:'#bbb',borderTop:'1px solid #f0f0f0',paddingTop:10}}>
               Gerado em {dateStr}, {timeStr} — FertigeoTech · Fertigeo Inteligência Agrícola
             </div>
@@ -1321,6 +1427,7 @@ function LaudoScreen({lot,telem,jar,op,onBack}){
     </div>
   )
 }
+
 
 function ManagerScreen({lots,onNav}){
   const today=new Date().toDateString()
