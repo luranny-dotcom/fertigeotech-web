@@ -1359,6 +1359,25 @@ function LaudoScreen({lot,telem,jar,op,onBack}){
               </S>
             )}
 
+            {/* Alertas de incompatibilidade */}
+            {(()=>{
+              const inc=detectIncompat(produtos)
+              if(!inc.length) return null
+              return(
+                <S title="⚠️ Alertas de Incompatibilidade" accent="#c62828">
+                  <div style={{display:'flex',flexDirection:'column',gap:6}}>
+                    {inc.map((x,i)=>(
+                      <div key={i} style={{borderRadius:10,padding:'10px 13px',background:x.sev==='danger'?'#ffebee':'#fff8e1',border:`1.5px solid ${x.sev==='danger'?'#ef9a9a':'#ffe082'}`}}>
+                        <div style={{fontWeight:800,fontSize:13,color:x.sev==='danger'?'#c62828':'#e65100',marginBottom:3}}>{x.icon} {x.title}</div>
+                        <div style={{fontSize:11,color:'#555',marginBottom:3}}>{x.msg}</div>
+                        <div style={{fontSize:11,color:'#2e7d32',fontWeight:700}}>✅ {x.rec}</div>
+                      </div>
+                    ))}
+                  </div>
+                </S>
+              )
+            })()}
+
             {/* Qualidade da Água */}
             {telem&&(
               <S title="💧 Qualidade da Água" accent={phColor}>
