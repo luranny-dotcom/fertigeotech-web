@@ -1448,7 +1448,24 @@ function App(){
   )
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(<App/>)
+
+class ErrBound extends React.Component{
+  constructor(p){super(p);this.state={err:null,info:null}}
+  static getDerivedStateFromError(e){return{err:e}}
+  componentDidCatch(e,i){console.error('CRASH:',e.message,i?.componentStack?.slice(0,200))}
+  render(){
+    if(this.state.err) return(
+      <div style={{padding:20,background:'#fff',margin:20,borderRadius:12,border:'2px solid #c62828',fontFamily:'monospace'}}>
+        <div style={{fontWeight:900,color:'#c62828',marginBottom:8,fontSize:14}}>⚠️ Erro na aplicação</div>
+        <pre style={{fontSize:11,whiteSpace:'pre-wrap',color:'#333'}}>{this.state.err.message}</pre>
+        <button onClick={()=>this.setState({err:null})} style={{marginTop:10,padding:'6px 16px',background:'#006E85',color:'#fff',border:'none',borderRadius:8,cursor:'pointer'}}>Tentar novamente</button>
+      </div>
+    )
+    return this.props.children
+  }
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<ErrBound><App/></ErrBound>)
 </script>
 </body>
 </html>
