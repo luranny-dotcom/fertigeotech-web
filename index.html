@@ -1264,19 +1264,30 @@ function LaudoScreen({lot,telem,jar,op,onBack}){
   const phColor=!telem?'#333':EC[telem.evaluation]||'#333'
   const phBg=!telem?'#f5f5f5':EB[telem.evaluation]||'#f5f5f5'
   const JarLabel={ESTAVEL:'Estável',SEPARACAO:'Separação de fases',SEDIMENTACAO:'Sedimentação',ESPUMA:'Espuma excessiva',GEL:'Virou gel'}
-  const JarOk={ESTAVEL:true}
   const JarColor={ESTAVEL:'#2e7d32',SEPARACAO:'#e65100',SEDIMENTACAO:'#e65100',ESPUMA:'#e65100',GEL:'#c62828'}
   const JarBg={ESTAVEL:'#e8f5e9',SEPARACAO:'#fff3e0',SEDIMENTACAO:'#fff3e0',ESPUMA:'#fff3e0',GEL:'#ffebee'}
 
-  const produtos=lot.recipe_text?parseRecipe(lot.recipe_text):[]
+  // Parse produtos — fallback robusto: se parseRecipe der poucos resultados usa split direto
+  const produtosParsed = lot.recipe_text ? parseRecipe(lot.recipe_text) : []
+  const produtosRaw = lot.recipe_text
+    ? lot.recipe_text.split(/[+]/).map(s=>s.trim()).filter(Boolean)
+    : []
+  // Usa parseRecipe se bateu todos os itens, senão monta manualmente
+  const produtos = produtosParsed.length >= produtosRaw.length
+    ? produtosParsed
+    : produtosRaw.map(raw=>{
+        const dm = raw.match(/([\d,\.]+\s*(?:L|mL|ml|g|kg|%)(?:\s*\/\s*(?:ha|vc|100L|hL|L))?)/i)
+        const dose = dm ? dm[0].trim() : ''
+        const name = raw.replace(dose,'').trim().replace(/\s+/g,' ') || raw.trim()
+        return {name, dose, type: detectType(name)||'?', raw}
+      })
 
-  // Timeline events com timestamps reais
   const timeline=[
     {icon:'📋',label:'Mistura criada',ts:lot.created_at,color:'#006E85'},
     telem&&{icon:'💧',label:'Água analisada',sub:`pH ${telem.ph} · ${telem.temp_c}°C · ${telem.evaluation}`,ts:telem.created_at,color:phColor},
-    {icon:'⚗️',label:'Preparo concluído',ts:jar?.created_at||(telem?.created_at||lot.created_at)+60000,color:'#6D4C41'},
+    {icon:'⚗️',label:'Preparo concluído',ts:jar?.created_at||(telem?.created_at||lot.created_at)+120000,color:'#6D4C41'},
     jar&&{icon:'🧪',label:'Jar Test realizado',sub:JarLabel[jar.result]||jar.result,ts:jar.created_at,color:JarColor[jar.result]||'#006E85'},
-    lot.status==='APPLIED'&&{icon:'🚜',label:'Aplicado em campo',ts:lot.applied_at||jar?.created_at,color:'#2e7d32'},
+    lot.status==='APPLIED'&&{icon:'🚜',label:'Aplicado em campo',ts:lot.applied_at,color:'#2e7d32'},
   ].filter(Boolean)
 
   const fmtTs=ts=>{
@@ -1287,13 +1298,16 @@ function LaudoScreen({lot,telem,jar,op,onBack}){
 
   const S=({title,children,accent='#006E85'})=>(
     <div style={{marginBottom:16}}>
-      <div style={{fontSize:11,fontWeight:800,color:accent,borderBottom:`2px solid ${accent}22`,paddingBottom:5,marginBottom:10,textTransform:'uppercase',letterSpacing:.5,display:'flex',alignItems:'center',gap:6}}>
-        {title}
-      </div>
+      <div style={{fontSize:11,fontWeight:800,color:accent,borderBottom:`2px solid ${accent}33`,paddingBottom:5,marginBottom:10,textTransform:'uppercase',letterSpacing:.5}}>{title}</div>
       {children}
     </div>
   )
-  const F=({label,value})=>(<div style={{marginBottom:7}}><div style={{fontSize:9,fontWeight:700,color:'#9e9e9e',textTransform:'uppercase',marginBottom:1}}>{label}</div><div style={{fontSize:13,fontWeight:700}}>{value||'—'}</div></div>)
+  const F=({label,value})=>(
+    <div style={{marginBottom:7}}>
+      <div style={{fontSize:9,fontWeight:700,color:'#9e9e9e',textTransform:'uppercase',marginBottom:1}}>{label}</div>
+      <div style={{fontSize:13,fontWeight:700}}>{value||'—'}</div>
+    </div>
+  )
 
   return(
     <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
@@ -1301,14 +1315,12 @@ function LaudoScreen({lot,telem,jar,op,onBack}){
       <div className="sc" style={{flex:1,padding:12,paddingBottom:100}}>
         <div id="laudo" style={{background:'#fff',borderRadius:16,overflow:'hidden'}}>
 
-          {/* Header */}
           <div style={{background:'#00313C',padding:'18px 22px',textAlign:'center'}}>
             <div style={{color:'#fff',fontSize:20,fontWeight:900,letterSpacing:-1}}>FertigeoTech</div>
             <div style={{color:'#7EC8D8',fontSize:9,fontWeight:700,letterSpacing:3,marginTop:3,textTransform:'uppercase'}}>Laudo de Qualidade de Calda</div>
           </div>
 
           <div style={{padding:'18px 20px'}}>
-            {/* ID + data */}
             <div style={{display:'flex',justifyContent:'space-between',borderBottom:'1px solid #eee',paddingBottom:8,marginBottom:14,fontSize:10,color:'#9e9e9e'}}>
               <span>Gerado em {dateStr} às {timeStr}</span>
               <span style={{fontWeight:700,color:'#00313C'}}>#{lot.id.slice(-6).toUpperCase()}</span>
@@ -1324,21 +1336,21 @@ function LaudoScreen({lot,telem,jar,op,onBack}){
               </div>
             </S>
 
-            {/* Produtos em destaque */}
+            {/* Produtos da mistura — sempre em cards */}
             {produtos.length>0&&(
               <S title="🧴 Produtos da Mistura" accent="#006E85">
-                <div style={{display:'flex',flexDirection:'column',gap:6}}>
+                <div style={{display:'flex',flexDirection:'column',gap:7}}>
                   {produtos.map((p,i)=>(
-                    <div key={i} style={{display:'flex',alignItems:'center',gap:10,background:'#f8fbfc',borderRadius:10,padding:'9px 12px',border:'1px solid #e0f4f7'}}>
-                      <div style={{width:26,height:26,borderRadius:'50%',background:'#00313C',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:900,fontSize:11,flexShrink:0}}>{i+1}</div>
-                      <span style={{fontSize:17,flexShrink:0}}>{FI[p.type]||'🔬'}</span>
-                      <div style={{flex:1}}>
-                        <div style={{fontWeight:800,fontSize:13,color:'#00313C'}}>{p.name}</div>
-                        <div style={{fontSize:10,color:'#9e9e9e'}}>{FL[p.type]||'Produto'}</div>
+                    <div key={i} style={{display:'flex',alignItems:'center',gap:10,background:'#f0f8fa',borderRadius:12,padding:'10px 13px',border:'1.5px solid #c8e8f0'}}>
+                      <div style={{width:28,height:28,borderRadius:'50%',background:'#00313C',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:900,fontSize:12,flexShrink:0}}>{i+1}</div>
+                      <span style={{fontSize:20,flexShrink:0}}>{FI[p.type]||'🔬'}</span>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontWeight:800,fontSize:13,color:'#00313C',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{p.name}</div>
+                        <div style={{fontSize:10,color:'#7EC8D8',fontWeight:700,textTransform:'uppercase',letterSpacing:.3}}>{FL[p.type]||'Produto'}</div>
                       </div>
                       {p.dose&&(
-                        <div style={{background:'#006E85',borderRadius:8,padding:'3px 10px',textAlign:'center',flexShrink:0}}>
-                          <div style={{fontSize:12,fontWeight:900,color:'#fff'}}>{p.dose}</div>
+                        <div style={{background:'#00313C',borderRadius:8,padding:'4px 11px',flexShrink:0}}>
+                          <div style={{fontSize:12,fontWeight:900,color:'#fff',whiteSpace:'nowrap'}}>{p.dose}</div>
                         </div>
                       )}
                     </div>
@@ -1351,8 +1363,7 @@ function LaudoScreen({lot,telem,jar,op,onBack}){
             {telem&&(
               <S title="💧 Qualidade da Água" accent={phColor}>
                 <div style={{display:'flex',gap:8,marginBottom:8}}>
-                  {[['pH',telem.ph],['Temperatura',`${telem.temp_c}°C`],...(telem.conductivity?[['Condutividade',`${telem.conductivity} µS/cm`]]:[])]
-                    .map(([l,v])=>(
+                  {[['pH',telem.ph],['Temperatura',`${telem.temp_c}°C`],...(telem.conductivity?[['Condutividade',`${telem.conductivity} µS/cm`]]:[])].map(([l,v])=>(
                     <div key={l} style={{flex:1,background:'#f5f5f5',borderRadius:10,padding:'9px 10px',textAlign:'center'}}>
                       <div style={{fontSize:9,fontWeight:700,color:'#9e9e9e',textTransform:'uppercase'}}>{l}</div>
                       <div style={{fontSize:18,fontWeight:900,color:'#00313C',marginTop:2}}>{v}</div>
@@ -1368,9 +1379,9 @@ function LaudoScreen({lot,telem,jar,op,onBack}){
             {/* Jar Test */}
             {jar&&(
               <S title="🧪 Jar Test" accent={JarColor[jar.result]||'#006E85'}>
-                <div style={{background:JarBg[jar.result]||'#f5f5f5',borderRadius:10,padding:'11px 14px',border:`1px solid ${JarColor[jar.result]||'#ddd'}33`}}>
+                <div style={{background:JarBg[jar.result]||'#f5f5f5',borderRadius:10,padding:'11px 14px',border:`1.5px solid ${JarColor[jar.result]||'#ddd'}44`}}>
                   <div style={{fontSize:15,fontWeight:900,color:JarColor[jar.result]||'#333',marginBottom:jar.notes?4:0}}>
-                    {JarOk[jar.result]?'✅':'⚠️'} {JarLabel[jar.result]||jar.result}
+                    {jar.result==='ESTAVEL'?'✅':'⚠️'} {JarLabel[jar.result]||jar.result}
                   </div>
                   {jar.notes&&<div style={{fontSize:12,color:'#666',fontStyle:'italic'}}>{jar.notes}</div>}
                 </div>
@@ -1379,15 +1390,15 @@ function LaudoScreen({lot,telem,jar,op,onBack}){
 
             {/* Linha do tempo */}
             <S title="🕐 Linha do Tempo" accent="#6D4C41">
-              <div style={{position:'relative',paddingLeft:22}}>
-                <div style={{position:'absolute',left:7,top:6,bottom:6,width:2,background:'#e0e0e0',borderRadius:2}}/>
+              <div style={{position:'relative',paddingLeft:24}}>
+                <div style={{position:'absolute',left:7,top:8,bottom:8,width:2,background:'#e0e0e0',borderRadius:2}}/>
                 {timeline.map((ev,i)=>(
                   <div key={i} style={{position:'relative',marginBottom:i<timeline.length-1?14:0,display:'flex',alignItems:'flex-start',gap:10}}>
-                    <div style={{position:'absolute',left:-22,width:16,height:16,borderRadius:'50%',background:ev.color,display:'flex',alignItems:'center',justifyContent:'center',fontSize:8,flexShrink:0,zIndex:1}}/>
-                    <div style={{flex:1,paddingLeft:4}}>
-                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline'}}>
+                    <div style={{position:'absolute',left:-24,top:0,width:16,height:16,borderRadius:'50%',background:ev.color,display:'flex',alignItems:'center',justifyContent:'center',fontSize:9,color:'#fff',flexShrink:0,zIndex:1}}>●</div>
+                    <div style={{flex:1}}>
+                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',gap:8}}>
                         <span style={{fontSize:12,fontWeight:800,color:'#00313C'}}>{ev.icon} {ev.label}</span>
-                        <span style={{fontSize:10,color:'#9e9e9e',marginLeft:8,flexShrink:0}}>{fmtTs(ev.ts)}</span>
+                        <span style={{fontSize:10,color:'#9e9e9e',flexShrink:0}}>{fmtTs(ev.ts)}</span>
                       </div>
                       {ev.sub&&<div style={{fontSize:11,color:'#777',marginTop:1}}>{ev.sub}</div>}
                     </div>
@@ -1406,7 +1417,6 @@ function LaudoScreen({lot,telem,jar,op,onBack}){
               </div>
             </S>
 
-            {/* Assinatura */}
             <div style={{marginTop:18,paddingTop:14,borderTop:'1px solid #eee'}}>
               <div style={{fontSize:10,color:'#9e9e9e',marginBottom:6}}>Assinatura do responsável técnico</div>
               <div style={{borderBottom:'2px solid #333',width:180,height:36,marginBottom:5}}/>
