@@ -733,6 +733,12 @@ function NewLotScreen({onBack,onSaved}){
     if(idx===0) return
     setSelectedProducts(prev=>{const a=[...prev];[a[idx-1],a[idx]]=[a[idx],a[idx-1]];return a})
   }
+  const moveDown=(idx)=>{
+    setSelectedProducts(prev=>{
+      if(idx>=prev.length-1) return prev
+      const a=[...prev];[a[idx],a[idx+1]]=[a[idx+1],a[idx]];return a
+    })
+  }
 
   const save=async(goWater)=>{
     if(!farm.trim()){setErr('Informe a fazenda');return}
@@ -797,23 +803,26 @@ function NewLotScreen({onBack,onSaved}){
           {/* Lista de produtos selecionados */}
           {sortedProducts.length>0&&(
             <div style={{marginTop:12}}>
-              <div style={{fontSize:11,fontWeight:700,color:'#999',textTransform:'uppercase',marginBottom:8,letterSpacing:.5}}>Ordem de adição ao tanque</div>
-              {sortedProducts.map((p,i)=>{
-                const origIdx=selectedProducts.indexOf(p)
+              <div style={{fontSize:11,fontWeight:700,color:'#999',textTransform:'uppercase',marginBottom:8,letterSpacing:.5}}>Ordem de adição ao tanque <span style={{fontSize:9,fontWeight:400,textTransform:'none',letterSpacing:0}}>· ↑↓ para ajustar</span></div>
+              {selectedProducts.map((p,i)=>{
                 const total=areaNum>0&&p.dose?calcTotal(p.dose,areaNum):null
                 return(
-                  <div key={i} style={{display:'flex',alignItems:'center',gap:8,padding:'9px 10px',background:'#f8f8f8',borderRadius:10,marginBottom:6}}>
-                    <div style={{width:24,height:24,borderRadius:'50%',background:'#00313C',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:900,fontSize:11,flexShrink:0}}>{i+1}</div>
-                    <span style={{fontSize:18,flexShrink:0}}>{FI[p.type]}</span>
+                  <div key={i} style={{display:'flex',alignItems:'center',gap:6,padding:'9px 10px',background:'#f8f8f8',borderRadius:10,marginBottom:6}}>
+                    <div style={{display:'flex',flexDirection:'column',gap:2,flexShrink:0}}>
+                      <button onMouseDown={()=>moveUp(i)} disabled={i===0} style={{background:i===0?'transparent':'#e0f4f7',border:'none',borderRadius:5,width:22,height:20,cursor:i===0?'default':'pointer',fontSize:11,color:i===0?'#ccc':'#006E85',fontWeight:900,padding:0}}>↑</button>
+                      <button onMouseDown={()=>moveDown(i)} disabled={i===selectedProducts.length-1} style={{background:i===selectedProducts.length-1?'transparent':'#e0f4f7',border:'none',borderRadius:5,width:22,height:20,cursor:i===selectedProducts.length-1?'default':'pointer',fontSize:11,color:i===selectedProducts.length-1?'#ccc':'#006E85',fontWeight:900,padding:0}}>↓</button>
+                    </div>
+                    <div style={{width:22,height:22,borderRadius:'50%',background:'#00313C',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:900,fontSize:10,flexShrink:0}}>{i+1}</div>
+                    <span style={{fontSize:17,flexShrink:0}}>{FI[p.type]||'🔬'}</span>
                     <div style={{flex:1,minWidth:0}}>
                       <div style={{fontWeight:700,fontSize:13,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{p.name}</div>
                       <div style={{display:'flex',gap:6,alignItems:'center',marginTop:2,flexWrap:'wrap'}}>
-                        <span style={{fontSize:10,fontWeight:800,color:'#fff',background:FC[p.type],padding:'1px 7px',borderRadius:20}}>{FL[p.type]}</span>
+                        <span style={{fontSize:10,fontWeight:800,color:'#fff',background:FC[p.type]||'#9E9E9E',padding:'1px 7px',borderRadius:20}}>{FL[p.type]||'?'}</span>
                         {p.dose&&<span style={{fontSize:11,color:'#777'}}>{p.dose}</span>}
                         {total&&<span style={{fontSize:10,fontWeight:800,color:'#006E85',background:'#e0f4f7',padding:'1px 7px',borderRadius:20}}>= {total}</span>}
                       </div>
                     </div>
-                    <button onClick={()=>removeProduct(origIdx)} style={{background:'none',border:'none',color:'#e57373',fontSize:18,cursor:'pointer',padding:'2px 4px',flexShrink:0}}>✕</button>
+                    <button onMouseDown={()=>removeProduct(i)} style={{background:'none',border:'none',color:'#e57373',fontSize:18,cursor:'pointer',padding:'2px 4px',flexShrink:0}}>✕</button>
                   </div>
                 )
               })}
@@ -1078,11 +1087,12 @@ function LotDetailScreen({lot:initLot,op,onBack,onNav,onLotUpdate}){
       setPicking(null)
     }
     const removeProduct=(idx)=>setProds(prev=>prev.filter((_,i)=>i!==idx))
+    const moveUpP=(idx)=>setProds(prev=>{if(idx===0)return prev;const a=[...prev];[a[idx-1],a[idx]]=[a[idx],a[idx-1]];return a})
+    const moveDownP=(idx)=>setProds(prev=>{if(idx>=prev.length-1)return prev;const a=[...prev];[a[idx],a[idx+1]]=[a[idx+1],a[idx]];return a})
 
     const salvar=async()=>{
       setSaving(true)
-      const newRecipe=[...prods].sort((a,b)=>(ORD[a.type]||9)-(ORD[b.type]||9))
-        .map(p=>p.dose?`${p.name} ${p.dose}`:p.name).join(' + ')
+      const newRecipe=prods.map(p=>p.dose?`${p.name} ${p.dose}`:p.name).join(' + ')
       await dbUpdate('lots',lot.id,{recipe_text:newRecipe})
       const updated={...lot,recipe_text:newRecipe}
       setLot(updated);onLotUpdate&&onLotUpdate(updated)
@@ -1110,18 +1120,22 @@ function LotDetailScreen({lot:initLot,op,onBack,onNav,onLotUpdate}){
           {sorted.length>0&&(
             <div style={{marginBottom:14}}>
               <div style={{fontSize:11,fontWeight:800,color:'#999',textTransform:'uppercase',marginBottom:8}}>Produtos na mistura — ordem de adição</div>
-              {sorted.map((p,i)=>(
-                <div key={i} style={{display:'flex',alignItems:'center',gap:8,padding:'9px 10px',background:'#f8f8f8',borderRadius:10,marginBottom:6}}>
-                  <div style={{width:22,height:22,borderRadius:'50%',background:FC[p.type],color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:900,fontSize:11,flexShrink:0}}>{i+1}</div>
-                  <span style={{fontSize:16}}>{FI[p.type]}</span>
+              {prods.map((p,i)=>(
+                <div key={i} style={{display:'flex',alignItems:'center',gap:6,padding:'9px 10px',background:'#f8f8f8',borderRadius:10,marginBottom:6}}>
+                  <div style={{display:'flex',flexDirection:'column',gap:2,flexShrink:0}}>
+                    <button onMouseDown={()=>moveUpP(i)} disabled={i===0} style={{background:i===0?'transparent':'#e0f4f7',border:'none',borderRadius:5,width:22,height:20,cursor:i===0?'default':'pointer',fontSize:11,color:i===0?'#ccc':'#006E85',fontWeight:900,padding:0}}>↑</button>
+                    <button onMouseDown={()=>moveDownP(i)} disabled={i===prods.length-1} style={{background:i===prods.length-1?'transparent':'#e0f4f7',border:'none',borderRadius:5,width:22,height:20,cursor:i===prods.length-1?'default':'pointer',fontSize:11,color:i===prods.length-1?'#ccc':'#006E85',fontWeight:900,padding:0}}>↓</button>
+                  </div>
+                  <div style={{width:22,height:22,borderRadius:'50%',background:'#00313C',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:900,fontSize:10,flexShrink:0}}>{i+1}</div>
+                  <span style={{fontSize:16}}>{FI[p.type]||'🔬'}</span>
                   <div style={{flex:1,minWidth:0}}>
                     <div style={{fontWeight:700,fontSize:13}}>{p.name}</div>
                     <div style={{display:'flex',gap:6,marginTop:2}}>
-                      <span style={{fontSize:10,fontWeight:800,color:'#fff',background:FC[p.type],padding:'1px 6px',borderRadius:20}}>{FL[p.type]}</span>
+                      <span style={{fontSize:10,fontWeight:800,color:'#fff',background:FC[p.type]||'#9E9E9E',padding:'1px 6px',borderRadius:20}}>{FL[p.type]||'?'}</span>
                       {p.dose&&<span style={{fontSize:11,color:'#777'}}>{p.dose}</span>}
                     </div>
                   </div>
-                  <button onClick={()=>removeProduct(prods.indexOf(p))} style={{background:'none',border:'none',color:'#e57373',fontSize:20,cursor:'pointer',padding:'2px 6px',flexShrink:0}}>✕</button>
+                  <button onMouseDown={()=>removeProduct(i)} style={{background:'none',border:'none',color:'#e57373',fontSize:20,cursor:'pointer',padding:'2px 6px',flexShrink:0}}>✕</button>
                 </div>
               ))}
             </div>
