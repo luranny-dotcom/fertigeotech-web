@@ -57,6 +57,13 @@ async function update(table,id,patch){
 }
 const dbUpdate=update  // alias
 
+async function dbSelect(table,filter){
+  const rows=await selectAll(table)
+  if(!filter) return rows
+  return rows.filter(r=>Object.entries(filter).every(([k,v])=>r[k]===v))
+}
+
+
 async function selectAll(table){
   if(table==='lots') return DB.lots
   if(table==='telem') return DB.telem
