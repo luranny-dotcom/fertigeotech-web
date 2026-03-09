@@ -34,7 +34,8 @@ input,textarea,button{font-family:'DM Sans',sans-serif}
 </head>
 <body>
 <div id="root"></div>
-<script src="https://cdn.jsdelivr.net/npm/@supa
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script type="text/babel" data-presets="react">
 const{useState,useEffect,useRef,useMemo}=React
 
 // -- LocalDB (offline) ------------------------------------------
@@ -1702,11 +1703,6 @@ class ErrBound extends React.Component{
       </div>
     )
     return this.props.children
-  }
-}
-
-ReactDOM.createRoot(document.getElementById('root')).render(<ErrBound><App/></ErrBound>)
-.children
   }
 }
 
