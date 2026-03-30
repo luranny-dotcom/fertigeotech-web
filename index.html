@@ -40,7 +40,7 @@ const{useState,useEffect,useRef,useMemo}=React
 
 // -- LocalDB (offline) ------------------------------------------
 // ── Supabase client ──────────────────────────────────────────────
-const sb = window.supabase.createClient('https://pnpjmvlmvybmdspcrdqy.supabase.co', 'sb_publishable_xkK5htG4kPvh2xi2fFuKww_CoMndwIh')
+const sb = window.supabase.createClient('https://pnpjmvlmvybmdspcrdqy.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBucGptdmxtdnlibWRzcGNyZHF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMwODE5NDYsImV4cCI6MjA4ODY1Nzk0Nn0.fkC3Ou-dqlKdWCiD43yePyb1uklqLjfLfQFhFcBeRFU')
 
 async function insert(table, row){
   const map = {lots:'lots',telem:'telemetry',jars:'jar_tests'}
