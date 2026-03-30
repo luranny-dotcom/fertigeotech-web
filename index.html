@@ -905,8 +905,7 @@ function WaterScreen({lot,onBack,onDone}){
   const overall=overallEval(phE,tempE,condE)
   const save=async()=>{
     setSaving(true)
-    const t={id:uid(),lot_id:lot.id,ph:phN,temp_c:tempN,conductivity:condN,evaluation:overall,created_at:Date.now()}
-    await insert('telem',t)
+    const t=await insert('telem',{lot_id:lot.id,ph:phN,temp_c:tempN,conductivity:condN||null,evaluation:overall})
     await update('lots',lot.id,{status:'WATER_OK',last_ph:phN,last_temp_c:tempN})
     setSaving(false)
     onDone({...lot,status:'WATER_OK',last_ph:phN},t)
@@ -1040,8 +1039,7 @@ function JarTestScreen({lot,onBack,onDone}){
   const[saving,setSaving]=useState(false)
   const save=async()=>{
     setSaving(true)
-    const jt={id:uid(),lot_id:lot.id,result:sel,notes:notes.trim()||undefined,created_at:Date.now()}
-    await insert('jars',jt)
+    const jt=await insert('jars',{lot_id:lot.id,result:sel,notes:notes.trim()||null})
     await update('lots',lot.id,{status:'READY'})
     setSaving(false)
     onDone({...lot,status:'READY'},jt)
