@@ -632,6 +632,7 @@ function getAllProducts(){
 function ProductPicker({onAdd}){
   const[search,setSearch]=useState('')
   const[open,setOpen]=useState(false)
+  const[pickingType,setPickingType]=useState(null)
   const[picking,setPicking]=useState(null)
   const[doseVal,setDoseVal]=useState('')
   const[doseUnit,setDoseUnit]=useState('L/ha')
@@ -644,11 +645,19 @@ function ProductPicker({onAdd}){
   },[search])
 
   const selectProduct=(p)=>{
-    setPicking(p)
-    setSearch('')
-    setOpen(false)
-    setDoseVal('')
-    setDoseUnit('L/ha')
+    const guessed=detectType(p.name)||'?'
+    const finalType=p.type&&p.type!=='?'?p.type:guessed
+    if(finalType==='?'&&!PDB[p.nameKey||nrm(p.name)]){
+      setPickingType({name:p.name,nameKey:p.nameKey||nrm(p.name)})
+      setOpen(false);setSearch('');return
+    }
+    setPicking({...p,type:finalType});setSearch('');setOpen(false);setDoseVal('');setDoseUnit('L/ha')
+    setTimeout(()=>document.getElementById('dose-input')?.focus(),100)
+  }
+  const confirmType=(type)=>{
+    if(!pickingType) return
+    const p={name:pickingType.name,nameKey:pickingType.nameKey,type,custom:true}
+    saveCustomProduct(p);setPickingType(null);setPicking(p);setDoseVal('');setDoseUnit('L/ha')
     setTimeout(()=>document.getElementById('dose-input')?.focus(),100)
   }
 
@@ -705,6 +714,21 @@ function ProductPicker({onAdd}){
         </div>
       )}
 
+{pickingType&&(
+        <div style={{background:'#fff',border:'1.5px solid #006E85',borderRadius:12,padding:14,marginBottom:8}}>
+          <div style={{fontWeight:800,fontSize:13,color:'#00313C',marginBottom:4}}>🔬 Tipo de produto: <span style={{color:'#006E85'}}>{pickingType.name}</span></div>
+          <div style={{fontSize:11,color:'#888',marginBottom:10}}>Selecione o tipo para classificar corretamente na receita</div>
+          <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+            {Object.entries(FL).filter(([k])=>k!=='?').map(([type,label])=>(
+              <button key={type} onMouseDown={e=>{e.preventDefault();confirmType(type)}} onTouchEnd={e=>{e.preventDefault();confirmType(type)}}
+                style={{padding:'6px 12px',borderRadius:20,border:'1.5px solid '+FC[type],background:'#fff',color:FC[type],fontSize:11,fontWeight:800,cursor:'pointer'}}>
+                {FI[type]} {label}
+              </button>
+            ))}
+          </div>
+          <button onMouseDown={e=>{e.preventDefault();setPickingType(null)}} style={{marginTop:10,fontSize:12,color:'#999',background:'none',border:'none',cursor:'pointer'}}>← Cancelar</button>
+        </div>
+      )}
       {picking&&(
         <div style={{background:'#e0f4f7',borderRadius:12,padding:'12px 14px',border:'2px solid #006E85'}}>
           <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:10}}>            <span style={{fontSize:22}}>{FI[picking.type]||'🔬'}</span>
@@ -956,7 +980,7 @@ function PrepScreen({lot,onBack,onDone}){
   const steps=useMemo(()=>{
     const s=[{icon:'💧',title:'Encher tanque a 50–75%',detail:'Adicione água limpa e ligue o agitador antes de qualquer produto.',fixed:true,timer:null}]
     products.forEach(p=>s.push({icon:FI[p.type],title:`Adicionar: ${p.name}`,dose:p.dose,sub:FL[p.type],color:FC[p.type],detail:FT[p.type],timer:FTm[p.type],fixed:false}))
-    s.push({icon:'🪣',title:'Completar volume',detail:'Adicione água até o volume total. Mantenha agitação.',fixed:true,timer:null})
+    s.push({icon:'🛢️',title:'Completar volume',detail:'Adicione água até o volume total. Mantenha agitação.',fixed:true,timer:null})
     s.push({icon:'🔍',title:'Verificar aspecto final',detail:'Observe cor, homogeneidade e ausência de grumos. Pronto para Jar Test!',fixed:true,timer:null})
     return s
   },[products])
@@ -1518,6 +1542,7 @@ function LaudoScreen({lot,telem,jar,op,onBack}){
 
 
 function ManagerScreen({lots,onNav}){
+  const[view,setView]=useState('misturas')
   const today=new Date().toDateString()
   const kpis=[
     {icon:'📋',label:'Hoje',val:lots.filter(l=>new Date(l.created_at).toDateString()===today).length,c:'#006E85'},
@@ -1526,78 +1551,219 @@ function ManagerScreen({lots,onNav}){
     {icon:'⚠️',label:'Riscos',val:lots.filter(l=>l.last_ph&&(l.last_ph<5||l.last_ph>7)).length,c:'#c62828'},
   ]
   const active=lots.filter(l=>l.status!=='APPLIED')
+  const applied=lots.filter(l=>l.status==='APPLIED')
   const risks=lots.filter(l=>l.last_ph&&(l.last_ph<5||l.last_ph>7))
   const TL=[{s:'WATER_OK',icon:'💧'},{s:'PREPARING',icon:'⚗️'},{s:'JAR_TEST',icon:'🧪'},{s:'READY',icon:'✅'},{s:'APPLIED',icon:'🚜'}]
+  const reboques=[
+    {id:'RB-01',op:'João Silva',farm:lots[0]?.farm||'Fazenda São José',field:lots[0]?.field||'Talhão 01',status:'em_rota',prog:60,eta:'12 min'},
+    {id:'RB-02',op:'Carlos Mendes',farm:lots[1]?.farm||'Fazenda Brasilândia',field:lots[1]?.field||'Talhão 03',status:'aplicando',prog:35,eta:'em campo'},
+    {id:'RB-03',op:'Pedro Santos',farm:lots[2]?.farm||'Usina Caçu',field:lots[2]?.field||'Talhão 07',status:'retornando',prog:90,eta:'5 min'},
+  ]
+  const RBSt={em_rota:{l:'Em rota',c:'#e65100',bg:'#fff3e0',icon:'🚚'},aplicando:{l:'Aplicando',c:'#006E85',bg:'#e0f4f7',icon:'🌾'},retornando:{l:'Retornando',c:'#4caf50',bg:'#e8f5e9',icon:'↩️'}}
+  const tanques=[
+    {id:'TQ-01',nome:'Tanque Principal',cap:2000,nivel:1400,produto:'Calda em preparo',status:'ativo'},
+    {id:'TQ-02',nome:'Tanque Secundário',cap:1000,nivel:0,produto:'Vazio',status:'livre'},
+    {id:'TQ-03',nome:'Tanque de Mistura',cap:500,nivel:320,produto:'Pré-mistura',status:'ativo'},
+  ]
+  const Tab=({id,icon,label})=>(
+    <button onClick={()=>setView(id)} style={{flex:1,padding:'10px 4px',border:'none',background:view===id?'#fff':'transparent',borderRadius:10,cursor:'pointer',display:'flex',flexDirection:'column',alignItems:'center',gap:2}}>
+      <span style={{fontSize:17}}>{icon}</span>
+      <span style={{fontSize:10,fontWeight:view===id?800:600,color:view===id?'#00313C':'#7EC8D8'}}>{label}</span>
+    </button>
+  )
   return(
     <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
-      <div style={{background:'#00313C',padding:'14px 16px',flexShrink:0}}>
-        <div style={{color:'#fff',fontWeight:800,fontSize:16}}>📊 Painel do Gestor</div>
-        <div style={{color:'#7EC8D8',fontSize:11,marginTop:2}}>Visão geral de operações</div>
+      <div style={{background:'#00313C',padding:'14px 16px 8px',flexShrink:0}}>
+        <div style={{color:'#fff',fontWeight:800,fontSize:16}}>📊 Painel Executivo</div>
+        <div style={{color:'#7EC8D8',fontSize:11,marginBottom:10}}>Visão geral de operações</div>
+        <div style={{display:'flex',gap:4,background:'rgba(255,255,255,.08)',borderRadius:12,padding:4}}>
+          <Tab id="misturas" icon="⚗️" label="Misturas"/>
+          <Tab id="rastreio" icon="📍" label="Rastreio"/>
+          <Tab id="smartdrop" icon="💧" label="SmartDrop"/>
+        </div>
       </div>
       <div className="sc" style={{flex:1,padding:12,paddingBottom:24}}>
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:12}}>
-          {kpis.map(k=>(
-            <div key={k.label} className="card" style={{textAlign:'center',marginBottom:0}}>
-              <div style={{fontSize:22,marginBottom:3}}>{k.icon}</div>
-              <div style={{fontSize:24,fontWeight:900,color:k.c}}>{k.val}</div>
-              <div style={{fontSize:11,color:'#777',fontWeight:600}}>{k.label}</div>
-            </div>
-          ))}
-        </div>
-        {risks.length>0&&(
-          <div className="card" style={{borderLeft:'4px solid #f44336',background:'#ffebee',marginBottom:10}}>
-            <div style={{fontWeight:800,fontSize:13,color:'#c62828',marginBottom:5}}>⚠️ pH fora do ideal</div>
-            {risks.map(l=><div key={l.id} style={{fontSize:12,color:'#b71c1c',marginBottom:1}}>• {l.farm} / {l.field} — pH {l.last_ph?.toFixed(1)}</div>)}
+        {view==='misturas'&&(<>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:12}}>
+            {kpis.map(k=>(
+              <div key={k.label} className="card" style={{textAlign:'center',marginBottom:0}}>
+                <div style={{fontSize:22,marginBottom:3}}>{k.icon}</div>
+                <div style={{fontSize:24,fontWeight:900,color:k.c}}>{k.val}</div>
+                <div style={{fontSize:11,color:'#777',fontWeight:600}}>{k.label}</div>
+              </div>
+            ))}
           </div>
-        )}
-        <div style={{fontWeight:800,fontSize:13,marginBottom:8}}>Operações em andamento</div>
-        {active.length===0&&<div className="card" style={{textAlign:'center',padding:'20px',color:'#9e9e9e',fontSize:13}}>Nenhuma operação ativa</div>}
-        {active.map(lot=>{
-          const li=SO.indexOf(lot.status)
-          return(
-            <div key={lot.id} className="card" onClick={()=>onNav('detail',lot)} style={{cursor:'pointer',marginBottom:8}}>
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
-                <div><div style={{fontWeight:800,fontSize:13}}>{lot.farm}</div><div style={{fontSize:11,color:'#777'}}>{lot.field} · {lot.volume_liters}L</div></div>
-                <span className={`badge ${SC2[lot.status]}`}>{SL[lot.status]}</span>
-              </div>
-              <div style={{display:'flex',alignItems:'center',gap:3}}>
-                {TL.map((step,i)=>{
-                  const si=SO.indexOf(step.s),isDone=li>si,isActive=li===si
-                  return(<React.Fragment key={step.s}>
-                    <div style={{width:26,height:26,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:800,background:isDone?'#006E85':isActive?'#e65100':'#e0e0e0',color:(isDone||isActive)?'#fff':'#9e9e9e',flexShrink:0}}>{isDone?'✓':step.icon}</div>
-                    {i<TL.length-1&&<div style={{flex:1,height:2,background:isDone?'#006E85':'#e0e0e0'}}/>}
-                  </React.Fragment>)
-                })}
-              </div>
+          {risks.length>0&&(
+            <div className="card" style={{borderLeft:'4px solid #f44336',background:'#ffebee',marginBottom:10}}>
+              <div style={{fontWeight:800,fontSize:13,color:'#c62828',marginBottom:5}}>⚠️ pH fora do ideal</div>
+              {risks.map(l=><div key={l.id} style={{fontSize:12,color:'#b71c1c',marginBottom:1}}>• {l.farm} / {l.field} — pH {l.last_ph?.toFixed(1)}</div>)}
             </div>
-          )
-        })}
-        {lots.filter(l=>l.last_ph).length>0&&(
-          <div className="card" style={{marginTop:4}}>
-            <div style={{fontWeight:800,fontSize:13,marginBottom:8}}>pH por talhão</div>
-            {lots.filter(l=>l.last_ph).slice(0,8).map(l=>{
-              const ph=l.last_ph,cls=ph>=5.5&&ph<=6.5?'bg-green':ph>=4.5&&ph<=7?'bg-orange':'bg-red'
+          )}
+          <div style={{fontWeight:800,fontSize:13,marginBottom:8}}>Operações em andamento</div>
+          {active.length===0&&<div className="card" style={{textAlign:'center',padding:'20px',color:'#9e9e9e',fontSize:13}}>Nenhuma operação ativa</div>}
+          {active.map(lot=>{
+            const li=SO.indexOf(lot.status)
+            return(
+              <div key={lot.id} className="card" onClick={()=>onNav('detail',lot)} style={{cursor:'pointer',marginBottom:8}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+                  <div><div style={{fontWeight:800,fontSize:13}}>{lot.farm}</div><div style={{fontSize:11,color:'#777'}}>{lot.field} · {lot.volume_liters}L</div></div>
+                  <span className={`badge ${SC2[lot.status]}`}>{SL[lot.status]}</span>
+                </div>
+                <div style={{display:'flex',alignItems:'center',gap:3}}>
+                  {TL.map((step,i)=>{
+                    const si=SO.indexOf(step.s),isDone=li>si,isActive=li===si
+                    return(<React.Fragment key={step.s}>
+                      <div style={{width:26,height:26,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:800,background:isDone?'#006E85':isActive?'#e65100':'#e0e0e0',color:(isDone||isActive)?'#fff':'#9e9e9e',flexShrink:0}}>{isDone?'✓':step.icon}</div>
+                      {i<TL.length-1&&<div style={{flex:1,height:2,background:isDone?'#006E85':'#e0e0e0'}}/>}
+                    </React.Fragment>)
+                  })}
+                </div>
+              </div>
+            )
+          })}
+          {applied.length>0&&(<>
+            <div style={{fontWeight:800,fontSize:13,margin:'14px 0 8px'}}>Aplicadas recentemente</div>
+            {applied.slice(0,5).map(lot=>(
+              <div key={lot.id} className="card" onClick={()=>onNav('detail',lot)} style={{cursor:'pointer',marginBottom:6,opacity:.85}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                  <div><span style={{fontWeight:700,fontSize:13}}>🚜 {lot.farm}</span><span style={{color:'#9e9e9e',fontSize:11}}> — {lot.field}</span></div>
+                  <span style={{fontSize:11,color:'#9e9e9e'}}>{new Date(lot.created_at).toLocaleDateString('pt-BR')}</span>
+                </div>
+              </div>
+            ))}
+          </>)}
+        </>)}
+        {view==='rastreio'&&(<>
+          <div style={{background:'linear-gradient(135deg,#006E85,#00313C)',borderRadius:14,padding:16,marginBottom:12,color:'#fff'}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              <div><div style={{fontSize:12,opacity:.8}}>Reboques em campo agora</div><div style={{fontSize:28,fontWeight:900}}>{reboques.length}</div></div>
+              <div style={{fontSize:36}}>🚜</div>
+            </div>
+          </div>
+          <div style={{background:'#e8eef0',borderRadius:14,height:180,marginBottom:12,position:'relative',overflow:'hidden',border:'1px solid #d0dce0'}}>
+            <div style={{position:'absolute',inset:0,backgroundImage:'radial-gradient(circle, #c5d2d6 1px, transparent 1px)',backgroundSize:'20px 20px'}}/>
+            <div style={{position:'absolute',top:10,left:12,fontSize:11,fontWeight:700,color:'#5a6e74',background:'rgba(255,255,255,.7)',padding:'3px 8px',borderRadius:8}}>🗺️ Mapa em tempo real</div>
+            {reboques.map((r,i)=>{
+              const st=RBSt[r.status]
+              const px=20+(i*28)%60, py=30+(i*35)%50
               return(
-                <div key={l.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'7px 0',borderBottom:'1px solid #f5f5f5'}}>
-                  <div><span style={{fontWeight:700,fontSize:13}}>{l.farm}</span><span style={{color:'#9e9e9e',fontSize:11}}> — {l.field}</span></div>
-                  <span className={`badge ${cls}`}>pH {ph.toFixed(1)}</span>
+                <div key={r.id} style={{position:'absolute',left:px+'%',top:py+'%',transform:'translate(-50%,-50%)',textAlign:'center'}}>
+                  <div style={{fontSize:24,filter:'drop-shadow(0 2px 4px rgba(0,0,0,.3))'}}>{st.icon}</div>
+                  <div style={{fontSize:9,fontWeight:800,background:st.c,color:'#fff',padding:'1px 6px',borderRadius:10,marginTop:-2}}>{r.id}</div>
                 </div>
               )
             })}
+            <div style={{position:'absolute',bottom:8,right:12,fontSize:9,color:'#7a8a8e',fontStyle:'italic'}}>GPS via app do operador</div>
           </div>
-        )}
+          {reboques.map(r=>{
+            const st=RBSt[r.status]
+            return(
+              <div key={r.id} className="card" style={{marginBottom:8}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:8}}>
+                  <div><div style={{fontWeight:800,fontSize:14}}>{st.icon} {r.id} · {r.op}</div><div style={{fontSize:12,color:'#777',marginTop:1}}>{r.farm} — {r.field}</div></div>
+                  <span style={{fontSize:11,fontWeight:800,color:st.c,background:st.bg,padding:'3px 9px',borderRadius:20}}>{st.l}</span>
+                </div>
+                <div style={{display:'flex',alignItems:'center',gap:8}}>
+                  <div style={{flex:1,height:6,background:'#eee',borderRadius:3,overflow:'hidden'}}><div style={{width:r.prog+'%',height:'100%',background:st.c,borderRadius:3}}/></div>
+                  <span style={{fontSize:11,fontWeight:700,color:'#555',minWidth:50,textAlign:'right'}}>{r.eta}</span>
+                </div>
+              </div>
+            )
+          })}
+          <div style={{textAlign:'center',fontSize:11,color:'#9e9e9e',marginTop:8,fontStyle:'italic'}}>Dados de demonstração · integração GPS em desenvolvimento</div>
+        </>)}
+        {view==='smartdrop'&&(<>
+          <div style={{background:'linear-gradient(135deg,#A2B34C,#7a8a38)',borderRadius:14,padding:16,marginBottom:12,color:'#fff'}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              <div><div style={{fontSize:12,opacity:.9}}>SmartDrop · Usina de Calda</div><div style={{fontSize:20,fontWeight:900}}>{tanques.filter(t=>t.status==='ativo').length} tanques ativos</div></div>
+              <div style={{fontSize:36}}>💧</div>
+            </div>
+          </div>
+          {tanques.map(t=>{
+            const pct=Math.round((t.nivel/t.cap)*100)
+            const ativo=t.status==='ativo'
+            return(
+              <div key={t.id} className="card" style={{marginBottom:8}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+                  <div><div style={{fontWeight:800,fontSize:14}}>🛢️ {t.nome}</div><div style={{fontSize:12,color:'#777',marginTop:1}}>{t.produto}</div></div>
+                  <span style={{fontSize:11,fontWeight:800,color:ativo?'#006E85':'#9e9e9e',background:ativo?'#e0f4f7':'#f0f0f0',padding:'3px 9px',borderRadius:20}}>{ativo?'Ativo':'Livre'}</span>
+                </div>
+                <div style={{display:'flex',alignItems:'center',gap:10}}>
+                  <div style={{flex:1,height:24,background:'#f0f4f5',borderRadius:6,overflow:'hidden',position:'relative'}}>
+                    <div style={{width:pct+'%',height:'100%',background:ativo?'linear-gradient(90deg,#006E85,#00a8c8)':'#d0d0d0'}}/>
+                    <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:800,color:pct>40?'#fff':'#555'}}>{t.nivel}L / {t.cap}L</div>
+                  </div>
+                  <span style={{fontSize:14,fontWeight:900,color:'#00313C',minWidth:38,textAlign:'right'}}>{pct}%</span>
+                </div>
+              </div>
+            )
+          })}
+          <div className="card" style={{background:'#fafafa',borderStyle:'dashed',borderColor:'#ccc',textAlign:'center',padding:16,marginTop:4}}>
+            <div style={{fontSize:24,marginBottom:6}}>🔌</div>
+            <div style={{fontWeight:800,fontSize:13,color:'#555',marginBottom:4}}>Integração com a máquina SmartDrop</div>
+            <div style={{fontSize:11,color:'#999',lineHeight:'1.5'}}>Em breve: leitura automática de níveis, produtos e tanques diretamente do equipamento via API.</div>
+          </div>
+        </>)}
       </div>
     </div>
   )
 }
-
 // ═══════════════════════════════════════════════════════════════
 // MAIN APP
 // ═══════════════════════════════════════════════════════════════
 const MGROLES=['Engenheiro Agrônomo','Técnico Agrícola']
 
+function ResetPasswordScreen({onDone}){
+  const[pw,setPw]=useState('')
+  const[pw2,setPw2]=useState('')
+  const[err,setErr]=useState('')
+  const[loading,setLoading]=useState(false)
+  const[done,setDone]=useState(false)
+
+  const salvar=async()=>{
+    if(pw.length<6){setErr('A senha deve ter no mínimo 6 caracteres');return}
+    if(pw!==pw2){setErr('As senhas não conferem');return}
+    setLoading(true);setErr('')
+    const{error}=await sb.auth.updateUser({password:pw})
+    if(error){setErr(error.message);setLoading(false)}
+    else{setDone(true);setLoading(false)}
+  }
+
+  if(done) return(
+    <div style={{flex:1,display:'flex',flexDirection:'column',background:'#00313C',minHeight:'100vh',alignItems:'center',justifyContent:'center',padding:24}}>
+      <div style={{textAlign:'center',color:'#fff',maxWidth:320}}>
+        <div style={{fontSize:48,marginBottom:16}}>✅</div>
+        <div style={{fontSize:20,fontWeight:900,marginBottom:8}}>Senha redefinida!</div>
+        <div style={{color:'#7EC8D8',fontSize:14,lineHeight:'1.5',marginBottom:24}}>Sua nova senha foi salva. Agora você já pode entrar no app.</div>
+        <button className="btn" onClick={onDone}>Ir para o login →</button>
+      </div>
+    </div>
+  )
+
+  return(
+    <div style={{flex:1,display:'flex',flexDirection:'column',background:'#00313C',minHeight:'100vh'}}>
+      <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'32px 20px'}}>
+        <div style={{textAlign:'center',marginBottom:28}}>
+          <div style={{fontSize:34,fontWeight:900,color:'#fff',letterSpacing:-1}}>FertigeoTech</div>
+          <div style={{color:'#7EC8D8',fontSize:11,fontWeight:700,letterSpacing:3,marginTop:4,textTransform:'uppercase'}}>Redefinir Senha</div>
+        </div>
+        <div style={{width:'100%',maxWidth:360,background:'#fff',borderRadius:20,padding:22,boxShadow:'0 20px 60px rgba(0,0,0,.4)'}}>
+          <div style={{fontWeight:800,fontSize:16,color:'#00313C',marginBottom:14}}>🔑 Crie uma nova senha</div>
+          <label className="lbl">Nova senha *</label>
+          <input className="field" type="password" placeholder="Mínimo 6 caracteres" value={pw} onChange={e=>setPw(e.target.value)} style={{marginBottom:12}}/>
+          <label className="lbl">Confirme a senha *</label>
+          <input className="field" type="password" placeholder="Digite novamente" value={pw2} onChange={e=>setPw2(e.target.value)} style={{marginBottom:14}}/>
+          {err&&<div style={{background:'#ffebee',color:'#c62828',padding:'8px 12px',borderRadius:8,fontSize:13,fontWeight:700,marginBottom:12}}>⚠️ {err}</div>}
+          <button className="btn" disabled={loading} onClick={salvar}>{loading?'Salvando...':'Salvar nova senha →'}</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function App(){
   const[session,setSession]=useState(undefined)
+  const[recovery,setRecovery]=useState(false)
   const[profile,setProfile]=useState(null)
   const[screen,setScreen]=useState('home')
   const[ctx,setCtx]=useState({})
@@ -1605,11 +1771,18 @@ function App(){
   const[tab,setTab]=useState('home')
 
   useEffect(()=>{
+    // Detecta link de recuperação de senha
+    if(window.location.hash.includes('type=recovery')||window.location.search.includes('type=recovery')){
+      setRecovery(true)
+    }
+    const timeout=setTimeout(()=>setSession(null),5000)
     sb.auth.getSession().then(({data:{session}})=>{
+      clearTimeout(timeout)
       setSession(session||null)
       if(session) loadProfile(session.user.id)
-    })
-    const{data:{subscription}}=sb.auth.onAuthStateChange((_,session)=>{
+    }).catch(()=>{clearTimeout(timeout);setSession(null)})
+    const{data:{subscription}}=sb.auth.onAuthStateChange((event,session)=>{
+      if(event==='PASSWORD_RECOVERY'){setRecovery(true)}
       setSession(session||null)
       if(session) loadProfile(session.user.id)
       else{setProfile(null);setLots([])}
@@ -1647,6 +1820,7 @@ function App(){
     </div>
   )
 
+  if(recovery) return <ResetPasswordScreen onDone={()=>{setRecovery(false);window.location.hash='';window.history.replaceState(null,'',window.location.pathname)}}/>
   if(!session) return <LoginScreen onLogin={()=>{}}/>
 
   const op={
