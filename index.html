@@ -1543,6 +1543,7 @@ function LaudoScreen({lot,telem,jar,op,onBack}){
 
 function ManagerScreen({lots,onNav}){
   const[view,setView]=useState('misturas')
+  const[selReb,setSelReb]=useState(null)
   const today=new Date().toDateString()
   const kpis=[
     {icon:'📋',label:'Hoje',val:lots.filter(l=>new Date(l.created_at).toDateString()===today).length,c:'#006E85'},
@@ -1554,10 +1555,17 @@ function ManagerScreen({lots,onNav}){
   const applied=lots.filter(l=>l.status==='APPLIED')
   const risks=lots.filter(l=>l.last_ph&&(l.last_ph<5||l.last_ph>7))
   const TL=[{s:'WATER_OK',icon:'💧'},{s:'PREPARING',icon:'⚗️'},{s:'JAR_TEST',icon:'🧪'},{s:'READY',icon:'✅'},{s:'APPLIED',icon:'🚜'}]
+  const mkHist=(base,varc)=>Array.from({length:7},(_,i)=>({t:`0${8+i}:00`.slice(-5),v:+(base+Math.sin(i)*varc).toFixed(1)}))
   const reboques=[
-    {id:'RB-01',op:'João Silva',farm:lots[0]?.farm||'Fazenda São José',field:lots[0]?.field||'Talhão 01',status:'em_rota',prog:60,eta:'12 min'},
-    {id:'RB-02',op:'Carlos Mendes',farm:lots[1]?.farm||'Fazenda Brasilândia',field:lots[1]?.field||'Talhão 03',status:'aplicando',prog:35,eta:'em campo'},
-    {id:'RB-03',op:'Pedro Santos',farm:lots[2]?.farm||'Usina Caçu',field:lots[2]?.field||'Talhão 07',status:'retornando',prog:90,eta:'5 min'},
+    {id:'RB-01',op:'João Silva',farm:lots[0]?.farm||'Fazenda São José',field:lots[0]?.field||'Talhão 01',status:'em_rota',prog:60,eta:'12 min',ph:6.4,temp:24,cond:178,
+      phHist:mkHist(6.4,.15),tempHist:mkHist(24,2),
+      timeline:[{etapa:'Estoque',icon:'📦',hora:'07:15',ph:6.5,temp:22,done:true},{etapa:'Preparo',icon:'⚗️',hora:'07:40',ph:6.4,temp:23,done:true},{etapa:'Transporte',icon:'🚚',hora:'08:05',ph:6.4,temp:24,done:true,atual:true},{etapa:'Pulverizador',icon:'🌾',hora:'—',ph:null,temp:null,done:false}]},
+    {id:'RB-02',op:'Carlos Mendes',farm:lots[1]?.farm||'Fazenda Brasilândia',field:lots[1]?.field||'Talhão 03',status:'aplicando',prog:35,eta:'em campo',ph:6.7,temp:26,cond:195,
+      phHist:mkHist(6.7,.2),tempHist:mkHist(26,3),
+      timeline:[{etapa:'Estoque',icon:'📦',hora:'06:50',ph:6.6,temp:21,done:true},{etapa:'Preparo',icon:'⚗️',hora:'07:10',ph:6.7,temp:23,done:true},{etapa:'Transporte',icon:'🚚',hora:'07:35',ph:6.7,temp:25,done:true},{etapa:'Pulverizador',icon:'🌾',hora:'08:00',ph:6.7,temp:26,done:true,atual:true}]},
+    {id:'RB-03',op:'Pedro Santos',farm:lots[2]?.farm||'Usina Caçu',field:lots[2]?.field||'Talhão 07',status:'retornando',prog:90,eta:'5 min',ph:6.2,temp:25,cond:165,
+      phHist:mkHist(6.2,.1),tempHist:mkHist(25,2.5),
+      timeline:[{etapa:'Estoque',icon:'📦',hora:'06:20',ph:6.3,temp:20,done:true},{etapa:'Preparo',icon:'⚗️',hora:'06:45',ph:6.2,temp:22,done:true},{etapa:'Transporte',icon:'🚚',hora:'07:10',ph:6.2,temp:24,done:true},{etapa:'Pulverizador',icon:'🌾',hora:'07:40',ph:6.2,temp:25,done:true,atual:true}]},
   ]
   const RBSt={em_rota:{l:'Em rota',c:'#e65100',bg:'#fff3e0',icon:'🚚'},aplicando:{l:'Aplicando',c:'#006E85',bg:'#e0f4f7',icon:'🌾'},retornando:{l:'Retornando',c:'#4caf50',bg:'#e8f5e9',icon:'↩️'}}
   const tanques=[
@@ -1658,11 +1666,12 @@ function ManagerScreen({lots,onNav}){
           {reboques.map(r=>{
             const st=RBSt[r.status]
             return(
-              <div key={r.id} className="card" style={{marginBottom:8}}>
+              <div key={r.id} className="card" onClick={()=>setSelReb(r)} style={{marginBottom:8,cursor:'pointer'}}>
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:8}}>
                   <div><div style={{fontWeight:800,fontSize:14}}>{st.icon} {r.id} · {r.op}</div><div style={{fontSize:12,color:'#777',marginTop:1}}>{r.farm} — {r.field}</div></div>
                   <span style={{fontSize:11,fontWeight:800,color:st.c,background:st.bg,padding:'3px 9px',borderRadius:20}}>{st.l}</span>
                 </div>
+                <div style={{fontSize:11,color:'#006E85',fontWeight:700,marginBottom:6}}>📊 Ver sensores e linha do tempo →</div>
                 <div style={{display:'flex',alignItems:'center',gap:8}}>
                   <div style={{flex:1,height:6,background:'#eee',borderRadius:3,overflow:'hidden'}}><div style={{width:r.prog+'%',height:'100%',background:st.c,borderRadius:3}}/></div>
                   <span style={{fontSize:11,fontWeight:700,color:'#555',minWidth:50,textAlign:'right'}}>{r.eta}</span>
@@ -1671,6 +1680,56 @@ function ManagerScreen({lots,onNav}){
             )
           })}
           <div style={{textAlign:'center',fontSize:11,color:'#9e9e9e',marginTop:8,fontStyle:'italic'}}>Dados de demonstração · integração GPS em desenvolvimento</div>
+          {selReb&&(
+            <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.5)',zIndex:1000,display:'flex',alignItems:'flex-end',justifyContent:'center'}} onClick={()=>setSelReb(null)}>
+              <div onClick={e=>e.stopPropagation()} style={{background:'#fff',borderRadius:'20px 20px 0 0',width:'100%',maxWidth:480,maxHeight:'90vh',overflowY:'auto',padding:'18px 16px 28px'}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}>
+                  <div><div style={{fontWeight:900,fontSize:17,color:'#00313C'}}>{RBSt[selReb.status].icon} {selReb.id}</div><div style={{fontSize:12,color:'#777'}}>{selReb.op} · {selReb.farm}</div></div>
+                  <button onClick={()=>setSelReb(null)} style={{background:'#f0f0f0',border:'none',borderRadius:'50%',width:32,height:32,fontSize:18,cursor:'pointer',color:'#666'}}>×</button>
+                </div>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,marginBottom:16}}>
+                  <div style={{background:'#f0f8fa',borderRadius:12,padding:'10px 8px',textAlign:'center'}}>
+                    <div style={{fontSize:10,color:'#777',fontWeight:700}}>💧 pH</div>
+                    <div style={{fontSize:22,fontWeight:900,color:selReb.ph>=5.5&&selReb.ph<=6.5?'#2e7d32':'#e65100'}}>{selReb.ph}</div>
+                  </div>
+                  <div style={{background:'#f0f8fa',borderRadius:12,padding:'10px 8px',textAlign:'center'}}>
+                    <div style={{fontSize:10,color:'#777',fontWeight:700}}>🌡️ Temp</div>
+                    <div style={{fontSize:22,fontWeight:900,color:'#00313C'}}>{selReb.temp}°</div>
+                  </div>
+                  <div style={{background:'#f0f8fa',borderRadius:12,padding:'10px 8px',textAlign:'center'}}>
+                    <div style={{fontSize:10,color:'#777',fontWeight:700}}>⚡ Cond</div>
+                    <div style={{fontSize:22,fontWeight:900,color:'#00313C'}}>{selReb.cond}</div>
+                  </div>
+                </div>
+                <div style={{fontWeight:800,fontSize:13,color:'#00313C',marginBottom:10}}>🕐 Jornada da calda</div>
+                <div style={{position:'relative',paddingLeft:28,marginBottom:18}}>
+                  <div style={{position:'absolute',left:9,top:10,bottom:10,width:2,background:'#e0e0e0'}}/>
+                  {selReb.timeline.map((tp,i)=>(
+                    <div key={i} style={{position:'relative',marginBottom:i<selReb.timeline.length-1?16:0}}>
+                      <div style={{position:'absolute',left:-28,top:0,width:20,height:20,borderRadius:'50%',background:tp.done?(tp.atual?'#006E85':'#A2B34C'):'#e0e0e0',display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,zIndex:1}}>{tp.done?'✓':''}</div>
+                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline'}}>
+                        <span style={{fontSize:13,fontWeight:tp.atual?900:700,color:tp.done?'#00313C':'#aaa'}}>{tp.icon} {tp.etapa}{tp.atual?' (atual)':''}</span>
+                        <span style={{fontSize:11,color:'#999'}}>{tp.hora}</span>
+                      </div>
+                      {tp.ph&&<div style={{fontSize:11,color:'#777',marginTop:1}}>pH {tp.ph} · {tp.temp}°C</div>}
+                    </div>
+                  ))}
+                </div>
+                <div style={{fontWeight:800,fontSize:13,color:'#00313C',marginBottom:8}}>📈 Histórico de pH no trajeto</div>
+                <div style={{display:'flex',alignItems:'flex-end',gap:4,height:80,marginBottom:16,padding:'0 4px'}}>
+                  {selReb.phHist.map((h,i)=>(
+                    <div key={i} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:3}}>
+                      <div style={{width:'100%',background:'linear-gradient(180deg,#006E85,#7EC8D8)',borderRadius:'4px 4px 0 0',height:`${(h.v/8)*60}px`}}/>
+                      <span style={{fontSize:8,color:'#aaa'}}>{h.t}</span>
+                    </div>
+                  ))}
+                </div>
+                <div style={{background:'#fafafa',borderRadius:10,padding:12,fontSize:11,color:'#999',textAlign:'center',fontStyle:'italic'}}>
+                  🔌 Dados simulados · sensores IoT no reboque em desenvolvimento
+                </div>
+              </div>
+            </div>
+          )}
         </>)}
         {view==='smartdrop'&&(<>
           <div style={{background:'linear-gradient(135deg,#A2B34C,#7a8a38)',borderRadius:14,padding:16,marginBottom:12,color:'#fff'}}>
