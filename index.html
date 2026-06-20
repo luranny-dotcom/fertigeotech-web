@@ -1096,6 +1096,99 @@ function JarTestScreen({lot,onBack,onDone}){
   )
 }
 
+function DilutionConfigScreen({lot,onBack,onDone}){
+  const produtos = lot.recipe_text ? parseRecipe(lot.recipe_text) : []
+  // Estado: config de cada produto + agitação final
+  const[configs,setConfigs]=useState(()=>{
+    // tenta carregar config salva, senão cria padrão
+    if(lot.dilution_config){try{return JSON.parse(lot.dilution_config).produtos}catch{}}
+    return produtos.map((p,i)=>({
+      nome:p.name, tipo:p.type, dose:p.dose,
+      diluidor:(i%3)+1, // app distribui automaticamente 1,2,3,1,2,3...
+      agua:'', temp:'25', agitacao:'5'
+    }))
+  })
+  const[esperaAgit,setEsperaAgit]=useState(()=>{
+    if(lot.dilution_config){try{return JSON.parse(lot.dilution_config).espera_agitacao||'5'}catch{}}
+    return '5'
+  })
+  const[saving,setSaving]=useState(false)
+  const[err,setErr]=useState('')
+
+  const upd=(i,campo,val)=>setConfigs(prev=>prev.map((c,idx)=>idx===i?{...c,[campo]:val}:c))
+
+  const salvar=async()=>{
+    // valida
+    for(const c of configs){
+      if(!c.agua){setErr(`Informe os litros de água para ${c.nome}`);return}
+    }
+    setSaving(true);setErr('')
+    try{
+      const config={produtos:configs,espera_agitacao:esperaAgit,tanque_espera:((SO.indexOf(lot.status))%3)+1}
+      const updated=await dbUpdate('lots',lot.id,{dilution_config:JSON.stringify(config)})
+      setSaving(false)
+      onDone({...lot,...updated,dilution_config:JSON.stringify(config)})
+    }catch(e){setErr('Erro ao salvar: '+e.message);setSaving(false)}
+  }
+
+  return(
+    <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
+      <Hdr title="⚗️ Configurar Diluição" onBack={onBack}/>
+      <div className="sc" style={{flex:1,padding:12,paddingBottom:100}}>
+        <div style={{background:'#e0f4f7',borderRadius:12,padding:'10px 14px',marginBottom:14,fontSize:12,color:'#006E85'}}>
+          Defina os parâmetros de diluição de cada produto. O app distribui os diluidores automaticamente.
+        </div>
+
+        {configs.map((cfg,i)=>(
+          <div key={i} className="card" style={{marginBottom:12}}>
+            <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12,paddingBottom:10,borderBottom:'1px solid #f0f0f0'}}>
+              <div style={{width:26,height:26,borderRadius:'50%',background:'#00313C',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:900,fontSize:12}}>{i+1}</div>
+              <span style={{fontSize:17}}>{FI[cfg.tipo]||'🔬'}</span>
+              <div style={{flex:1}}>
+                <div style={{fontWeight:800,fontSize:14}}>{cfg.nome}</div>
+                {cfg.dose&&<div style={{fontSize:11,color:'#777'}}>{cfg.dose}</div>}
+              </div>
+            </div>
+
+            <label className="lbl">Diluidor (definido pelo app)</label>
+            <div style={{display:'flex',gap:6,marginBottom:12}}>
+              {[1,2,3].map(d=>(
+                <button key={d} onClick={()=>upd(i,'diluidor',d)} style={{flex:1,padding:'8px',borderRadius:10,border:'1.5px solid',fontSize:13,fontWeight:800,cursor:'pointer',background:cfg.diluidor===d?'#006E85':'#fff',color:cfg.diluidor===d?'#fff':'#777',borderColor:cfg.diluidor===d?'#006E85':'#ddd'}}>Diluidor {d}</button>
+              ))}
+            </div>
+
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}>
+              <div>
+                <label className="lbl">Água (L)</label>
+                <input className="field" type="number" inputMode="numeric" placeholder="1000" value={cfg.agua} onChange={e=>upd(i,'agua',e.target.value)}/>
+              </div>
+              <div>
+                <label className="lbl">Temp (°C)</label>
+                <input className="field" type="number" inputMode="numeric" placeholder="25" value={cfg.temp} onChange={e=>upd(i,'temp',e.target.value)}/>
+              </div>
+              <div>
+                <label className="lbl">Agitar (min)</label>
+                <input className="field" type="number" inputMode="numeric" placeholder="5" value={cfg.agitacao} onChange={e=>upd(i,'agitacao',e.target.value)}/>
+              </div>
+            </div>
+          </div>
+        ))}
+
+        <div className="card" style={{background:'#f0f8fa',marginBottom:8}}>
+          <div style={{fontWeight:800,fontSize:13,color:'#00313C',marginBottom:8}}>🛢️ Tanque de espera (calda final)</div>
+          <label className="lbl">Tempo de agitação final (min)</label>
+          <input className="field" type="number" inputMode="numeric" placeholder="5" value={esperaAgit} onChange={e=>setEsperaAgit(e.target.value)}/>
+        </div>
+
+        {err&&<div style={{background:'#ffebee',color:'#c62828',padding:'8px 12px',borderRadius:8,fontSize:13,fontWeight:700,marginTop:8}}>⚠️ {err}</div>}
+      </div>
+      <div className="np" style={{padding:'10px 12px 16px',background:'#fff',borderTop:'1px solid #eee'}}>
+        <button className="btn" disabled={saving} onClick={salvar}>{saving?'Salvando...':'Salvar configuração →'}</button>
+      </div>
+    </div>
+  )
+}
+
 function LotDetailScreen({lot:initLot,op,onBack,onNav,onLotUpdate}){
   const[lot,setLot]=useState(initLot)
   const[telem,setTelem]=useState(null)
@@ -1892,7 +1985,8 @@ function App(){
   }
 
   if(screen==='new') return <NewLotScreen op={op} onBack={()=>setScreen('home')} onSaved={lot=>{setLots(p=>[lot,...p]);nav('water',lot)}}/>
-  if(screen==='water') return <WaterScreen lot={ctx.lot} onBack={()=>nav('detail',ctx.lot)} onDone={(u,t)=>{updateLot(u);nav('prep',u)}}/>
+  if(screen==='water') return <WaterScreen lot={ctx.lot} onBack={()=>nav('detail',ctx.lot)} onDone={(u,t)=>{updateLot(u);nav('dilution',u)}}/>
+  if(screen==='dilution') return <DilutionConfigScreen lot={ctx.lot} onBack={()=>nav('detail',ctx.lot)} onDone={u=>{updateLot(u);nav('prep',u)}}/>
   if(screen==='prep') return <PrepScreen lot={ctx.lot} onBack={()=>nav('detail',ctx.lot)} onDone={u=>{updateLot(u);nav('jartest',u)}}/>
   if(screen==='jartest') return <JarTestScreen lot={ctx.lot} onBack={()=>nav('detail',ctx.lot)} onDone={(u,j)=>{updateLot(u);nav('detail',u)}}/>
   if(screen==='detail') return <LotDetailScreen lot={ctx.lot} op={op} onBack={()=>{loadLots();goTab(tab)}} onNav={nav} onLotUpdate={updateLot}/>
