@@ -1105,6 +1105,7 @@ function DilutionConfigScreen({lot,onBack,onDone}){
     return produtos.map((p,i)=>({
       nome:p.name, tipo:p.type, dose:p.dose,
       diluidor:(i%3)+1, // app distribui automaticamente 1,2,3,1,2,3...
+      tanque:(i%3)+1, // tanque de espera de destino — app distribui automaticamente
       agua:'', temp:'25', agitacao:'5'
     }))
   })
@@ -1124,7 +1125,7 @@ function DilutionConfigScreen({lot,onBack,onDone}){
     }
     setSaving(true);setErr('')
     try{
-      const config={produtos:configs,espera_agitacao:esperaAgit,tanque_espera:((SO.indexOf(lot.status))%3)+1}
+      const config={produtos:configs,espera_agitacao:esperaAgit}
       const updated=await dbUpdate('lots',lot.id,{dilution_config:JSON.stringify(config)})
       setSaving(false)
       onDone({...lot,...updated,dilution_config:JSON.stringify(config)})
@@ -1136,7 +1137,7 @@ function DilutionConfigScreen({lot,onBack,onDone}){
       <Hdr title="⚗️ Configurar Diluição" onBack={onBack}/>
       <div className="sc" style={{flex:1,padding:12,paddingBottom:100}}>
         <div style={{background:'#e0f4f7',borderRadius:12,padding:'10px 14px',marginBottom:14,fontSize:12,color:'#006E85'}}>
-          Defina os parâmetros de diluição de cada produto. O app distribui os diluidores automaticamente.
+          Defina os parâmetros de diluição de cada produto. O app distribui diluidores e tanques de espera automaticamente — ajuste se necessário.
         </div>
 
         {configs.map((cfg,i)=>(
@@ -1154,6 +1155,13 @@ function DilutionConfigScreen({lot,onBack,onDone}){
             <div style={{display:'flex',gap:6,marginBottom:12}}>
               {[1,2,3].map(d=>(
                 <button key={d} onClick={()=>upd(i,'diluidor',d)} style={{flex:1,padding:'8px',borderRadius:10,border:'1.5px solid',fontSize:13,fontWeight:800,cursor:'pointer',background:cfg.diluidor===d?'#006E85':'#fff',color:cfg.diluidor===d?'#fff':'#777',borderColor:cfg.diluidor===d?'#006E85':'#ddd'}}>Diluidor {d}</button>
+              ))}
+            </div>
+
+            <label className="lbl">🛢️ Direcionar para tanque de espera</label>
+            <div style={{display:'flex',gap:6,marginBottom:12}}>
+              {[1,2,3].map(t=>(
+                <button key={t} onClick={()=>upd(i,'tanque',t)} style={{flex:1,padding:'8px',borderRadius:10,border:'1.5px solid',fontSize:13,fontWeight:800,cursor:'pointer',background:cfg.tanque===t?'#00313C':'#fff',color:cfg.tanque===t?'#fff':'#777',borderColor:cfg.tanque===t?'#00313C':'#ddd'}}>Tanque {t}</button>
               ))}
             </div>
 
