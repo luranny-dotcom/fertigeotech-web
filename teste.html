@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><title>Teste</title></head>
+<body>
+<div id="root"></div>
+<script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.22.5/babel.min.js"></script>
+<script type="text/babel" data-presets="react" data-type="script">
+const{useState}=React
+function App(){
+  const[c,setC]=useState(0)
+  return <div style={{padding:40,fontSize:24,fontFamily:'system-ui'}}>
+    <h1>🎉 Funcionou!</h1>
+    <p>Contador: {c}</p>
+    <button onClick={()=>setC(c+1)} style={{padding:'10px 20px',fontSize:16}}>+1</button>
+  </div>
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>)
+</script>
+</body>
+</html>
