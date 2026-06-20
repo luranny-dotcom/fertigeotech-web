@@ -1098,52 +1098,73 @@ function JarTestScreen({lot,onBack,onDone}){
 
 function DilutionConfigScreen({lot,onBack,onDone}){
   const produtos = lot.recipe_text ? parseRecipe(lot.recipe_text) : []
-  // Estado: config de cada produto + agitação final
+  // Estado: config de cada produto + tanque de espera + agitação final
   const[configs,setConfigs]=useState(()=>{
     // tenta carregar config salva, senão cria padrão
     if(lot.dilution_config){try{return JSON.parse(lot.dilution_config).produtos}catch{}}
     return produtos.map((p,i)=>({
       nome:p.name, tipo:p.type, dose:p.dose,
-      diluidor:(i%3)+1, // app distribui automaticamente 1,2,3,1,2,3...
-      tanque:(i%3)+1, // tanque de espera de destino — app distribui automaticamente
+      diluidor:(i%3)+1, // tanque de diluição/incorporação — app distribui automaticamente 1,2,3,1,2,3...
       agua:'', temp:'25', agitacao:'5'
     }))
+  })
+  const[tanqueEspera,setTanqueEspera]=useState(()=>{
+    if(lot.dilution_config){try{return JSON.parse(lot.dilution_config).tanque_espera||1}catch{}}
+    return 1
   })
   const[esperaAgit,setEsperaAgit]=useState(()=>{
     if(lot.dilution_config){try{return JSON.parse(lot.dilution_config).espera_agitacao||'5'}catch{}}
     return '5'
   })
+  const[cur,setCur]=useState(0)
+  const[done,setDone]=useState(new Set())
   const[saving,setSaving]=useState(false)
   const[err,setErr]=useState('')
+
+  const totalSteps=configs.length+1 // +1 = etapa final do tanque de espera
+  const isFinal=cur===configs.length
+  const cfg=!isFinal?configs[cur]:null
+  const pct=Math.round(((cur+1)/totalSteps)*100)
 
   const upd=(i,campo,val)=>setConfigs(prev=>prev.map((c,idx)=>idx===i?{...c,[campo]:val}:c))
 
   const salvar=async()=>{
-    // valida
-    for(const c of configs){
-      if(!c.agua){setErr(`Informe os litros de água para ${c.nome}`);return}
-    }
     setSaving(true);setErr('')
     try{
-      const config={produtos:configs,espera_agitacao:esperaAgit}
-      const updated=await dbUpdate('lots',lot.id,{dilution_config:JSON.stringify(config)})
+      const config={produtos:configs,tanque_espera:tanqueEspera,espera_agitacao:esperaAgit}
+      const updated=await dbUpdate('lots',lot.id,{dilution_config:JSON.stringify(config),status:'JAR_TEST'})
       setSaving(false)
-      onDone({...lot,...updated,dilution_config:JSON.stringify(config)})
+      onDone({...lot,...updated,dilution_config:JSON.stringify(config),status:'JAR_TEST'})
     }catch(e){setErr('Erro ao salvar: '+e.message);setSaving(false)}
+  }
+
+  const next=()=>{
+    if(!isFinal&&!cfg.agua){setErr(`Informe os litros de água para ${cfg.nome}`);return}
+    setErr('')
+    setDone(prev=>new Set([...prev,cur]))
+    if(cur<totalSteps-1) setCur(c=>c+1)
+    else salvar()
   }
 
   return(
     <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
-      <Hdr title="⚗️ Configurar Diluição" onBack={onBack}/>
-      <div className="sc" style={{flex:1,padding:12,paddingBottom:100}}>
-        <div style={{background:'#e0f4f7',borderRadius:12,padding:'10px 14px',marginBottom:14,fontSize:12,color:'#006E85'}}>
-          Defina os parâmetros de diluição de cada produto. O app distribui diluidores e tanques de espera automaticamente — ajuste se necessário.
+      <div style={{background:'#00313C',padding:'14px 16px 18px',flexShrink:0}}>
+        <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:10}}>
+          <button onClick={onBack} style={{background:'none',border:'none',color:'#7EC8D8',fontSize:24,fontWeight:900,cursor:'pointer',padding:0}}>‹</button>
+          <span style={{color:'#fff',fontWeight:800,fontSize:16,flex:1}}>⚗️ Guia de Diluição</span>
+          <span style={{color:'#7EC8D8',fontSize:12,fontWeight:700}}>{cur+1}/{totalSteps}</span>
         </div>
+        <div style={{height:4,background:'rgba(255,255,255,.2)',borderRadius:4,overflow:'hidden'}}><div style={{height:'100%',background:'#7EC8D8',width:`${pct}%`,transition:'width .3s'}}/></div>
+        <div style={{display:'flex',justifyContent:'center',gap:5,marginTop:8,flexWrap:'wrap'}}>
+          {Array.from({length:totalSteps}).map((_,i)=><div key={i} style={{width:7,height:7,borderRadius:'50%',background:done.has(i)?'#7EC8D8':i===cur?'#fff':'rgba(255,255,255,.25)'}}/>)}
+        </div>
+      </div>
 
-        {configs.map((cfg,i)=>(
-          <div key={i} className="card" style={{marginBottom:12}}>
+      <div className="sc" style={{flex:1,padding:12,paddingBottom:100}}>
+        {!isFinal?(
+          <div className="card">
             <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12,paddingBottom:10,borderBottom:'1px solid #f0f0f0'}}>
-              <div style={{width:26,height:26,borderRadius:'50%',background:'#00313C',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:900,fontSize:12}}>{i+1}</div>
+              <div style={{width:26,height:26,borderRadius:'50%',background:'#00313C',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:900,fontSize:12}}>{cur+1}</div>
               <span style={{fontSize:17}}>{FI[cfg.tipo]||'🔬'}</span>
               <div style={{flex:1}}>
                 <div style={{fontWeight:800,fontSize:14}}>{cfg.nome}</div>
@@ -1151,47 +1172,75 @@ function DilutionConfigScreen({lot,onBack,onDone}){
               </div>
             </div>
 
-            <label className="lbl">Diluidor (definido pelo app)</label>
+            <label className="lbl">Tanque de diluição/incorporação</label>
             <div style={{display:'flex',gap:6,marginBottom:12}}>
               {[1,2,3].map(d=>(
-                <button key={d} onClick={()=>upd(i,'diluidor',d)} style={{flex:1,padding:'8px',borderRadius:10,border:'1.5px solid',fontSize:13,fontWeight:800,cursor:'pointer',background:cfg.diluidor===d?'#006E85':'#fff',color:cfg.diluidor===d?'#fff':'#777',borderColor:cfg.diluidor===d?'#006E85':'#ddd'}}>Diluidor {d}</button>
-              ))}
-            </div>
-
-            <label className="lbl">🛢️ Direcionar para tanque de espera</label>
-            <div style={{display:'flex',gap:6,marginBottom:12}}>
-              {[1,2,3].map(t=>(
-                <button key={t} onClick={()=>upd(i,'tanque',t)} style={{flex:1,padding:'8px',borderRadius:10,border:'1.5px solid',fontSize:13,fontWeight:800,cursor:'pointer',background:cfg.tanque===t?'#00313C':'#fff',color:cfg.tanque===t?'#fff':'#777',borderColor:cfg.tanque===t?'#00313C':'#ddd'}}>Tanque {t}</button>
+                <button key={d} onClick={()=>upd(cur,'diluidor',d)} style={{flex:1,padding:'8px',borderRadius:10,border:'1.5px solid',fontSize:13,fontWeight:800,cursor:'pointer',background:cfg.diluidor===d?'#006E85':'#fff',color:cfg.diluidor===d?'#fff':'#777',borderColor:cfg.diluidor===d?'#006E85':'#ddd'}}>Tanque {d}</button>
               ))}
             </div>
 
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}>
               <div>
                 <label className="lbl">Água (L)</label>
-                <input className="field" type="number" inputMode="numeric" placeholder="1000" value={cfg.agua} onChange={e=>upd(i,'agua',e.target.value)}/>
+                <input className="field" type="number" inputMode="numeric" placeholder="1000" value={cfg.agua} onChange={e=>upd(cur,'agua',e.target.value)}/>
               </div>
               <div>
                 <label className="lbl">Temp (°C)</label>
-                <input className="field" type="number" inputMode="numeric" placeholder="25" value={cfg.temp} onChange={e=>upd(i,'temp',e.target.value)}/>
+                <input className="field" type="number" inputMode="numeric" placeholder="25" value={cfg.temp} onChange={e=>upd(cur,'temp',e.target.value)}/>
               </div>
               <div>
                 <label className="lbl">Agitar (min)</label>
-                <input className="field" type="number" inputMode="numeric" placeholder="5" value={cfg.agitacao} onChange={e=>upd(i,'agitacao',e.target.value)}/>
+                <input className="field" type="number" inputMode="numeric" placeholder="5" value={cfg.agitacao} onChange={e=>upd(cur,'agitacao',e.target.value)}/>
               </div>
             </div>
+            <Timer key={cur} seconds={(parseFloat(cfg.agitacao)||0)*60}/>
           </div>
-        ))}
+        ):(
+          <div className="card" style={{background:'#f0f8fa'}}>
+            <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12,paddingBottom:10,borderBottom:'1px solid #dceef2'}}>
+              <span style={{fontSize:22}}>🛢️</span>
+              <div style={{fontWeight:800,fontSize:14,color:'#00313C'}}>Tanque de espera (calda final)</div>
+            </div>
+            <label className="lbl">Direcionar produtos diluídos para</label>
+            <div style={{display:'flex',gap:6,marginBottom:12}}>
+              {[1,2,3].map(t=>(
+                <button key={t} onClick={()=>setTanqueEspera(t)} style={{flex:1,padding:'8px',borderRadius:10,border:'1.5px solid',fontSize:13,fontWeight:800,cursor:'pointer',background:tanqueEspera===t?'#00313C':'#fff',color:tanqueEspera===t?'#fff':'#777',borderColor:tanqueEspera===t?'#00313C':'#ddd'}}>Tanque {t}</button>
+              ))}
+            </div>
+            <label className="lbl">Tempo de agitação final (min)</label>
+            <input className="field" type="number" inputMode="numeric" placeholder="5" value={esperaAgit} onChange={e=>setEsperaAgit(e.target.value)}/>
+            <Timer key="final" seconds={(parseFloat(esperaAgit)||0)*60}/>
+          </div>
+        )}
 
-        <div className="card" style={{background:'#f0f8fa',marginBottom:8}}>
-          <div style={{fontWeight:800,fontSize:13,color:'#00313C',marginBottom:8}}>🛢️ Tanque de espera (calda final)</div>
-          <label className="lbl">Tempo de agitação final (min)</label>
-          <input className="field" type="number" inputMode="numeric" placeholder="5" value={esperaAgit} onChange={e=>setEsperaAgit(e.target.value)}/>
+        {cur<totalSteps-1&&(
+          <div className="card" style={{display:'flex',alignItems:'center',gap:10,padding:'10px 14px'}}>
+            <span style={{fontSize:11,color:'#bbb',fontWeight:700}}>A SEGUIR →</span>
+            <span style={{fontSize:16}}>{cur+1<configs.length?FI[configs[cur+1].tipo]:'🛢️'}</span>
+            <span style={{fontSize:13,fontWeight:700,color:'#555',flex:1}}>{cur+1<configs.length?configs[cur+1].nome:'Tanque de espera (calda final)'}</span>
+          </div>
+        )}
+
+        <div className="card">
+          <div style={{fontSize:11,fontWeight:700,color:'#999',textTransform:'uppercase',marginBottom:8}}>Checklist ({done.size}/{totalSteps})</div>
+          {configs.map((c,i)=>(
+            <div key={i} style={{display:'flex',alignItems:'center',gap:8,padding:'5px 8px',borderRadius:8,background:i===cur?'#e0f4f7':'transparent',marginBottom:2}}>
+              <span style={{fontSize:13}}>{done.has(i)?'✅':i===cur?'👉':'⬜'}</span>
+              <span style={{fontSize:12,fontWeight:700,color:done.has(i)?'#bbb':'#333',textDecoration:done.has(i)?'line-through':'none'}}>{c.nome}</span>
+            </div>
+          ))}
+          <div style={{display:'flex',alignItems:'center',gap:8,padding:'5px 8px',borderRadius:8,background:isFinal?'#e0f4f7':'transparent'}}>
+            <span style={{fontSize:13}}>{done.has(configs.length)?'✅':isFinal?'👉':'⬜'}</span>
+            <span style={{fontSize:12,fontWeight:700,color:done.has(configs.length)?'#bbb':'#333',textDecoration:done.has(configs.length)?'line-through':'none'}}>Tanque de espera (calda final)</span>
+          </div>
         </div>
 
         {err&&<div style={{background:'#ffebee',color:'#c62828',padding:'8px 12px',borderRadius:8,fontSize:13,fontWeight:700,marginTop:8}}>⚠️ {err}</div>}
       </div>
-      <div className="np" style={{padding:'10px 12px 16px',background:'#fff',borderTop:'1px solid #eee'}}>
-        <button className="btn" disabled={saving} onClick={salvar}>{saving?'Salvando...':'Salvar configuração →'}</button>
+
+      <div style={{padding:'10px 12px 16px',background:'#fff',borderTop:'1px solid #eee',display:'flex',flexDirection:'column',gap:8}}>
+        <button className="btn" disabled={saving} onClick={next}>{saving?'Salvando...':isFinal?'✅ Concluir → Jar Test':`Etapa ${cur+1} ✓ → Próxima`}</button>
+        {cur>0&&<button className="btn-ghost" onClick={()=>{setErr('');setCur(c=>c-1)}}>← Voltar etapa</button>}
       </div>
     </div>
   )
@@ -1994,7 +2043,7 @@ function App(){
 
   if(screen==='new') return <NewLotScreen op={op} onBack={()=>setScreen('home')} onSaved={lot=>{setLots(p=>[lot,...p]);nav('water',lot)}}/>
   if(screen==='water') return <WaterScreen lot={ctx.lot} onBack={()=>nav('detail',ctx.lot)} onDone={(u,t)=>{updateLot(u);nav('dilution',u)}}/>
-  if(screen==='dilution') return <DilutionConfigScreen lot={ctx.lot} onBack={()=>nav('detail',ctx.lot)} onDone={u=>{updateLot(u);nav('prep',u)}}/>
+  if(screen==='dilution') return <DilutionConfigScreen lot={ctx.lot} onBack={()=>nav('detail',ctx.lot)} onDone={u=>{updateLot(u);nav('jartest',u)}}/>
   if(screen==='prep') return <PrepScreen lot={ctx.lot} onBack={()=>nav('detail',ctx.lot)} onDone={u=>{updateLot(u);nav('jartest',u)}}/>
   if(screen==='jartest') return <JarTestScreen lot={ctx.lot} onBack={()=>nav('detail',ctx.lot)} onDone={(u,j)=>{updateLot(u);nav('detail',u)}}/>
   if(screen==='detail') return <LotDetailScreen lot={ctx.lot} op={op} onBack={()=>{loadLots();goTab(tab)}} onNav={nav} onLotUpdate={updateLot}/>
