@@ -797,13 +797,16 @@ function ProductPicker({onAdd}){
 function NewLotScreen({onBack,onSaved,op}){
   const[farm,setFarm]=useState('')
   const[field,setField]=useState('')
-  const[vol,setVol]=useState('')
+  const[vazao,setVazao]=useState('')
   const[area,setArea]=useState('')
   const[selectedProducts,setSelectedProducts]=useState([]) // [{name,type,dose}]
   const[saving,setSaving]=useState(false)
   const[err,setErr]=useState('')
 
   const areaNum=parseFloat(area)||0
+  const vazaoNum=parseFloat(vazao)||0
+  // Volume da calda = vazão (L/ha) × área (ha)
+  const volumeCalda=vazaoNum*areaNum
 
   // Monta recipe_text a partir dos produtos selecionados
   const recipeText=selectedProducts.map(p=>p.dose?`${p.name} ${p.dose}`:p.name).join(' + ')
@@ -844,11 +847,12 @@ function NewLotScreen({onBack,onSaved,op}){
   const save=async(goWater)=>{
     if(!farm.trim()){setErr('Informe a fazenda');return}
     if(!field.trim()){setErr('Informe o talhão');return}
-    if(!vol){setErr('Informe o volume');return}
+    if(!vazaoNum){setErr('Informe a taxa de aplicação (vazão)');return}
+    if(!areaNum){setErr('Informe a área (ha) para calcular o volume');return}
     setSaving(true)
     try{
       const row={farm:farm.trim(),field:field.trim(),
-        volume_liters:parseFloat(vol),area_ha:areaNum||null,
+        volume_liters:volumeCalda,area_ha:areaNum||null,flow_rate:vazaoNum,
         recipe_text:recipeText,recipe_params:recipeParams,status:'REQUESTED',
         org_id:op?.org_id||'00000000-0000-0000-0000-000000000001',
         user_id:op?.id||null}
@@ -886,14 +890,20 @@ function NewLotScreen({onBack,onSaved,op}){
           <input className="field" placeholder="Ex: Talhão 5 – Soja" value={field} onChange={e=>setField(e.target.value)}/>
         </div>
 
-        {/* Volume e área */}
+        {/* Vazão, área e volume calculado */}
         <div className="card">
           <div style={{fontWeight:800,fontSize:13,color:'#00313C',marginBottom:10}}>⚗️ Calda</div>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-            <div><label className="lbl">Volume (L) *</label><input className="field" type="number" placeholder="Ex: 4000" value={vol} onChange={e=>setVol(e.target.value)}/></div>
-            <div><label className="lbl">Área (ha)</label><input className="field" type="number" placeholder="Opcional" value={area} onChange={e=>setArea(e.target.value)}/></div>
+            <div><label className="lbl">Vazão (L/ha) *</label><input className="field" type="number" inputMode="decimal" placeholder="Ex: 50" value={vazao} onChange={e=>setVazao(e.target.value)}/></div>
+            <div><label className="lbl">Área (ha) *</label><input className="field" type="number" inputMode="decimal" placeholder="Ex: 100" value={area} onChange={e=>setArea(e.target.value)}/></div>
           </div>
-          {areaNum>0&&<div style={{background:'#e0f4f7',borderRadius:8,padding:'7px 12px',fontSize:12,fontWeight:700,color:'#006E85',marginTop:10}}>📐 Área: {areaNum} ha — totais calculados automaticamente</div>}
+          <div style={{background:volumeCalda>0?'#e0f4f7':'#f5f5f5',borderRadius:10,padding:'10px 14px',marginTop:10,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+            <div>
+              <div style={{fontSize:10,fontWeight:700,color:'#9e9e9e',textTransform:'uppercase'}}>Volume da calda</div>
+              {volumeCalda>0&&<div style={{fontSize:10,color:'#888'}}>{vazaoNum} L/ha × {areaNum} ha</div>}
+            </div>
+            <div style={{fontSize:22,fontWeight:900,color:volumeCalda>0?'#006E85':'#ccc'}}>{volumeCalda>0?`${volumeCalda.toLocaleString('pt-BR')} L`:'—'}</div>
+          </div>
         </div>
 
         {/* Seletor de produtos */}
