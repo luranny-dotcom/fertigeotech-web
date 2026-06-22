@@ -68,6 +68,15 @@ async function dbSelect(table, filter){
 }
 async function selectAll(table){ return dbSelect(table) }
 
+// ── Regras dos tanques (usadas em várias telas) ────────────────
+// Aquecimento: só Tanque 1 tem resistência; temp > 25°C exige Tanque 1
+const TEMP_AMBIENTE=25
+const TANQUE_AQUECE=1
+const precisaAquecer=(temp)=>(parseFloat(temp)||0)>TEMP_AMBIENTE
+// Capacidades (volume = água + produto líquido; sólidos desprezíveis)
+const TANQUE_PREPARO_CAP=6000   // L por produto (cada produto faz ciclo individual)
+const TANQUE_ESPERA_CAP=15000   // L total da calda que converge para o tanque de espera
+
 
 // -- Recipe Parser ----------------------------------------------
 const PDB={
@@ -636,6 +645,10 @@ function ProductPicker({onAdd}){
   const[picking,setPicking]=useState(null)
   const[doseVal,setDoseVal]=useState('')
   const[doseUnit,setDoseUnit]=useState('L/ha')
+  const[pAgua,setPAgua]=useState('')
+  const[pTemp,setPTemp]=useState('')
+  const[pPh,setPPh]=useState('')
+  const[pAgit,setPAgit]=useState('')
   const inputRef=useRef(null)
 
   const filtered=useMemo(()=>{
@@ -664,10 +677,12 @@ function ProductPicker({onAdd}){
   const confirm=()=>{
     if(!picking) return
     const dose=doseVal.trim()?(doseVal.trim().replace(',','.')+' '+doseUnit):''
-    onAdd({name:picking.name,nameKey:picking.nameKey||nrm(picking.name),type:picking.type||'?',dose})
+    onAdd({name:picking.name,nameKey:picking.nameKey||nrm(picking.name),type:picking.type||'?',dose,
+      agua:pAgua,temp:pTemp,ph:pPh,agitacao:pAgit})
     setPicking(null)
     setSearch('')
     setOpen(false)
+    setDoseVal('');setPAgua('');setPTemp('');setPPh('');setPAgit('')
     setTimeout(()=>inputRef.current?.focus(),50)
   }
 
@@ -759,7 +774,17 @@ function ProductPicker({onAdd}){
               {DOSE_UNITS.map(u=><option key={u} value={u}>{u}</option>)}
             </select>
           </div>
-          <button className="btn" style={{marginTop:10}} onClick={confirm}>
+
+          <div style={{fontSize:10,fontWeight:800,color:'#5a6b2a',textTransform:'uppercase',margin:'12px 0 6px'}}>⚙️ Parâmetros de preparo</div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+            <div><label className="lbl">Água (L)</label><input className="field" type="number" inputMode="numeric" placeholder="1000" value={pAgua} onChange={e=>setPAgua(e.target.value)} style={{marginBottom:0}}/></div>
+            <div><label className="lbl">Temp (°C)</label><input className="field" type="number" inputMode="numeric" placeholder="25" value={pTemp} onChange={e=>setPTemp(e.target.value)} style={{marginBottom:0}}/></div>
+            <div><label className="lbl">pH ideal</label><input className="field" type="number" inputMode="decimal" placeholder="6.0" value={pPh} onChange={e=>setPPh(e.target.value)} style={{marginBottom:0}}/></div>
+            <div><label className="lbl">Agitar (min)</label><input className="field" type="number" inputMode="numeric" placeholder="5" value={pAgit} onChange={e=>setPAgit(e.target.value)} style={{marginBottom:0}}/></div>
+          </div>
+          {(parseFloat(pAgua)||0)>TANQUE_PREPARO_CAP&&<div style={{marginTop:8,fontSize:11,fontWeight:700,color:'#c62828'}}>⚠️ Acima de {TANQUE_PREPARO_CAP} L — excede a capacidade do tanque de preparo</div>}
+
+          <button className="btn" style={{marginTop:12}} onClick={confirm}>
             ✅ Adicionar à mistura
           </button>
         </div>
@@ -782,6 +807,15 @@ function NewLotScreen({onBack,onSaved,op}){
 
   // Monta recipe_text a partir dos produtos selecionados
   const recipeText=selectedProducts.map(p=>p.dose?`${p.name} ${p.dose}`:p.name).join(' + ')
+  // Monta recipe_params (parâmetros de preparo por produto, casados por nome normalizado)
+  const recipeParams=useMemo(()=>{
+    const params={}
+    selectedProducts.forEach(p=>{
+      if(p.agua||p.temp||p.ph||p.agitacao)
+        params[p.nameKey||nrm(p.name)]={agua:p.agua||'',temp:p.temp||'',ph:p.ph||'',agitacao:p.agitacao||''}
+    })
+    return JSON.stringify(params)
+  },[selectedProducts])
 
   // Ordena por tipo (ordem de adição) para exibição
   const sortedProducts=useMemo(()=>[...selectedProducts].sort((a,b)=>(ORD[a.type]||9)-(ORD[b.type]||9)),[selectedProducts])
@@ -815,7 +849,7 @@ function NewLotScreen({onBack,onSaved,op}){
     try{
       const row={farm:farm.trim(),field:field.trim(),
         volume_liters:parseFloat(vol),area_ha:areaNum||null,
-        recipe_text:recipeText,status:'REQUESTED',
+        recipe_text:recipeText,recipe_params:recipeParams,status:'REQUESTED',
         org_id:op?.org_id||'00000000-0000-0000-0000-000000000001',
         user_id:op?.id||null}
       const lot=await insert('lots',row)
@@ -891,6 +925,7 @@ function NewLotScreen({onBack,onSaved,op}){
                         <span style={{fontSize:10,fontWeight:800,color:'#fff',background:FC[p.type]||'#9E9E9E',padding:'1px 7px',borderRadius:20}}>{FL[p.type]||'?'}</span>
                         {p.dose&&<span style={{fontSize:11,color:'#777'}}>{p.dose}</span>}
                         {total&&<span style={{fontSize:10,fontWeight:800,color:'#006E85',background:'#e0f4f7',padding:'1px 7px',borderRadius:20}}>= {total}</span>}
+                        {(p.agua||p.temp||p.ph||p.agitacao)&&<span style={{fontSize:10,color:'#5a6b2a',fontWeight:700}}>⚙️ {[p.agua&&`${p.agua}L`,p.temp&&`${p.temp}°`,p.ph&&`pH${p.ph}`,p.agitacao&&`${p.agitacao}min`].filter(Boolean).join(' · ')}</span>}
                       </div>
                     </div>
                     <button onMouseDown={()=>removeProduct(i)} style={{background:'none',border:'none',color:'#e57373',fontSize:18,cursor:'pointer',padding:'2px 4px',flexShrink:0}}>✕</button>
@@ -1095,14 +1130,6 @@ function JarTestScreen({lot,onBack,onDone}){
     </div>
   )
 }
-
-// ── Regra de aquecimento: só Tanque 1 tem resistência; temp > 25°C exige Tanque 1
-const TEMP_AMBIENTE=25
-const TANQUE_AQUECE=1
-const precisaAquecer=(temp)=>(parseFloat(temp)||0)>TEMP_AMBIENTE
-// ── Capacidades (volume = água + produto líquido; sólidos desprezíveis)
-const TANQUE_PREPARO_CAP=6000   // L por produto (cada produto faz ciclo individual)
-const TANQUE_ESPERA_CAP=15000   // L total da calda que converge para o tanque de espera
 
 // ═══════════════════════════════════════════════════════════════════
 // FASE 1 — Tela de Configuração da Diluição
