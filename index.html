@@ -80,6 +80,38 @@ const TANQUE_ESPERA_CAP=15000   // L total da calda que converge para o tanque d
 const VAZAO_BOMBA=300           // L/min → tempo sugerido = volume de água / 300
 const tempoAgitacaoSugerido=(agua)=>{const a=parseFloat(agua)||0;return a>0?Math.max(1,Math.ceil(a/VAZAO_BOMBA)):''}
 
+// ── Tabela de Kow (log P octanol-água) por INGREDIENTE ATIVO ───────────────────
+// ⚠️ TABELA INICIAL PARA VALIDAÇÃO AGRONÔMICA (Plínio) ANTES DE USAR EM PRODUÇÃO.
+// Regra: ativo com log Kow > 3 → produto lipossolúvel → sugere adição de óleo.
+// Valores de referência aproximados (log Kow). Ajuste/adicione conforme necessário.
+// OBS: o Kow varia com a FORMULAÇÃO (sal vs éster). Quando incerto, deixe o agrônomo informar.
+const KOW_THRESHOLD=3
+const KOW_DB={
+  // — Hidrofílicos (NÃO precisam de óleo, Kow baixo/negativo) —
+  'glifosato':-3.2,'glufosinato':-4.0,'2,4-d':-0.8,'2,4 d':-0.8,'24d':-0.8,'dicamba':-1.9,
+  'paraquat':-4.5,'imazetapir':1.5,'imazapir':0.1,'nicosulfuron':-1.8,'cletodim':4.2,
+  'picloram':1.9,'metsulfurom':-1.7,'clorimuron':2.5,'flumioxazin':2.6,
+  // — Lipossolúveis (Kow alto > 3, geralmente PEDEM óleo) —
+  'lambda-cialotrina':6.8,'lambda cialotrina':6.8,'lambdacialotrina':6.8,
+  'bifentrina':6.0,'deltametrina':6.2,'permetrina':6.5,'cipermetrina':6.6,'ciflutrina':6.0,
+  'teflubenzurom':4.3,'lufenurom':5.1,'novalurom':4.3,'clorpirifos':4.7,'profenofos':4.4,
+  'abamectina':4.4,'emamectina':5.0,'espinosade':4.0,'clorantraniliprole':2.8,
+  'tebuconazol':3.7,'epoxiconazol':3.4,'azoxistrobina':2.5,'piraclostrobina':3.99,
+  'trifloxistrobina':4.5,'difenoconazol':4.4,'protioconazol':3.8,'mancozebe':1.3,
+  'fluazifop':3.2,'fluazifop-p-butil':4.5,'haloxifop':4.0,'fenoxaprop':4.6,
+  'atrazina':2.6,'simazina':2.3,'metolacloro':3.4,'trifluralina':5.3,'pendimetalina':5.2,
+}
+// Busca o Kow de um produto pelo nome (tenta casar com algum ativo conhecido). Retorna null se não achar.
+function kowDoProduto(nome){
+  if(!nome) return null
+  const n=nrm(nome)
+  // tenta match exato e depois por inclusão do nome do ativo
+  if(KOW_DB[n]!==undefined) return KOW_DB[n]
+  for(const ativo in KOW_DB){ if(n.includes(ativo)) return KOW_DB[ativo] }
+  return null
+}
+const precisaOleo=(kow)=>kow!==null&&kow!==''&&!isNaN(parseFloat(kow))&&parseFloat(kow)>KOW_THRESHOLD
+
 
 // -- Recipe Parser ----------------------------------------------
 const PDB={
@@ -661,7 +693,12 @@ function ProductPicker({onAdd}){
   const[pTemp,setPTemp]=useState('')
   const[pPh,setPPh]=useState('')
   const[pAgit,setPAgit]=useState('')
+  const[pKow,setPKow]=useState('')      // Kow do produto (auto da tabela ou manual)
+  const[pOleoNome,setPOleoNome]=useState('') // óleo escolhido (quando Kow>3)
+  const[pOleoPct,setPOleoPct]=useState('')   // % do volume da calda
   const inputRef=useRef(null)
+  // óleos cadastrados na base (tipo OIL)
+  const oleos=useMemo(()=>ALL_PRODUCTS.filter(p=>p.type==='OIL'),[])
 
   const filtered=useMemo(()=>{
     const q=nrm(search.trim())
@@ -677,12 +714,14 @@ function ProductPicker({onAdd}){
       setOpen(false);setSearch('');return
     }
     setPicking({...p,type:finalType});setSearch('');setOpen(false);setDoseVal('');setDoseUnit('L/ha')
+    setPKow((kowDoProduto(p.name)??'')+'');setPOleoNome('');setPOleoPct('') // auto-preenche Kow se conhecido
     setTimeout(()=>document.getElementById('dose-input')?.focus(),100)
   }
   const confirmType=(type)=>{
     if(!pickingType) return
     const p={name:pickingType.name,nameKey:pickingType.nameKey,type,custom:true}
     saveCustomProduct(p);setPickingType(null);setPicking(p);setDoseVal('');setDoseUnit('L/ha')
+    setPKow((kowDoProduto(p.name)??'')+'');setPOleoNome('');setPOleoPct('')
     setTimeout(()=>document.getElementById('dose-input')?.focus(),100)
   }
 
@@ -690,11 +729,12 @@ function ProductPicker({onAdd}){
     if(!picking) return
     const dose=doseVal.trim()?(doseVal.trim().replace(',','.')+' '+doseUnit):''
     onAdd({name:picking.name,nameKey:picking.nameKey||nrm(picking.name),type:picking.type||'?',dose,
-      agua:pAgua,temp:pTemp,ph:pPh,agitacao:pAgit})
+      agua:pAgua,temp:pTemp,ph:pPh,agitacao:pAgit,
+      kow:pKow,oleo_nome:precisaOleo(pKow)?pOleoNome:'',oleo_pct:precisaOleo(pKow)?pOleoPct:''})
     setPicking(null)
     setSearch('')
     setOpen(false)
-    setDoseVal('');setPAgua('');setPTemp('');setPPh('');setPAgit('')
+    setDoseVal('');setPAgua('');setPTemp('');setPPh('');setPAgit('');setPKow('');setPOleoNome('');setPOleoPct('')
     setTimeout(()=>inputRef.current?.focus(),50)
   }
 
@@ -797,6 +837,32 @@ function ProductPicker({onAdd}){
           {pAgua&&<div style={{marginTop:6,fontSize:10,color:'#5a6b2a'}}>💡 Sugestão: {pAgua} L ÷ {VAZAO_BOMBA} L/min ≈ {tempoAgitacaoSugerido(pAgua)} min (editável)</div>}
           {(parseFloat(pAgua)||0)>TANQUE_PREPARO_CAP&&<div style={{marginTop:8,fontSize:11,fontWeight:700,color:'#c62828'}}>⚠️ Acima de {TANQUE_PREPARO_CAP} L — excede a capacidade do tanque de preparo</div>}
 
+          {/* Kow e óleo */}
+          <div style={{marginTop:12,paddingTop:12,borderTop:'1px dashed #b5d9e0'}}>
+            <div style={{display:'flex',alignItems:'center',gap:8}}>
+              <div style={{flex:1}}>
+                <label className="lbl">Kow (log P) {kowDoProduto(picking.name)!==null&&<span style={{color:'#5a6b2a',fontWeight:700}}>· auto</span>}</label>
+                <input className="field" type="number" inputMode="decimal" placeholder="ex: 4.2" value={pKow} onChange={e=>setPKow(e.target.value)} style={{marginBottom:0}}/>
+              </div>
+              <div style={{paddingTop:18,fontSize:11,fontWeight:800,color:precisaOleo(pKow)?'#e65100':'#999'}}>
+                {pKow!==''&&!isNaN(parseFloat(pKow))?(precisaOleo(pKow)?'🛢️ pede óleo':'✓ sem óleo'):''}
+              </div>
+            </div>
+            {precisaOleo(pKow)&&(
+              <div style={{background:'#fff3e0',borderRadius:10,padding:10,marginTop:8}}>
+                <div style={{fontSize:11,fontWeight:800,color:'#e65100',marginBottom:8}}>🛢️ Kow {'>'} {KOW_THRESHOLD} — adicione óleo a este produto</div>
+                <div style={{display:'flex',gap:8}}>
+                  <select className="field" value={pOleoNome} onChange={e=>setPOleoNome(e.target.value)} style={{flex:1.4,marginBottom:0,appearance:'none'}}>
+                    <option value="">Escolha o óleo...</option>
+                    {oleos.map(o=><option key={o.nameKey} value={o.name}>{o.name}</option>)}
+                  </select>
+                  <input className="field" type="number" inputMode="decimal" placeholder="% vol" value={pOleoPct} onChange={e=>setPOleoPct(e.target.value)} style={{flex:1,marginBottom:0}}/>
+                </div>
+                <div style={{fontSize:10,color:'#a5703a',marginTop:5}}>% sobre o volume total da calda. Ex.: 0,25% de 10.000 L = 25 L de óleo.</div>
+              </div>
+            )}
+          </div>
+
           <button className="btn" style={{marginTop:12}} onClick={confirm}>
             ✅ Adicionar à mistura
           </button>
@@ -827,8 +893,8 @@ function NewLotScreen({onBack,onSaved,op}){
   const recipeParams=useMemo(()=>{
     const params={}
     selectedProducts.forEach(p=>{
-      if(p.agua||p.temp||p.ph||p.agitacao)
-        params[p.nameKey||nrm(p.name)]={agua:p.agua||'',temp:p.temp||'',ph:p.ph||'',agitacao:p.agitacao||''}
+      if(p.agua||p.temp||p.ph||p.agitacao||p.kow||p.oleo_nome)
+        params[p.nameKey||nrm(p.name)]={agua:p.agua||'',temp:p.temp||'',ph:p.ph||'',agitacao:p.agitacao||'',kow:p.kow||'',oleo_nome:p.oleo_nome||'',oleo_pct:p.oleo_pct||''}
     })
     return JSON.stringify(params)
   },[selectedProducts])
@@ -949,6 +1015,7 @@ function NewLotScreen({onBack,onSaved,op}){
                         {p.dose&&<span style={{fontSize:11,color:'#777'}}>{p.dose}</span>}
                         {total&&<span style={{fontSize:10,fontWeight:800,color:'#006E85',background:'#e0f4f7',padding:'1px 7px',borderRadius:20}}>= {total}</span>}
                         {(p.agua||p.temp||p.ph||p.agitacao)&&<span style={{fontSize:10,color:'#5a6b2a',fontWeight:700}}>⚙️ {[p.agua&&`${p.agua}L`,p.temp&&`${p.temp}°`,p.ph&&`pH${p.ph}`,p.agitacao&&`${p.agitacao}min`].filter(Boolean).join(' · ')}</span>}
+                        {p.oleo_nome&&<span style={{fontSize:10,color:'#e65100',fontWeight:800,background:'#fff3e0',padding:'1px 6px',borderRadius:20}}>🛢️ {p.oleo_nome} {p.oleo_pct}%</span>}
                       </div>
                     </div>
                     <button onMouseDown={()=>removeProduct(i)} style={{background:'none',border:'none',color:'#e57373',fontSize:18,cursor:'pointer',padding:'2px 4px',flexShrink:0}}>✕</button>
@@ -1227,7 +1294,10 @@ function DilutionConfigScreen({lot,onBack,onDone}){
         agua:rp.agua||'',          // vem da receita
         temp:rp.temp||'25',        // vem da receita
         ph:rp.ph||'',              // pH alvo (informativo)
-        agitacao:rp.agitacao||'5'  // vem da receita
+        agitacao:rp.agitacao||'5', // vem da receita
+        kow:rp.kow||'',            // Kow do produto
+        oleo_nome:rp.oleo_nome||'',// óleo anexado (se Kow>3)
+        oleo_pct:rp.oleo_pct||''   // % do volume da calda
       }
     })
   })
@@ -1382,7 +1452,7 @@ function buildSteps(config){
     // 2) aquecer (se aplicável) ANTES de despejar o produto
     if(aquece) steps.push({tipo:'AQUECER',tanque:t,temp:p.temp,label:`Aquecer — Tanque ${t}`,detalhe:`até ${p.temp}°C`})
     // 3) despejar produto (PAUSA — só avança com OK do operador)
-    steps.push({tipo:'DESPEJAR',tanque:t,nome:p.nome,tipoProd:p.tipo,dose:p.dose,ph:p.ph,label:`Despejar ${p.nome}`,detalhe:`Tanque ${t}`,pausaOK:true})
+    steps.push({tipo:'DESPEJAR',tanque:t,nome:p.nome,tipoProd:p.tipo,dose:p.dose,ph:p.ph,oleo_nome:p.oleo_nome,oleo_pct:p.oleo_pct,label:`Despejar ${p.nome}`,detalhe:`Tanque ${t}`,pausaOK:true})
     // 4) agitar
     steps.push({tipo:'AGITAR',tanque:t,nome:p.nome,agitacao:p.agitacao,label:`Agitar — ${p.nome}`,detalhe:`${p.agitacao} min · Tanque ${t}`})
     // 5) enviar para o tanque de espera (libera o tanque de preparo)
@@ -1523,6 +1593,14 @@ function ExecutionGuideScreen({lot,onBack,onDone}){
               {step.ph&&<div style={{background:'#eef6f8',borderRadius:10,padding:'8px 12px',marginTop:8,fontSize:12,color:'#006E85'}}>
                 💡 Ajuste o pH da água até ~{step.ph} antes de despejar, se necessário.
               </div>}
+              {step.oleo_nome&&(()=>{
+                const litrosOleo=+((parseFloat(step.oleo_pct)||0)/100*(parseFloat(lot.volume_liters)||0)).toFixed(1)
+                return(
+                  <div style={{background:'#fff3e0',borderRadius:10,padding:12,marginTop:8,fontSize:13,color:'#e65100',fontWeight:600}}>
+                    🛢️ Adicione <b>{step.oleo_nome}</b> — {step.oleo_pct}% da calda = <b>{litrosOleo.toLocaleString('pt-BR')} L</b> de óleo neste tanque (por último, devagar, com agitação).
+                  </div>
+                )
+              })()}
               <div style={{background:'#fff8e1',borderRadius:10,padding:12,marginTop:10,fontSize:13,color:'#7a5c00',fontWeight:600}}>
                 👷 Despeje o produto no Tanque {step.tanque}. Ao terminar, confirme com o <b>OK</b> para liberar a agitação.
               </div>
@@ -1605,7 +1683,7 @@ function LotDetailScreen({lot:initLot,op,onBack,onNav,onLotUpdate}){
       parsed.map(p=>{
         const sp=savedParams[nrm(p.name)]||{}
         return{name:p.name,nameKey:nrm(p.name),type:p.type,dose:p.dose||'',
-          agua:sp.agua||'',temp:sp.temp||'',ph:sp.ph||'',agitacao:sp.agitacao||''}
+          agua:sp.agua||'',temp:sp.temp||'',ph:sp.ph||'',agitacao:sp.agitacao||'',kow:sp.kow||(kowDoProduto(p.name)??'')+'',oleo_nome:sp.oleo_nome||'',oleo_pct:sp.oleo_pct||''}
       })
     )
     const[saving,setSaving]=useState(false)
@@ -1645,7 +1723,7 @@ function LotDetailScreen({lot:initLot,op,onBack,onNav,onLotUpdate}){
       const newRecipe=prods.map(p=>p.dose?`${p.name} ${p.dose}`:p.name).join(' + ')
       // grava parâmetros por produto, casados por nome normalizado
       const params={}
-      prods.forEach(p=>{params[nrm(p.name)]={agua:p.agua,temp:p.temp,ph:p.ph,agitacao:p.agitacao}})
+      prods.forEach(p=>{params[nrm(p.name)]={agua:p.agua,temp:p.temp,ph:p.ph,agitacao:p.agitacao,kow:p.kow||'',oleo_nome:p.oleo_nome||'',oleo_pct:p.oleo_pct||''}})
       const recipeParams=JSON.stringify(params)
       await dbUpdate('lots',lot.id,{recipe_text:newRecipe,recipe_params:recipeParams})
       const updated={...lot,recipe_text:newRecipe,recipe_params:recipeParams}
@@ -1689,6 +1767,7 @@ function LotDetailScreen({lot:initLot,op,onBack,onNav,onLotUpdate}){
                       <span style={{fontSize:10,fontWeight:800,color:'#fff',background:FC[p.type]||'#9E9E9E',padding:'1px 6px',borderRadius:20}}>{FL[p.type]||'?'}</span>
                       {p.dose&&<span style={{fontSize:11,color:'#777'}}>{p.dose}</span>}
                       {(p.agua||p.temp||p.ph||p.agitacao)&&<span style={{fontSize:10,color:'#5a6b2a',fontWeight:700}}>⚙️ {[p.agua&&`${p.agua}L`,p.temp&&`${p.temp}°`,p.ph&&`pH${p.ph}`,p.agitacao&&`${p.agitacao}min`].filter(Boolean).join(' · ')}</span>}
+                      {p.oleo_nome&&<span style={{fontSize:10,color:'#e65100',fontWeight:800,background:'#fff3e0',padding:'1px 6px',borderRadius:20}}>🛢️ {p.oleo_nome} {p.oleo_pct}%</span>}
                     </div>
                   </div>
                   <button onMouseDown={()=>setExpandido(expandido===i?null:i)} style={{background:expandido===i?'#006E85':'#e0f4f7',border:'none',borderRadius:8,color:expandido===i?'#fff':'#006E85',fontSize:13,cursor:'pointer',padding:'4px 8px',flexShrink:0,fontWeight:700}} title="Parâmetros">⚙️</button>
@@ -1704,6 +1783,27 @@ function LotDetailScreen({lot:initLot,op,onBack,onNav,onLotUpdate}){
                       <div><label className="lbl">Agitar (min)</label><input className="field" type="number" inputMode="numeric" placeholder="5" value={p.agitacao} onChange={e=>updP(i,'agitacao',e.target.value)} style={{marginBottom:0}}/></div>
                     </div>
                     {(parseFloat(p.agua)||0)>TANQUE_PREPARO_CAP&&<div style={{marginTop:8,fontSize:11,fontWeight:700,color:'#c62828'}}>⚠️ Acima de {TANQUE_PREPARO_CAP} L — excede a capacidade do tanque de preparo</div>}
+                    <div style={{display:'flex',alignItems:'center',gap:8,marginTop:8}}>
+                      <div style={{flex:1}}>
+                        <label className="lbl">Kow (log P)</label>
+                        <input className="field" type="number" inputMode="decimal" placeholder="ex: 4.2" value={p.kow} onChange={e=>updP(i,'kow',e.target.value)} style={{marginBottom:0}}/>
+                      </div>
+                      <div style={{paddingTop:18,fontSize:11,fontWeight:800,color:precisaOleo(p.kow)?'#e65100':'#999'}}>
+                        {p.kow!==''&&!isNaN(parseFloat(p.kow))?(precisaOleo(p.kow)?'🛢️ pede óleo':'✓ sem óleo'):''}
+                      </div>
+                    </div>
+                    {precisaOleo(p.kow)&&(
+                      <div style={{background:'#fff3e0',borderRadius:10,padding:10,marginTop:8}}>
+                        <div style={{fontSize:11,fontWeight:800,color:'#e65100',marginBottom:8}}>🛢️ Kow {'>'} {KOW_THRESHOLD} — adicione óleo</div>
+                        <div style={{display:'flex',gap:8}}>
+                          <select className="field" value={p.oleo_nome} onChange={e=>updP(i,'oleo_nome',e.target.value)} style={{flex:1.4,marginBottom:0,appearance:'none'}}>
+                            <option value="">Escolha o óleo...</option>
+                            {ALL_PRODUCTS.filter(o=>o.type==='OIL').map(o=><option key={o.nameKey} value={o.name}>{o.name}</option>)}
+                          </select>
+                          <input className="field" type="number" inputMode="decimal" placeholder="% vol" value={p.oleo_pct} onChange={e=>updP(i,'oleo_pct',e.target.value)} style={{flex:1,marginBottom:0}}/>
+                        </div>
+                      </div>
+                    )}
                   </div>
                  )}
                 </div>
