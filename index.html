@@ -1100,6 +1100,9 @@ function JarTestScreen({lot,onBack,onDone}){
 const TEMP_AMBIENTE=25
 const TANQUE_AQUECE=1
 const precisaAquecer=(temp)=>(parseFloat(temp)||0)>TEMP_AMBIENTE
+// ── Capacidades (volume = água + produto líquido; sólidos desprezíveis)
+const TANQUE_PREPARO_CAP=6000   // L por produto (cada produto faz ciclo individual)
+const TANQUE_ESPERA_CAP=15000   // L total da calda que converge para o tanque de espera
 
 // ═══════════════════════════════════════════════════════════════════
 // FASE 1 — Tela de Configuração da Diluição
@@ -1108,15 +1111,20 @@ const precisaAquecer=(temp)=>(parseFloat(temp)||0)>TEMP_AMBIENTE
 // ═══════════════════════════════════════════════════════════════════
 function DilutionConfigScreen({lot,onBack,onDone}){
   const produtos = lot.recipe_text ? parseRecipe(lot.recipe_text) : []
+  const recipeParams = useMemo(()=>{try{return JSON.parse(lot.recipe_params||'{}')}catch{return{}}},[lot.recipe_params])
   const[configs,setConfigs]=useState(()=>{
     if(lot.dilution_config){try{const d=JSON.parse(lot.dilution_config);if(d.produtos)return d.produtos}catch{}}
-    return produtos.map((p)=>({
-      nome:p.name, tipo:p.type, dose:p.dose,
-      tanque:'',        // operador escolhe manualmente (1, 2 ou 3)
-      agua:'',          // litros por produto
-      temp:'25',        // °C (vem da receita; editável)
-      agitacao:'5'      // min (vem da receita; editável)
-    }))
+    return produtos.map((p)=>{
+      const rp=recipeParams[nrm(p.name)]||{}
+      return{
+        nome:p.name, tipo:p.type, dose:p.dose,
+        tanque:'',                 // única coisa que o operador decide
+        agua:rp.agua||'',          // vem da receita
+        temp:rp.temp||'25',        // vem da receita
+        ph:rp.ph||'',              // pH alvo (informativo)
+        agitacao:rp.agitacao||'5'  // vem da receita
+      }
+    })
   })
   const[tanqueEspera,setTanqueEspera]=useState(()=>{
     if(lot.dilution_config){try{return JSON.parse(lot.dilution_config).tanque_espera||''}catch{}}
@@ -1131,26 +1139,27 @@ function DilutionConfigScreen({lot,onBack,onDone}){
 
   const upd=(i,campo,val)=>setConfigs(prev=>prev.map((c,idx)=>idx===i?{...c,[campo]:val}:c))
 
-  // Água somada por tanque (resumo)
-  const aguaPorTanque={1:0,2:0,3:0}
-  configs.forEach(c=>{if(c.tanque)aguaPorTanque[c.tanque]+=(parseFloat(c.agua)||0)})
-  const tanquesUsados=[1,2,3].filter(t=>configs.some(c=>String(c.tanque)===String(t)))
+  // Volume total que converge para o tanque de espera (água de todos os produtos; sólido ~0)
+  const volumeEspera=configs.reduce((s,c)=>s+(parseFloat(c.agua)||0),0)
+  const esperaEstoura=volumeEspera>TANQUE_ESPERA_CAP
 
   // Validação por produto
   const erroProduto=(c)=>{
+    if(!c.agua) return 'Água não informada na receita'
+    if((parseFloat(c.agua)||0)>TANQUE_PREPARO_CAP) return `${c.agua} L excede a capacidade do tanque de preparo (${TANQUE_PREPARO_CAP} L)`
     if(!c.tanque) return 'Escolha o tanque de preparo'
-    if(precisaAquecer(c.temp)&&String(c.tanque)!==String(TANQUE_AQUECE)) return `Precisa aquecer (${c.temp}°C) — só o Tanque ${TANQUE_AQUECE} tem resistência`
-    if(!c.agua) return 'Informe a água (L)'
+    if(precisaAquecer(c.temp)&&String(c.tanque)!==String(TANQUE_AQUECE)) return `Precisa aquecer (${c.temp}°C) — só o Tanque ${TANQUE_AQUECE} aquece`
     return null
   }
-  const tudoValido = configs.length>0 && configs.every(c=>!erroProduto(c)) && tanqueEspera && esperaAgit
+  const tudoValido = configs.length>0 && configs.every(c=>!erroProduto(c)) && tanqueEspera && esperaAgit && !esperaEstoura
 
   const salvar=async()=>{
     for(const c of configs){const e=erroProduto(c);if(e){setErr(`${c.nome}: ${e}`);return}}
+    if(esperaEstoura){setErr(`Calda total ${volumeEspera} L excede a capacidade do tanque de espera (${TANQUE_ESPERA_CAP} L)`);return}
     if(!tanqueEspera){setErr('Escolha o tanque de espera (destino do lote)');return}
     setSaving(true);setErr('')
     try{
-      const config={produtos:configs,tanque_espera:tanqueEspera,espera_agitacao:esperaAgit,agua_por_tanque:aguaPorTanque}
+      const config={produtos:configs,tanque_espera:tanqueEspera,espera_agitacao:esperaAgit,volume_espera:volumeEspera}
       const updated=await dbUpdate('lots',lot.id,{dilution_config:JSON.stringify(config),status:'PREPARING'})
       setSaving(false)
       onDone({...lot,...updated,dilution_config:JSON.stringify(config),status:'PREPARING'})
@@ -1162,7 +1171,7 @@ function DilutionConfigScreen({lot,onBack,onDone}){
       <Hdr title="⚗️ Configurar Diluição" onBack={onBack}/>
       <div className="sc" style={{flex:1,padding:12,paddingBottom:120}}>
         <div style={{background:'#e0f4f7',borderRadius:12,padding:'10px 14px',marginBottom:14,fontSize:12,color:'#006E85'}}>
-          Defina o tanque de preparo, a água, a temperatura e o tempo de agitação de cada produto. ⚠️ Produtos acima de {TEMP_AMBIENTE}°C só podem ir no <b>Tanque {TANQUE_AQUECE}</b> (único com aquecimento).
+          Confira os parâmetros da receita e escolha o tanque de preparo de cada produto. ⚠️ Produtos acima de {TEMP_AMBIENTE}°C só vão no <b>Tanque {TANQUE_AQUECE}</b> (único com aquecimento). Limite: {TANQUE_PREPARO_CAP} L por produto, {TANQUE_ESPERA_CAP} L no tanque de espera.
         </div>
 
         {configs.map((cfg,i)=>{
@@ -1180,8 +1189,18 @@ function DilutionConfigScreen({lot,onBack,onDone}){
               {ePrec&&<span style={{fontSize:11,fontWeight:800,color:'#e65100',background:'#fff3e0',padding:'3px 8px',borderRadius:8}}>🔥 aquece</span>}
             </div>
 
+            {/* Parâmetros da receita (somente leitura) */}
+            <div style={{display:'flex',gap:6,marginBottom:12,flexWrap:'wrap'}}>
+              {[['💧 Água',cfg.agua?`${cfg.agua} L`:'—'],['🌡️ Temp',cfg.temp?`${cfg.temp}°C`:'—'],['⚗️ pH alvo',cfg.ph||'—'],['🌀 Agitar',cfg.agitacao?`${cfg.agitacao} min`:'—']].map(([l,v])=>(
+                <div key={l} style={{flex:'1 1 45%',background:'#f7f9f0',borderRadius:8,padding:'6px 10px'}}>
+                  <div style={{fontSize:10,color:'#999',fontWeight:700}}>{l}</div>
+                  <div style={{fontSize:13,fontWeight:800,color:'#1F301F'}}>{v}</div>
+                </div>
+              ))}
+            </div>
+
             <label className="lbl">Tanque de preparo</label>
-            <div style={{display:'flex',gap:6,marginBottom:12}}>
+            <div style={{display:'flex',gap:6}}>
               {[1,2,3].map(d=>{
                 const bloqueado=ePrec&&d!==TANQUE_AQUECE
                 const sel=String(cfg.tanque)===String(d)
@@ -1191,39 +1210,16 @@ function DilutionConfigScreen({lot,onBack,onDone}){
                 </button>
               )})}
             </div>
-
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}>
-              <div>
-                <label className="lbl">Água (L)</label>
-                <input className="field" type="number" inputMode="numeric" placeholder="1000" value={cfg.agua} onChange={e=>upd(i,'agua',e.target.value)}/>
-              </div>
-              <div>
-                <label className="lbl">Temp (°C)</label>
-                <input className="field" type="number" inputMode="numeric" placeholder="25" value={cfg.temp} onChange={e=>upd(i,'temp',e.target.value)}/>
-              </div>
-              <div>
-                <label className="lbl">Agitar (min)</label>
-                <input className="field" type="number" inputMode="numeric" placeholder="5" value={cfg.agitacao} onChange={e=>upd(i,'agitacao',e.target.value)}/>
-              </div>
-            </div>
             {errP&&<div style={{marginTop:8,fontSize:11,fontWeight:700,color:'#c62828'}}>⚠️ {errP}</div>}
           </div>
         )})}
 
-        {tanquesUsados.length>0&&(
-          <div className="card" style={{background:'#f7f9f0'}}>
-            <div style={{fontSize:11,fontWeight:700,color:'#5a6b2a',textTransform:'uppercase',marginBottom:8}}>Resumo por tanque</div>
-            {tanquesUsados.map(t=>(
-              <div key={t} style={{display:'flex',justifyContent:'space-between',fontSize:13,padding:'3px 0'}}>
-                <span style={{fontWeight:700}}>Tanque {t}{t===TANQUE_AQUECE?' 🔥':''}</span>
-                <span style={{color:'#555'}}>{aguaPorTanque[t]} L {configs.some(c=>String(c.tanque)===String(t)&&precisaAquecer(c.temp))?'· aquecer':''}</span>
-              </div>
-            ))}
-          </div>
-        )}
-
+        {/* Tanque de espera do lote */}
         <div className="card" style={{background:'#f0f8fa'}}>
           <div style={{fontWeight:800,fontSize:13,color:'#00313C',marginBottom:10}}>🛢️ Tanque de espera (destino do lote)</div>
+          <div style={{display:'flex',justifyContent:'space-between',fontSize:12,marginBottom:10,padding:'6px 10px',borderRadius:8,background:esperaEstoura?'#ffebee':'#fff',color:esperaEstoura?'#c62828':'#555',fontWeight:700}}>
+            <span>Calda total</span><span>{volumeEspera} / {TANQUE_ESPERA_CAP} L {esperaEstoura?'⚠️ excede!':''}</span>
+          </div>
           <label className="lbl">Toda a calda vai para</label>
           <div style={{display:'flex',gap:6,marginBottom:12}}>
             {[1,2,3].map(t=>{
@@ -1247,35 +1243,33 @@ function DilutionConfigScreen({lot,onBack,onDone}){
 
 // ═══════════════════════════════════════════════════════════════════
 // Monta a sequência de etapas de execução a partir da config (Fase 1).
-// Ordem = ordem dos comandos do CSV:
-//   por tanque usado:  AGUA → (AQUECER se Tanque 1 e algum produto >25°C)
-//   por produto:       DESPEJAR(OK) → AGITAR
-//   final:             ENVIAR p/ espera (por tanque) → AGITAR_ESPERA
+// Cada produto faz um CICLO COMPLETO no seu tanque de preparo (incorpora,
+// dilui e já envia para a espera, liberando o tanque para o próximo):
+//   por produto:  AGUA → (AQUECER se Tanque 1 e temp>25) → DESPEJAR(OK) → AGITAR → ENVIAR
+//   no final:     AGITAR_ESPERA (agitação da calda no tanque de espera)
+// Ordem = ordem dos comandos do CSV.
 // ═══════════════════════════════════════════════════════════════════
 function buildSteps(config){
   const steps=[]
   if(!config||!config.produtos) return steps
   const {produtos,tanque_espera,espera_agitacao}=config
-  const tanques=[1,2,3].filter(t=>produtos.some(p=>String(p.tanque)===String(t)))
 
-  tanques.forEach(t=>{
-    const prodsT=produtos.filter(p=>String(p.tanque)===String(t))
-    const aguaT=prodsT.reduce((s,p)=>s+(parseFloat(p.agua)||0),0)
-    const tempAlvo=Math.max(...prodsT.map(p=>parseFloat(p.temp)||0))
-    const aquece=tempAlvo>TEMP_AMBIENTE&&String(t)===String(TANQUE_AQUECE)
-    // 1) injetar água
-    steps.push({tipo:'AGUA',tanque:t,agua:aguaT,label:`Injetar água — Tanque ${t}`,detalhe:`${aguaT} L`})
-    // 2) aquecer (se aplicável)
-    if(aquece) steps.push({tipo:'AQUECER',tanque:t,temp:tempAlvo,label:`Aquecer — Tanque ${t}`,detalhe:`até ${tempAlvo}°C`})
-    // 3) por produto: despejar(OK) + agitar
-    prodsT.forEach(p=>{
-      steps.push({tipo:'DESPEJAR',tanque:t,nome:p.nome,tipoProd:p.tipo,dose:p.dose,label:`Despejar ${p.nome}`,detalhe:`Tanque ${t}`,pausaOK:true})
-      steps.push({tipo:'AGITAR',tanque:t,nome:p.nome,agitacao:p.agitacao,label:`Agitar — ${p.nome}`,detalhe:`${p.agitacao} min · Tanque ${t}`})
-    })
-    // 4) enviar p/ tanque de espera
+  produtos.forEach(p=>{
+    const t=p.tanque
+    const agua=parseFloat(p.agua)||0
+    const aquece=precisaAquecer(p.temp)&&String(t)===String(TANQUE_AQUECE)
+    // 1) injetar água no tanque de preparo do produto
+    steps.push({tipo:'AGUA',tanque:t,agua,label:`Injetar água — Tanque ${t}`,detalhe:`${agua} L`})
+    // 2) aquecer (se aplicável) ANTES de despejar o produto
+    if(aquece) steps.push({tipo:'AQUECER',tanque:t,temp:p.temp,label:`Aquecer — Tanque ${t}`,detalhe:`até ${p.temp}°C`})
+    // 3) despejar produto (PAUSA — só avança com OK do operador)
+    steps.push({tipo:'DESPEJAR',tanque:t,nome:p.nome,tipoProd:p.tipo,dose:p.dose,ph:p.ph,label:`Despejar ${p.nome}`,detalhe:`Tanque ${t}`,pausaOK:true})
+    // 4) agitar
+    steps.push({tipo:'AGITAR',tanque:t,nome:p.nome,agitacao:p.agitacao,label:`Agitar — ${p.nome}`,detalhe:`${p.agitacao} min · Tanque ${t}`})
+    // 5) enviar para o tanque de espera (libera o tanque de preparo)
     steps.push({tipo:'ENVIAR',tanque:t,destino:tanque_espera,label:`Enviar Tanque ${t} → Espera ${tanque_espera}`,detalhe:`Tanque de espera ${tanque_espera}`})
   })
-  // 5) agitação final da calda no tanque de espera
+  // agitação final da calda no tanque de espera
   steps.push({tipo:'AGITAR_ESPERA',tanque:tanque_espera,agitacao:espera_agitacao,label:`Agitar calda final — Espera ${tanque_espera}`,detalhe:`${espera_agitacao} min`})
   return steps
 }
@@ -1368,11 +1362,18 @@ function ExecutionGuideScreen({lot,onBack,onDone}){
                 {step.dose&&<div style={{display:'flex',justifyContent:'space-between',marginBottom:6}}>
                   <span style={{fontSize:13,color:'#777'}}>Dose</span><span style={{fontSize:13,fontWeight:700}}>{step.dose}</span>
                 </div>}
+                <div style={{display:'flex',justifyContent:'space-between',marginBottom:6}}>
+                  <span style={{fontSize:13,color:'#777'}}>pH alvo (receita)</span>
+                  <span style={{fontSize:13,fontWeight:800,color:'#006E85'}}>{step.ph||'—'}</span>
+                </div>
                 <div style={{display:'flex',justifyContent:'space-between'}}>
-                  <span style={{fontSize:13,color:'#777'}}>pH (sensor IHM)</span>
+                  <span style={{fontSize:13,color:'#777'}}>pH atual (sensor IHM)</span>
                   <span style={{fontSize:13,fontWeight:700,color:'#aaa'}}>—  leitura na máquina</span>
                 </div>
               </div>
+              {step.ph&&<div style={{background:'#eef6f8',borderRadius:10,padding:'8px 12px',marginTop:8,fontSize:12,color:'#006E85'}}>
+                💡 Ajuste o pH da água até ~{step.ph} antes de despejar, se necessário.
+              </div>}
               <div style={{background:'#fff8e1',borderRadius:10,padding:12,marginTop:10,fontSize:13,color:'#7a5c00',fontWeight:600}}>
                 👷 Despeje o produto no Tanque {step.tanque}. Ao terminar, confirme com o <b>OK</b> para liberar a agitação.
               </div>
@@ -1450,8 +1451,13 @@ function LotDetailScreen({lot:initLot,op,onBack,onNav,onLotUpdate}){
   // ── Modal de edição de receita inline ──────────────────────────
   const EditModal=()=>{
     const parsed=useMemo(()=>parseRecipe(lot.recipe_text||''),[])
+    const savedParams=useMemo(()=>{try{return JSON.parse(lot.recipe_params||'{}')}catch{return{}}},[])
     const[prods,setProds]=useState(()=>
-      parsed.map(p=>({name:p.name,nameKey:nrm(p.name),type:p.type,dose:p.dose||''}))
+      parsed.map(p=>{
+        const sp=savedParams[nrm(p.name)]||{}
+        return{name:p.name,nameKey:nrm(p.name),type:p.type,dose:p.dose||'',
+          agua:sp.agua||'',temp:sp.temp||'',ph:sp.ph||'',agitacao:sp.agitacao||''}
+      })
     )
     const[saving,setSaving]=useState(false)
     const[allProducts]=useState(()=>getAllProducts())
@@ -1459,6 +1465,9 @@ function LotDetailScreen({lot:initLot,op,onBack,onNav,onLotUpdate}){
     const[picking,setPicking]=useState(null)
     const[doseVal,setDoseVal]=useState('')
     const[doseUnit,setDoseUnit]=useState('L/ha')
+    const[expandido,setExpandido]=useState(null) // índice do produto com parâmetros abertos
+
+    const updP=(idx,campo,val)=>setProds(prev=>prev.map((p,i)=>i===idx?{...p,[campo]:val}:p))
 
     const sorted=useMemo(()=>[...prods].sort((a,b)=>(ORD[a.type]||9)-(ORD[b.type]||9)),[prods])
     const incompatsEdit=useMemo(()=>detectIncompat(sorted),[sorted])
@@ -1475,7 +1484,7 @@ function LotDetailScreen({lot:initLot,op,onBack,onNav,onLotUpdate}){
     const confirmAdd=()=>{
       if(!picking) return
       const dose=doseVal.trim()?(doseVal.trim().replace(',','.')+' '+doseUnit):''
-      setProds(prev=>[...prev,{name:picking.name,nameKey:picking.nameKey,type:picking.type,dose}])
+      setProds(prev=>[...prev,{name:picking.name,nameKey:picking.nameKey,type:picking.type,dose,agua:'',temp:'',ph:'',agitacao:''}])
       setPicking(null)
     }
     const removeProduct=(idx)=>setProds(prev=>prev.filter((_,i)=>i!==idx))
@@ -1485,8 +1494,12 @@ function LotDetailScreen({lot:initLot,op,onBack,onNav,onLotUpdate}){
     const salvar=async()=>{
       setSaving(true)
       const newRecipe=prods.map(p=>p.dose?`${p.name} ${p.dose}`:p.name).join(' + ')
-      await dbUpdate('lots',lot.id,{recipe_text:newRecipe})
-      const updated={...lot,recipe_text:newRecipe}
+      // grava parâmetros por produto, casados por nome normalizado
+      const params={}
+      prods.forEach(p=>{params[nrm(p.name)]={agua:p.agua,temp:p.temp,ph:p.ph,agitacao:p.agitacao}})
+      const recipeParams=JSON.stringify(params)
+      await dbUpdate('lots',lot.id,{recipe_text:newRecipe,recipe_params:recipeParams})
+      const updated={...lot,recipe_text:newRecipe,recipe_params:recipeParams}
       setLot(updated);onLotUpdate&&onLotUpdate(updated)
       setSaving(false);setEditando(false)
     }
@@ -1513,7 +1526,8 @@ function LotDetailScreen({lot:initLot,op,onBack,onNav,onLotUpdate}){
             <div style={{marginBottom:14}}>
               <div style={{fontSize:11,fontWeight:800,color:'#999',textTransform:'uppercase',marginBottom:8}}>Produtos na mistura — ordem de adição</div>
               {prods.map((p,i)=>(
-                <div key={i} style={{display:'flex',alignItems:'center',gap:6,padding:'9px 10px',background:'#f8f8f8',borderRadius:10,marginBottom:6}}>
+                <div key={i} style={{background:'#f8f8f8',borderRadius:10,marginBottom:6,overflow:'hidden'}}>
+                 <div style={{display:'flex',alignItems:'center',gap:6,padding:'9px 10px'}}>
                   <div style={{display:'flex',flexDirection:'column',gap:2,flexShrink:0}}>
                     <button onMouseDown={()=>moveUpP(i)} disabled={i===0} style={{background:i===0?'transparent':'#e0f4f7',border:'none',borderRadius:5,width:22,height:20,cursor:i===0?'default':'pointer',fontSize:11,color:i===0?'#ccc':'#006E85',fontWeight:900,padding:0}}>↑</button>
                     <button onMouseDown={()=>moveDownP(i)} disabled={i===prods.length-1} style={{background:i===prods.length-1?'transparent':'#e0f4f7',border:'none',borderRadius:5,width:22,height:20,cursor:i===prods.length-1?'default':'pointer',fontSize:11,color:i===prods.length-1?'#ccc':'#006E85',fontWeight:900,padding:0}}>↓</button>
@@ -1522,12 +1536,27 @@ function LotDetailScreen({lot:initLot,op,onBack,onNav,onLotUpdate}){
                   <span style={{fontSize:16}}>{FI[p.type]||'🔬'}</span>
                   <div style={{flex:1,minWidth:0}}>
                     <div style={{fontWeight:700,fontSize:13}}>{p.name}</div>
-                    <div style={{display:'flex',gap:6,marginTop:2}}>
+                    <div style={{display:'flex',gap:6,marginTop:2,alignItems:'center',flexWrap:'wrap'}}>
                       <span style={{fontSize:10,fontWeight:800,color:'#fff',background:FC[p.type]||'#9E9E9E',padding:'1px 6px',borderRadius:20}}>{FL[p.type]||'?'}</span>
                       {p.dose&&<span style={{fontSize:11,color:'#777'}}>{p.dose}</span>}
+                      {(p.agua||p.temp||p.ph||p.agitacao)&&<span style={{fontSize:10,color:'#5a6b2a',fontWeight:700}}>⚙️ {[p.agua&&`${p.agua}L`,p.temp&&`${p.temp}°`,p.ph&&`pH${p.ph}`,p.agitacao&&`${p.agitacao}min`].filter(Boolean).join(' · ')}</span>}
                     </div>
                   </div>
+                  <button onMouseDown={()=>setExpandido(expandido===i?null:i)} style={{background:expandido===i?'#006E85':'#e0f4f7',border:'none',borderRadius:8,color:expandido===i?'#fff':'#006E85',fontSize:13,cursor:'pointer',padding:'4px 8px',flexShrink:0,fontWeight:700}} title="Parâmetros">⚙️</button>
                   <button onMouseDown={()=>removeProduct(i)} style={{background:'none',border:'none',color:'#e57373',fontSize:20,cursor:'pointer',padding:'2px 6px',flexShrink:0}}>✕</button>
+                 </div>
+                 {expandido===i&&(
+                  <div style={{padding:'4px 10px 12px',borderTop:'1px solid #ececec'}}>
+                    <div style={{fontSize:10,fontWeight:800,color:'#5a6b2a',textTransform:'uppercase',margin:'8px 0 6px'}}>Parâmetros de preparo (receita)</div>
+                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+                      <div><label className="lbl">Água (L)</label><input className="field" type="number" inputMode="numeric" placeholder="1000" value={p.agua} onChange={e=>updP(i,'agua',e.target.value)} style={{marginBottom:0}}/></div>
+                      <div><label className="lbl">Temp (°C)</label><input className="field" type="number" inputMode="numeric" placeholder="25" value={p.temp} onChange={e=>updP(i,'temp',e.target.value)} style={{marginBottom:0}}/></div>
+                      <div><label className="lbl">pH ideal</label><input className="field" type="number" inputMode="decimal" placeholder="6.0" value={p.ph} onChange={e=>updP(i,'ph',e.target.value)} style={{marginBottom:0}}/></div>
+                      <div><label className="lbl">Agitar (min)</label><input className="field" type="number" inputMode="numeric" placeholder="5" value={p.agitacao} onChange={e=>updP(i,'agitacao',e.target.value)} style={{marginBottom:0}}/></div>
+                    </div>
+                    {(parseFloat(p.agua)||0)>TANQUE_PREPARO_CAP&&<div style={{marginTop:8,fontSize:11,fontWeight:700,color:'#c62828'}}>⚠️ Acima de {TANQUE_PREPARO_CAP} L — excede a capacidade do tanque de preparo</div>}
+                  </div>
+                 )}
                 </div>
               ))}
             </div>
