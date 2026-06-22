@@ -112,6 +112,38 @@ function kowDoProduto(nome){
 }
 const precisaOleo=(kow)=>kow!==null&&kow!==''&&!isNaN(parseFloat(kow))&&parseFloat(kow)>KOW_THRESHOLD
 
+// ── Tabela de pH IDEAL da calda (faixa mín–máx) por INGREDIENTE ATIVO ──────────
+// ⚠️ TABELA INICIAL DE REFERÊNCIA — VALIDAR COM RÓTULO/FISPQ DE CADA PRODUTO
+// antes de usar em produção (Plínio). O pH ideal varia conforme fonte e formulação.
+// Formato: [mín, máx].
+const PH_DB={
+  // herbicidas
+  'glifosato':[4.0,6.0],'glufosinato':[5.0,7.0],'2,4-d':[6.0,8.0],'2,4 d':[6.0,8.0],'24d':[6.0,8.0],
+  'dicamba':[5.0,7.0],'paraquat':[5.0,7.0],'cletodim':[4.0,6.0],'imazetapir':[6.0,7.0],
+  'atrazina':[6.0,7.5],'nicosulfuron':[5.0,7.0],'picloram':[5.0,7.0],'haloxifop':[4.0,6.0],
+  'fluazifop':[4.0,6.0],'fenoxaprop':[4.0,6.0],
+  // inseticidas
+  'lambda-cialotrina':[5.5,7.0],'lambda cialotrina':[5.5,7.0],'lambdacialotrina':[5.5,7.0],
+  'bifentrina':[5.5,7.0],'deltametrina':[5.5,7.0],'cipermetrina':[5.5,7.0],'permetrina':[5.5,7.0],
+  'clorpirifos':[5.5,7.0],'abamectina':[5.5,6.5],'espinosade':[6.0,7.0],
+  'clorantraniliprole':[5.0,7.0],'teflubenzurom':[5.0,7.0],'lufenurom':[5.0,7.0],
+  'tiametoxam':[5.0,7.0],'imidacloprido':[5.0,7.0],'acefato':[3.0,5.0],
+  // fungicidas
+  'tebuconazol':[5.0,7.0],'azoxistrobina':[5.0,7.0],'piraclostrobina':[5.0,7.0],
+  'mancozebe':[6.0,7.0],'difenoconazol':[5.0,7.0],'protioconazol':[5.0,7.0],
+  'epoxiconazol':[5.0,7.0],'trifloxistrobina':[5.0,7.0],
+  // cobre / alcalinos
+  'cobre':[6.0,7.5],'oxicloreto':[6.0,7.5],'calda bordalesa':[6.5,7.5],'hidroxido de cobre':[6.0,7.5],
+}
+// Busca a faixa de pH ideal pelo nome do produto. Retorna [min,max] ou null.
+function phIdealDoProduto(nome){
+  if(!nome) return null
+  const n=nrm(nome)
+  if(PH_DB[n]!==undefined) return PH_DB[n]
+  for(const ativo in PH_DB){ if(n.includes(ativo)) return PH_DB[ativo] }
+  return null
+}
+
 
 // -- Recipe Parser ----------------------------------------------
 const PDB={
@@ -691,7 +723,8 @@ function ProductPicker({onAdd}){
   const[doseUnit,setDoseUnit]=useState('L/ha')
   const[pAgua,setPAgua]=useState('')
   const[pTemp,setPTemp]=useState('')
-  const[pPh,setPPh]=useState('')
+  const[pPhMin,setPPhMin]=useState('')
+  const[pPhMax,setPPhMax]=useState('')
   const[pAgit,setPAgit]=useState('')
   const[pKow,setPKow]=useState('')      // Kow do produto (auto da tabela ou manual)
   const[pOleoNome,setPOleoNome]=useState('') // óleo escolhido (quando Kow>3)
@@ -715,6 +748,7 @@ function ProductPicker({onAdd}){
     }
     setPicking({...p,type:finalType});setSearch('');setOpen(false);setDoseVal('');setDoseUnit('L/ha')
     setPKow((kowDoProduto(p.name)??'')+'');setPOleoNome('');setPOleoPct('') // auto-preenche Kow se conhecido
+    {const ph=phIdealDoProduto(p.name);setPPhMin(ph?ph[0]+'':'');setPPhMax(ph?ph[1]+'':'')} // auto-preenche faixa de pH
     setTimeout(()=>document.getElementById('dose-input')?.focus(),100)
   }
   const confirmType=(type)=>{
@@ -722,6 +756,7 @@ function ProductPicker({onAdd}){
     const p={name:pickingType.name,nameKey:pickingType.nameKey,type,custom:true}
     saveCustomProduct(p);setPickingType(null);setPicking(p);setDoseVal('');setDoseUnit('L/ha')
     setPKow((kowDoProduto(p.name)??'')+'');setPOleoNome('');setPOleoPct('')
+    {const ph=phIdealDoProduto(p.name);setPPhMin(ph?ph[0]+'':'');setPPhMax(ph?ph[1]+'':'')}
     setTimeout(()=>document.getElementById('dose-input')?.focus(),100)
   }
 
@@ -729,12 +764,12 @@ function ProductPicker({onAdd}){
     if(!picking) return
     const dose=doseVal.trim()?(doseVal.trim().replace(',','.')+' '+doseUnit):''
     onAdd({name:picking.name,nameKey:picking.nameKey||nrm(picking.name),type:picking.type||'?',dose,
-      agua:pAgua,temp:pTemp,ph:pPh,agitacao:pAgit,
+      agua:pAgua,temp:pTemp,ph_min:pPhMin,ph_max:pPhMax,agitacao:pAgit,
       kow:pKow,oleo_nome:precisaOleo(pKow)?pOleoNome:'',oleo_pct:precisaOleo(pKow)?pOleoPct:''})
     setPicking(null)
     setSearch('')
     setOpen(false)
-    setDoseVal('');setPAgua('');setPTemp('');setPPh('');setPAgit('');setPKow('');setPOleoNome('');setPOleoPct('')
+    setDoseVal('');setPAgua('');setPTemp('');setPPhMin('');setPPhMax('');setPAgit('');setPKow('');setPOleoNome('');setPOleoPct('')
     setTimeout(()=>inputRef.current?.focus(),50)
   }
 
@@ -831,8 +866,15 @@ function ProductPicker({onAdd}){
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
             <div><label className="lbl">Água (L)</label><input className="field" type="number" inputMode="numeric" placeholder="1000" value={pAgua} onChange={e=>{const v=e.target.value;setPAgua(v);setPAgit(tempoAgitacaoSugerido(v))}} style={{marginBottom:0}}/></div>
             <div><label className="lbl">Temp (°C)</label><input className="field" type="number" inputMode="numeric" placeholder="25" value={pTemp} onChange={e=>setPTemp(e.target.value)} style={{marginBottom:0}}/></div>
-            <div><label className="lbl">pH ideal</label><input className="field" type="number" inputMode="decimal" placeholder="6.0" value={pPh} onChange={e=>setPPh(e.target.value)} style={{marginBottom:0}}/></div>
             <div><label className="lbl">Agitar (min)</label><input className="field" type="number" inputMode="numeric" placeholder="5" value={pAgit} onChange={e=>setPAgit(e.target.value)} style={{marginBottom:0}}/></div>
+            <div>
+              <label className="lbl">pH ideal {phIdealDoProduto(picking.name)!==null&&<span style={{color:'#5a6b2a',fontWeight:700}}>· auto</span>}</label>
+              <div style={{display:'flex',gap:4,alignItems:'center'}}>
+                <input className="field" type="number" inputMode="decimal" placeholder="mín" value={pPhMin} onChange={e=>setPPhMin(e.target.value)} style={{marginBottom:0,flex:1}}/>
+                <span style={{color:'#999',fontSize:12}}>–</span>
+                <input className="field" type="number" inputMode="decimal" placeholder="máx" value={pPhMax} onChange={e=>setPPhMax(e.target.value)} style={{marginBottom:0,flex:1}}/>
+              </div>
+            </div>
           </div>
           {pAgua&&<div style={{marginTop:6,fontSize:10,color:'#5a6b2a'}}>💡 Sugestão: {pAgua} L ÷ {VAZAO_BOMBA} L/min ≈ {tempoAgitacaoSugerido(pAgua)} min (editável)</div>}
           {(parseFloat(pAgua)||0)>TANQUE_PREPARO_CAP&&<div style={{marginTop:8,fontSize:11,fontWeight:700,color:'#c62828'}}>⚠️ Acima de {TANQUE_PREPARO_CAP} L — excede a capacidade do tanque de preparo</div>}
@@ -893,8 +935,8 @@ function NewLotScreen({onBack,onSaved,op}){
   const recipeParams=useMemo(()=>{
     const params={}
     selectedProducts.forEach(p=>{
-      if(p.agua||p.temp||p.ph||p.agitacao||p.kow||p.oleo_nome)
-        params[p.nameKey||nrm(p.name)]={agua:p.agua||'',temp:p.temp||'',ph:p.ph||'',agitacao:p.agitacao||'',kow:p.kow||'',oleo_nome:p.oleo_nome||'',oleo_pct:p.oleo_pct||''}
+      if(p.agua||p.temp||p.ph_min||p.ph_max||p.agitacao||p.kow||p.oleo_nome)
+        params[p.nameKey||nrm(p.name)]={agua:p.agua||'',temp:p.temp||'',ph_min:p.ph_min||'',ph_max:p.ph_max||'',agitacao:p.agitacao||'',kow:p.kow||'',oleo_nome:p.oleo_nome||'',oleo_pct:p.oleo_pct||''}
     })
     return JSON.stringify(params)
   },[selectedProducts])
@@ -1014,7 +1056,7 @@ function NewLotScreen({onBack,onSaved,op}){
                         <span style={{fontSize:10,fontWeight:800,color:'#fff',background:FC[p.type]||'#9E9E9E',padding:'1px 7px',borderRadius:20}}>{FL[p.type]||'?'}</span>
                         {p.dose&&<span style={{fontSize:11,color:'#777'}}>{p.dose}</span>}
                         {total&&<span style={{fontSize:10,fontWeight:800,color:'#006E85',background:'#e0f4f7',padding:'1px 7px',borderRadius:20}}>= {total}</span>}
-                        {(p.agua||p.temp||p.ph||p.agitacao)&&<span style={{fontSize:10,color:'#5a6b2a',fontWeight:700}}>⚙️ {[p.agua&&`${p.agua}L`,p.temp&&`${p.temp}°`,p.ph&&`pH${p.ph}`,p.agitacao&&`${p.agitacao}min`].filter(Boolean).join(' · ')}</span>}
+                        {(p.agua||p.temp||p.ph_min||p.ph_max||p.agitacao)&&<span style={{fontSize:10,color:'#5a6b2a',fontWeight:700}}>⚙️ {[p.agua&&`${p.agua}L`,p.temp&&`${p.temp}°`,(p.ph_min||p.ph_max)&&`pH${p.ph_min||'?'}–${p.ph_max||'?'}`,p.agitacao&&`${p.agitacao}min`].filter(Boolean).join(' · ')}</span>}
                         {p.oleo_nome&&<span style={{fontSize:10,color:'#e65100',fontWeight:800,background:'#fff3e0',padding:'1px 6px',borderRadius:20}}>🛢️ {p.oleo_nome} {p.oleo_pct}%</span>}
                       </div>
                     </div>
@@ -1288,12 +1330,14 @@ function DilutionConfigScreen({lot,onBack,onDone}){
     if(lot.dilution_config){try{const d=JSON.parse(lot.dilution_config);if(d.produtos)return d.produtos}catch{}}
     return produtos.map((p)=>{
       const rp=recipeParams[nrm(p.name)]||{}
+      const phT=phIdealDoProduto(p.name)
       return{
         nome:p.name, tipo:p.type, dose:p.dose,
         tanque:'',                 // única coisa que o operador decide
         agua:rp.agua||'',          // vem da receita
         temp:rp.temp||'25',        // vem da receita
-        ph:rp.ph||'',              // pH alvo (informativo)
+        ph_min:rp.ph_min||rp.ph||(phT?phT[0]+'':''), // faixa pH ideal (informativo)
+        ph_max:rp.ph_max||(phT?phT[1]+'':''),
         agitacao:rp.agitacao||'5', // vem da receita
         kow:rp.kow||'',            // Kow do produto
         oleo_nome:rp.oleo_nome||'',// óleo anexado (se Kow>3)
@@ -1377,7 +1421,7 @@ function DilutionConfigScreen({lot,onBack,onDone}){
 
             {/* Parâmetros da receita (somente leitura) */}
             <div style={{display:'flex',gap:6,marginBottom:12,flexWrap:'wrap'}}>
-              {[['💧 Água',cfg.agua?`${cfg.agua} L`:'—'],['🌡️ Temp',cfg.temp?`${cfg.temp}°C`:'—'],['⚗️ pH alvo',cfg.ph||'—'],['🌀 Agitar',cfg.agitacao?`${cfg.agitacao} min`:'—']].map(([l,v])=>(
+              {[['💧 Água',cfg.agua?`${cfg.agua} L`:'—'],['🌡️ Temp',cfg.temp?`${cfg.temp}°C`:'—'],['⚗️ pH ideal',(cfg.ph_min||cfg.ph_max)?`${cfg.ph_min||'?'}–${cfg.ph_max||'?'}`:'—'],['🌀 Agitar',cfg.agitacao?`${cfg.agitacao} min`:'—']].map(([l,v])=>(
                 <div key={l} style={{flex:'1 1 45%',background:'#f7f9f0',borderRadius:8,padding:'6px 10px'}}>
                   <div style={{fontSize:10,color:'#999',fontWeight:700}}>{l}</div>
                   <div style={{fontSize:13,fontWeight:800,color:'#1F301F'}}>{v}</div>
@@ -1452,7 +1496,7 @@ function buildSteps(config){
     // 2) aquecer (se aplicável) ANTES de despejar o produto
     if(aquece) steps.push({tipo:'AQUECER',tanque:t,temp:p.temp,label:`Aquecer — Tanque ${t}`,detalhe:`até ${p.temp}°C`})
     // 3) despejar produto (PAUSA — só avança com OK do operador)
-    steps.push({tipo:'DESPEJAR',tanque:t,nome:p.nome,tipoProd:p.tipo,dose:p.dose,ph:p.ph,oleo_nome:p.oleo_nome,oleo_pct:p.oleo_pct,label:`Despejar ${p.nome}`,detalhe:`Tanque ${t}`,pausaOK:true})
+    steps.push({tipo:'DESPEJAR',tanque:t,nome:p.nome,tipoProd:p.tipo,dose:p.dose,ph_min:p.ph_min,ph_max:p.ph_max,oleo_nome:p.oleo_nome,oleo_pct:p.oleo_pct,label:`Despejar ${p.nome}`,detalhe:`Tanque ${t}`,pausaOK:true})
     // 4) agitar
     steps.push({tipo:'AGITAR',tanque:t,nome:p.nome,agitacao:p.agitacao,label:`Agitar — ${p.nome}`,detalhe:`${p.agitacao} min · Tanque ${t}`})
     // 5) enviar para o tanque de espera (libera o tanque de preparo)
@@ -1559,8 +1603,8 @@ function ExecutionGuideScreen({lot,onBack,onDone}){
                   </div>
                 ):null})()}
                 <div style={{display:'flex',justifyContent:'space-between',marginBottom:6}}>
-                  <span style={{fontSize:13,color:'#777'}}>pH alvo (receita)</span>
-                  <span style={{fontSize:13,fontWeight:800,color:'#006E85'}}>{step.ph||'—'}</span>
+                  <span style={{fontSize:13,color:'#777'}}>pH ideal (receita)</span>
+                  <span style={{fontSize:13,fontWeight:800,color:'#006E85'}}>{(step.ph_min||step.ph_max)?`${step.ph_min||'?'} – ${step.ph_max||'?'}`:'—'}</span>
                 </div>
                 <div style={{display:'flex',justifyContent:'space-between'}}>
                   <span style={{fontSize:13,color:'#777'}}>pH atual (sensor IHM)</span>
@@ -1590,8 +1634,8 @@ function ExecutionGuideScreen({lot,onBack,onDone}){
                   </div>
                 )
               })()}
-              {step.ph&&<div style={{background:'#eef6f8',borderRadius:10,padding:'8px 12px',marginTop:8,fontSize:12,color:'#006E85'}}>
-                💡 Ajuste o pH da água até ~{step.ph} antes de despejar, se necessário.
+              {(step.ph_min||step.ph_max)&&<div style={{background:'#eef6f8',borderRadius:10,padding:'8px 12px',marginTop:8,fontSize:12,color:'#006E85'}}>
+                💡 Ajuste o pH da água para a faixa {step.ph_min||'?'}–{step.ph_max||'?'} antes de despejar, se necessário.
               </div>}
               {step.oleo_nome&&(()=>{
                 const litrosOleo=+((parseFloat(step.oleo_pct)||0)/100*(parseFloat(lot.volume_liters)||0)).toFixed(1)
@@ -1682,8 +1726,9 @@ function LotDetailScreen({lot:initLot,op,onBack,onNav,onLotUpdate}){
     const[prods,setProds]=useState(()=>
       parsed.map(p=>{
         const sp=savedParams[nrm(p.name)]||{}
+        const phT=phIdealDoProduto(p.name)
         return{name:p.name,nameKey:nrm(p.name),type:p.type,dose:p.dose||'',
-          agua:sp.agua||'',temp:sp.temp||'',ph:sp.ph||'',agitacao:sp.agitacao||'',kow:sp.kow||(kowDoProduto(p.name)??'')+'',oleo_nome:sp.oleo_nome||'',oleo_pct:sp.oleo_pct||''}
+          agua:sp.agua||'',temp:sp.temp||'',ph_min:sp.ph_min||sp.ph||(phT?phT[0]+'':''),ph_max:sp.ph_max||(phT?phT[1]+'':''),agitacao:sp.agitacao||'',kow:sp.kow||(kowDoProduto(p.name)??'')+'',oleo_nome:sp.oleo_nome||'',oleo_pct:sp.oleo_pct||''}
       })
     )
     const[saving,setSaving]=useState(false)
@@ -1723,7 +1768,7 @@ function LotDetailScreen({lot:initLot,op,onBack,onNav,onLotUpdate}){
       const newRecipe=prods.map(p=>p.dose?`${p.name} ${p.dose}`:p.name).join(' + ')
       // grava parâmetros por produto, casados por nome normalizado
       const params={}
-      prods.forEach(p=>{params[nrm(p.name)]={agua:p.agua,temp:p.temp,ph:p.ph,agitacao:p.agitacao,kow:p.kow||'',oleo_nome:p.oleo_nome||'',oleo_pct:p.oleo_pct||''}})
+      prods.forEach(p=>{params[nrm(p.name)]={agua:p.agua,temp:p.temp,ph_min:p.ph_min||'',ph_max:p.ph_max||'',agitacao:p.agitacao,kow:p.kow||'',oleo_nome:p.oleo_nome||'',oleo_pct:p.oleo_pct||''}})
       const recipeParams=JSON.stringify(params)
       await dbUpdate('lots',lot.id,{recipe_text:newRecipe,recipe_params:recipeParams})
       const updated={...lot,recipe_text:newRecipe,recipe_params:recipeParams}
@@ -1766,7 +1811,7 @@ function LotDetailScreen({lot:initLot,op,onBack,onNav,onLotUpdate}){
                     <div style={{display:'flex',gap:6,marginTop:2,alignItems:'center',flexWrap:'wrap'}}>
                       <span style={{fontSize:10,fontWeight:800,color:'#fff',background:FC[p.type]||'#9E9E9E',padding:'1px 6px',borderRadius:20}}>{FL[p.type]||'?'}</span>
                       {p.dose&&<span style={{fontSize:11,color:'#777'}}>{p.dose}</span>}
-                      {(p.agua||p.temp||p.ph||p.agitacao)&&<span style={{fontSize:10,color:'#5a6b2a',fontWeight:700}}>⚙️ {[p.agua&&`${p.agua}L`,p.temp&&`${p.temp}°`,p.ph&&`pH${p.ph}`,p.agitacao&&`${p.agitacao}min`].filter(Boolean).join(' · ')}</span>}
+                      {(p.agua||p.temp||p.ph_min||p.ph_max||p.agitacao)&&<span style={{fontSize:10,color:'#5a6b2a',fontWeight:700}}>⚙️ {[p.agua&&`${p.agua}L`,p.temp&&`${p.temp}°`,(p.ph_min||p.ph_max)&&`pH${p.ph_min||'?'}–${p.ph_max||'?'}`,p.agitacao&&`${p.agitacao}min`].filter(Boolean).join(' · ')}</span>}
                       {p.oleo_nome&&<span style={{fontSize:10,color:'#e65100',fontWeight:800,background:'#fff3e0',padding:'1px 6px',borderRadius:20}}>🛢️ {p.oleo_nome} {p.oleo_pct}%</span>}
                     </div>
                   </div>
@@ -1779,8 +1824,15 @@ function LotDetailScreen({lot:initLot,op,onBack,onNav,onLotUpdate}){
                     <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
                       <div><label className="lbl">Água (L)</label><input className="field" type="number" inputMode="numeric" placeholder="1000" value={p.agua} onChange={e=>{const v=e.target.value;updP(i,'agua',v);if(!p.agitacao||p.agitacao===tempoAgitacaoSugerido(p.agua))updP(i,'agitacao',tempoAgitacaoSugerido(v))}} style={{marginBottom:0}}/></div>
                       <div><label className="lbl">Temp (°C)</label><input className="field" type="number" inputMode="numeric" placeholder="25" value={p.temp} onChange={e=>updP(i,'temp',e.target.value)} style={{marginBottom:0}}/></div>
-                      <div><label className="lbl">pH ideal</label><input className="field" type="number" inputMode="decimal" placeholder="6.0" value={p.ph} onChange={e=>updP(i,'ph',e.target.value)} style={{marginBottom:0}}/></div>
                       <div><label className="lbl">Agitar (min)</label><input className="field" type="number" inputMode="numeric" placeholder="5" value={p.agitacao} onChange={e=>updP(i,'agitacao',e.target.value)} style={{marginBottom:0}}/></div>
+                      <div>
+                        <label className="lbl">pH ideal</label>
+                        <div style={{display:'flex',gap:4,alignItems:'center'}}>
+                          <input className="field" type="number" inputMode="decimal" placeholder="mín" value={p.ph_min} onChange={e=>updP(i,'ph_min',e.target.value)} style={{marginBottom:0,flex:1}}/>
+                          <span style={{color:'#999',fontSize:12}}>–</span>
+                          <input className="field" type="number" inputMode="decimal" placeholder="máx" value={p.ph_max} onChange={e=>updP(i,'ph_max',e.target.value)} style={{marginBottom:0,flex:1}}/>
+                        </div>
+                      </div>
                     </div>
                     {(parseFloat(p.agua)||0)>TANQUE_PREPARO_CAP&&<div style={{marginTop:8,fontSize:11,fontWeight:700,color:'#c62828'}}>⚠️ Acima de {TANQUE_PREPARO_CAP} L — excede a capacidade do tanque de preparo</div>}
                     <div style={{display:'flex',alignItems:'center',gap:8,marginTop:8}}>
