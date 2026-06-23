@@ -2055,7 +2055,8 @@ function LotDetailScreen({lot:initLot,op,onBack,onNav,onLotUpdate}){
         )}
         <div style={{display:'flex',flexDirection:'column',gap:8}}>
           {lot.status==='REQUESTED'&&<button className="btn" onClick={()=>onNav('water',lot)}>→ Analisar Água</button>}
-          {(lot.status==='WATER_OK'||lot.status==='PREPARING')&&<button className="btn" onClick={()=>onNav('prep',lot)}>→ Guia de Preparo</button>}
+          {lot.status==='WATER_OK'&&<button className="btn" onClick={()=>onNav('dilution',lot)}>→ Configurar Diluição</button>}
+          {lot.status==='PREPARING'&&<button className="btn" onClick={()=>onNav('prep',lot)}>→ Guia de Preparo</button>}
           {lot.status==='JAR_TEST'&&<button className="btn" onClick={()=>onNav('jartest',lot)}>→ Realizar Jar Test</button>}
           {lot.status==='READY'&&<button className="btn" style={{background:'#2e7d32'}} onClick={apply} disabled={applying}>{applying?'Registrando...':'🚜 Registrar Aplicação em Campo'}</button>}
           {lot.status==='APPLIED'&&<div style={{background:'#e8f5e9',border:'1px solid #c8e6c9',borderRadius:12,padding:'11px 16px',textAlign:'center',fontWeight:700,color:'#2e7d32'}}>✅ Calda aplicada em campo</div>}
