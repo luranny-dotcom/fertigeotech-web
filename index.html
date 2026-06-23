@@ -928,6 +928,14 @@ function NewLotScreen({onBack,onSaved,op}){
   const vazaoNum=parseFloat(vazao)||0
   // Volume da calda = vazão (L/ha) × área (ha)
   const volumeCalda=vazaoNum*areaNum
+  // Volume já alocado nos produtos = água + produto líquido (dose×área) + óleo (% da calda)
+  const volumeAlocado=selectedProducts.reduce((s,p)=>{
+    const agua=parseFloat(p.agua)||0
+    const volProd=areaNum>0?(volumeProdutoLitros(p.dose,areaNum)||0):0
+    const volOleo=(p.oleo_nome&&p.oleo_pct&&volumeCalda>0)?(parseFloat(p.oleo_pct)||0)/100*volumeCalda:0
+    return s+agua+volProd+volOleo
+  },0)
+  const volumeFalta=volumeCalda-volumeAlocado
 
   // Monta recipe_text a partir dos produtos selecionados
   const recipeText=selectedProducts.map(p=>p.dose?`${p.name} ${p.dose}`:p.name).join(' + ')
@@ -968,7 +976,7 @@ function NewLotScreen({onBack,onSaved,op}){
   const save=async(goWater)=>{
     if(!farm.trim()){setErr('Informe a fazenda');return}
     if(!field.trim()){setErr('Informe o talhão');return}
-    if(!vazaoNum){setErr('Informe a taxa de aplicação (vazão)');return}
+    if(!vazaoNum){setErr('Informe a taxa de aplicação');return}
     if(!areaNum){setErr('Informe a área (ha) para calcular o volume');return}
     setSaving(true)
     try{
@@ -1015,7 +1023,7 @@ function NewLotScreen({onBack,onSaved,op}){
         <div className="card">
           <div style={{fontWeight:800,fontSize:13,color:'#00313C',marginBottom:10}}>⚗️ Calda</div>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-            <div><label className="lbl">Vazão (L/ha) *</label><input className="field" type="number" inputMode="decimal" placeholder="Ex: 50" value={vazao} onChange={e=>setVazao(e.target.value)}/></div>
+            <div><label className="lbl">Taxa de aplicação (L/ha) *</label><input className="field" type="number" inputMode="decimal" placeholder="Ex: 50" value={vazao} onChange={e=>setVazao(e.target.value)}/></div>
             <div><label className="lbl">Área (ha) *</label><input className="field" type="number" inputMode="decimal" placeholder="Ex: 100" value={area} onChange={e=>setArea(e.target.value)}/></div>
           </div>
           <div style={{background:volumeCalda>0?'#e0f4f7':'#f5f5f5',borderRadius:10,padding:'10px 14px',marginTop:10,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
@@ -1025,6 +1033,25 @@ function NewLotScreen({onBack,onSaved,op}){
             </div>
             <div style={{fontSize:22,fontWeight:900,color:volumeCalda>0?'#006E85':'#ccc'}}>{volumeCalda>0?`${volumeCalda.toLocaleString('pt-BR')} L`:'—'}</div>
           </div>
+          {/* Indicador de quanto falta para fechar a calda */}
+          {volumeCalda>0&&selectedProducts.length>0&&(()=>{
+            const pctAloc=Math.min(100,Math.round(volumeAlocado/volumeCalda*100))
+            const estoura=volumeAlocado>volumeCalda
+            return(
+              <div style={{marginTop:10,background:'#fafafa',borderRadius:10,padding:'10px 14px'}}>
+                <div style={{display:'flex',justifyContent:'space-between',fontSize:12,marginBottom:6}}>
+                  <span style={{fontWeight:700,color:'#555'}}>Alocado: {Math.round(volumeAlocado).toLocaleString('pt-BR')} L</span>
+                  <span style={{fontWeight:800,color:estoura?'#c62828':volumeFalta===0?'#2e7d32':'#006E85'}}>
+                    {estoura?`⚠️ excede ${Math.round(-volumeFalta).toLocaleString('pt-BR')} L`:volumeFalta===0?'✓ calda completa':`Faltam ${Math.round(volumeFalta).toLocaleString('pt-BR')} L`}
+                  </span>
+                </div>
+                <div style={{height:6,background:'#e8e8e8',borderRadius:6,overflow:'hidden'}}>
+                  <div style={{height:'100%',width:`${pctAloc}%`,background:estoura?'#c62828':volumeFalta===0?'#2e7d32':'#006E85',transition:'width .3s'}}/>
+                </div>
+                <div style={{fontSize:10,color:'#999',marginTop:4}}>água + produto + óleo de cada item, sobre {volumeCalda.toLocaleString('pt-BR')} L da calda</div>
+              </div>
+            )
+          })()}
         </div>
 
         {/* Seletor de produtos */}
@@ -1281,7 +1308,8 @@ function TankVisual({produtos,volumeTotal,area}){
   const itens=(produtos||[]).map((p,i)=>{
     const agua=parseFloat(p.agua)||0
     const volProd=ar>0?(volumeProdutoLitros(p.dose,ar)||0):0 // só líquidos; sólido retorna null→0
-    return{nome:p.nome||p.name, volume:agua+volProd, agua, volProd, cor:TANK_COLORS[i%TANK_COLORS.length]}
+    const volOleo=(p.oleo_nome&&p.oleo_pct&&vt>0)?(parseFloat(p.oleo_pct)||0)/100*vt:0 // óleo: % do volume total da calda
+    return{nome:p.nome||p.name, volume:agua+volProd+volOleo, agua, volProd, volOleo, cor:TANK_COLORS[i%TANK_COLORS.length]}
   }).filter(x=>x.volume>0)
   const somaProd=itens.reduce((s,x)=>s+x.volume,0)
   const base=Math.max(vt,somaProd) // se passar do total, usa a soma como base pra não cortar
@@ -1486,20 +1514,25 @@ function buildSteps(config){
   const steps=[]
   if(!config||!config.produtos) return steps
   const {produtos,tanque_espera,espera_agitacao}=config
+  const volumeCaldaTotal=parseFloat(config.volume_calda)||0
 
   produtos.forEach(p=>{
     const t=p.tanque
     const agua=parseFloat(p.agua)||0
     const aquece=precisaAquecer(p.temp)&&String(t)===String(TANQUE_AQUECE)
+    const temOleo=p.oleo_nome&&p.oleo_pct
+    const litrosOleo=temOleo?+((parseFloat(p.oleo_pct)||0)/100*volumeCaldaTotal).toFixed(1):0
     // 1) injetar água no tanque de preparo do produto
     steps.push({tipo:'AGUA',tanque:t,agua,label:`Injetar água — Tanque ${t}`,detalhe:`${agua} L`})
-    // 2) aquecer (se aplicável) ANTES de despejar o produto
+    // 2) aquecer (se aplicável) ANTES de adicionar produto/óleo
     if(aquece) steps.push({tipo:'AQUECER',tanque:t,temp:p.temp,label:`Aquecer — Tanque ${t}`,detalhe:`até ${p.temp}°C`})
-    // 3) despejar produto (PAUSA — só avança com OK do operador)
-    steps.push({tipo:'DESPEJAR',tanque:t,nome:p.nome,tipoProd:p.tipo,dose:p.dose,ph_min:p.ph_min,ph_max:p.ph_max,oleo_nome:p.oleo_nome,oleo_pct:p.oleo_pct,label:`Despejar ${p.nome}`,detalhe:`Tanque ${t}`,pausaOK:true})
-    // 4) agitar
+    // 3) óleo PRIMEIRO (produto será depositado em cima — emulsificação). PAUSA com OK.
+    if(temOleo) steps.push({tipo:'OLEO',tanque:t,nome:p.nome,oleo_nome:p.oleo_nome,oleo_pct:p.oleo_pct,litrosOleo,label:`Adicionar óleo — ${p.oleo_nome}`,detalhe:`${litrosOleo} L · Tanque ${t}`,pausaOK:true})
+    // 4) adicionar produto (PAUSA — só avança com OK do operador)
+    steps.push({tipo:'DESPEJAR',tanque:t,nome:p.nome,tipoProd:p.tipo,dose:p.dose,ph_min:p.ph_min,ph_max:p.ph_max,oleo_nome:p.oleo_nome,label:`Adicionar ${p.nome}`,detalhe:`Tanque ${t}`,pausaOK:true})
+    // 5) agitar
     steps.push({tipo:'AGITAR',tanque:t,nome:p.nome,agitacao:p.agitacao,label:`Agitar — ${p.nome}`,detalhe:`${p.agitacao} min · Tanque ${t}`})
-    // 5) enviar para o tanque de espera (libera o tanque de preparo)
+    // 6) enviar para o tanque de espera (libera o tanque de preparo)
     steps.push({tipo:'ENVIAR',tanque:t,destino:tanque_espera,label:`Enviar Tanque ${t} → Espera ${tanque_espera}`,detalhe:`Tanque de espera ${tanque_espera}`})
   })
   // agitação final da calda no tanque de espera
@@ -1507,7 +1540,7 @@ function buildSteps(config){
   return steps
 }
 
-const STEP_ICON={AGUA:'💧',AQUECER:'🔥',DESPEJAR:'🧴',AGITAR:'🌀',ENVIAR:'📤',AGITAR_ESPERA:'🛢️'}
+const STEP_ICON={AGUA:'💧',AQUECER:'🔥',OLEO:'🛢️',DESPEJAR:'🧴',AGITAR:'🌀',ENVIAR:'📤',AGITAR_ESPERA:'🛢️'}
 
 // ═══════════════════════════════════════════════════════════════════
 // FASE 2 — Guia de Execução passo a passo (uma etapa por tela).
@@ -1586,6 +1619,19 @@ function ExecutionGuideScreen({lot,onBack,onDone}){
               Aquecer a água do Tanque {step.tanque} até <b>{step.temp}°C</b> antes de adicionar os produtos.
             </div>
           )}
+          {step.tipo==='OLEO'&&(
+            <div>
+              <div style={{background:'#fff3e0',borderRadius:10,padding:12,marginTop:6,fontSize:13,color:'#e65100',fontWeight:600}}>
+                🛢️ Adicione <b>{step.oleo_nome}</b> — {step.oleo_pct}% da calda = <b>{step.litrosOleo.toLocaleString('pt-BR')} L</b> no Tanque {step.tanque}.
+                <div style={{fontSize:12,fontWeight:500,marginTop:6}}>O produto será adicionado <b>em cima do óleo</b> em seguida (emulsificação). Adicione o óleo primeiro e confirme com o <b>OK</b>.</div>
+              </div>
+              {!okGiven?(
+                <button onClick={()=>setOkGiven(true)} style={{width:'100%',marginTop:12,padding:'16px',borderRadius:12,border:'none',background:'#A2B34C',color:'#fff',fontSize:18,fontWeight:900,cursor:'pointer'}}>✓ OK — Óleo adicionado</button>
+              ):(
+                <div style={{marginTop:12,textAlign:'center',color:'#5a6b2a',fontWeight:800,fontSize:14}}>✅ OK confirmado — pode avançar para adicionar o produto</div>
+              )}
+            </div>
+          )}
           {step.tipo==='DESPEJAR'&&(
             <div>
               <div style={{background:'#fafafa',borderRadius:10,padding:12,marginTop:6}}>
@@ -1598,7 +1644,7 @@ function ExecutionGuideScreen({lot,onBack,onDone}){
                 </div>}
                 {(()=>{const vol=volumeProdutoLitros(step.dose,parseFloat(lot.area_ha));return vol?(
                   <div style={{display:'flex',justifyContent:'space-between',marginBottom:6}}>
-                    <span style={{fontSize:13,color:'#777'}}>Quantidade a despejar</span>
+                    <span style={{fontSize:13,color:'#777'}}>Quantidade a adicionar</span>
                     <span style={{fontSize:13,fontWeight:800,color:'#006E85'}}>{vol.toLocaleString('pt-BR')} L</span>
                   </div>
                 ):null})()}
@@ -1621,7 +1667,7 @@ function ExecutionGuideScreen({lot,onBack,onDone}){
                 const sobra=tam>0?+(vol-galoes*tam).toFixed(1):0
                 return(
                   <div style={{background:'#f0f8fa',borderRadius:10,padding:12,marginTop:10}}>
-                    <div style={{fontSize:12,fontWeight:800,color:'#00313C',marginBottom:8}}>🧮 Quantos galões despejar?</div>
+                    <div style={{fontSize:12,fontWeight:800,color:'#00313C',marginBottom:8}}>🧮 Quantos galões adicionar?</div>
                     <label className="lbl">Tamanho do galão (L)</label>
                     <input className="field" type="number" inputMode="decimal" placeholder="Ex: 20" value={galao} onChange={e=>setGalao(e.target.value)} style={{marginBottom:0}}/>
                     {tam>0&&(
@@ -1635,21 +1681,16 @@ function ExecutionGuideScreen({lot,onBack,onDone}){
                 )
               })()}
               {(step.ph_min||step.ph_max)&&<div style={{background:'#eef6f8',borderRadius:10,padding:'8px 12px',marginTop:8,fontSize:12,color:'#006E85'}}>
-                💡 Ajuste o pH da água para a faixa {step.ph_min||'?'}–{step.ph_max||'?'} antes de despejar, se necessário.
+                💡 Ajuste o pH da água para a faixa {step.ph_min||'?'}–{step.ph_max||'?'} antes de adicionar, se necessário.
               </div>}
-              {step.oleo_nome&&(()=>{
-                const litrosOleo=+((parseFloat(step.oleo_pct)||0)/100*(parseFloat(lot.volume_liters)||0)).toFixed(1)
-                return(
-                  <div style={{background:'#fff3e0',borderRadius:10,padding:12,marginTop:8,fontSize:13,color:'#e65100',fontWeight:600}}>
-                    🛢️ Adicione <b>{step.oleo_nome}</b> — {step.oleo_pct}% da calda = <b>{litrosOleo.toLocaleString('pt-BR')} L</b> de óleo neste tanque (por último, devagar, com agitação).
-                  </div>
-                )
-              })()}
+              {step.oleo_nome&&<div style={{background:'#fff3e0',borderRadius:10,padding:'8px 12px',marginTop:8,fontSize:12,color:'#e65100',fontWeight:600}}>
+                🛢️ O óleo já foi adicionado na etapa anterior — adicione o produto <b>em cima</b> (emulsificação).
+              </div>}
               <div style={{background:'#fff8e1',borderRadius:10,padding:12,marginTop:10,fontSize:13,color:'#7a5c00',fontWeight:600}}>
-                👷 Despeje o produto no Tanque {step.tanque}. Ao terminar, confirme com o <b>OK</b> para liberar a agitação.
+                👷 Adicione o produto no Tanque {step.tanque}. Ao terminar, confirme com o <b>OK</b> para liberar a agitação.
               </div>
               {!okGiven?(
-                <button onClick={()=>setOkGiven(true)} style={{width:'100%',marginTop:12,padding:'16px',borderRadius:12,border:'none',background:'#A2B34C',color:'#fff',fontSize:18,fontWeight:900,cursor:'pointer'}}>✓ OK — Produto despejado</button>
+                <button onClick={()=>setOkGiven(true)} style={{width:'100%',marginTop:12,padding:'16px',borderRadius:12,border:'none',background:'#A2B34C',color:'#fff',fontSize:18,fontWeight:900,cursor:'pointer'}}>✓ OK — Produto adicionado</button>
               ):(
                 <div style={{marginTop:12,textAlign:'center',color:'#5a6b2a',fontWeight:800,fontSize:14}}>✅ OK confirmado — pode avançar para a agitação</div>
               )}
@@ -1954,7 +1995,7 @@ function LotDetailScreen({lot:initLot,op,onBack,onNav,onLotUpdate}){
             let prodVis=[]
             try{const d=JSON.parse(lot.dilution_config||'{}');if(d.produtos)prodVis=d.produtos}catch{}
             if(!prodVis.length){
-              try{const rp=JSON.parse(lot.recipe_params||'{}');prodVis=parseRecipe(lot.recipe_text||'').map(p=>({nome:p.name,dose:p.dose,agua:(rp[nrm(p.name)]||{}).agua||0}))}catch{}
+              try{const rp=JSON.parse(lot.recipe_params||'{}');prodVis=parseRecipe(lot.recipe_text||'').map(p=>{const x=rp[nrm(p.name)]||{};return{nome:p.name,dose:p.dose,agua:x.agua||0,oleo_nome:x.oleo_nome||'',oleo_pct:x.oleo_pct||''}})}catch{}
             }
             const temAgua=prodVis.some(p=>parseFloat(p.agua)>0)
             return temAgua&&parseFloat(lot.volume_liters)>0?(
@@ -2109,6 +2150,21 @@ function LaudoScreen({lot,telem,jar,op,onBack}){
                 </div>
               </S>
             )}
+
+            {/* Composição da calda — tanque visual */}
+            {(()=>{
+              let prodVis=[]
+              try{const d=JSON.parse(lot.dilution_config||'{}');if(d.produtos)prodVis=d.produtos}catch{}
+              if(!prodVis.length){
+                try{const rp=JSON.parse(lot.recipe_params||'{}');prodVis=produtos.map(p=>{const x=rp[nrm(p.name)]||{};return{nome:p.name,dose:p.dose,agua:x.agua||0,oleo_nome:x.oleo_nome||'',oleo_pct:x.oleo_pct||''}})}catch{}
+              }
+              const temAgua=prodVis.some(p=>parseFloat(p.agua)>0)
+              return temAgua&&parseFloat(lot.volume_liters)>0?(
+                <S title="🛢️ Composição da Calda" accent="#006E85">
+                  <TankVisual produtos={prodVis} volumeTotal={lot.volume_liters} area={lot.area_ha}/>
+                </S>
+              ):null
+            })()}
 
             {/* Alertas de incompatibilidade */}
             {(()=>{
