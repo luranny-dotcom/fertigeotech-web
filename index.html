@@ -77,8 +77,22 @@ const precisaAquecer=(temp)=>(parseFloat(temp)||0)>TEMP_AMBIENTE
 const TANQUE_PREPARO_CAP=6000   // L por produto (cada produto faz ciclo individual)
 const TANQUE_ESPERA_CAP=15000   // L total da calda que converge para o tanque de espera
 // Vazão fixa da bomba de agitação (equipamento) — usada para sugerir tempo de agitação
-const VAZAO_BOMBA=300           // L/min → tempo sugerido = volume de água / 300
-const tempoAgitacaoSugerido=(agua)=>{const a=parseFloat(agua)||0;return a>0?Math.max(1,Math.ceil(a/VAZAO_BOMBA)):''}
+const VAZAO_BOMBA=300           // L/min → tempo base = volume de água / 300 (tanques de preparo)
+// Multiplicador de agitação por formulação (suspensões/emulsões precisam de mais homogeneização)
+const MULT_AGITACAO={SC:5,EC:3} // demais tipos: ×1
+const tempoAgitacaoSugerido=(agua,tipo)=>{
+  const a=parseFloat(agua)||0
+  if(a<=0) return ''
+  const base=a/VAZAO_BOMBA
+  const mult=MULT_AGITACAO[tipo]||1
+  return Math.max(1,Math.ceil(base*mult))
+}
+// Tanque de espera: bomba de 600 L/min. Tempo = (volume da calda × 2) / 600 (circula tudo 2 vezes)
+const VAZAO_BOMBA_ESPERA=600
+const tempoAgitacaoEsperaSugerido=(volumeCalda)=>{
+  const v=parseFloat(volumeCalda)||0
+  return v>0?Math.max(1,Math.ceil(v*2/VAZAO_BOMBA_ESPERA)):''
+}
 
 // ── Tabela de Kow (log P octanol-água) por INGREDIENTE ATIVO ───────────────────
 // ⚠️ TABELA INICIAL PARA VALIDAÇÃO AGRONÔMICA (Plínio) ANTES DE USAR EM PRODUÇÃO.
@@ -864,7 +878,7 @@ function ProductPicker({onAdd}){
 
           <div style={{fontSize:10,fontWeight:800,color:'#5a6b2a',textTransform:'uppercase',margin:'12px 0 6px'}}>⚙️ Parâmetros de preparo</div>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-            <div><label className="lbl">Água (L)</label><input className="field" type="number" inputMode="numeric" placeholder="1000" value={pAgua} onChange={e=>{const v=e.target.value;setPAgua(v);setPAgit(tempoAgitacaoSugerido(v))}} style={{marginBottom:0}}/></div>
+            <div><label className="lbl">Água (L)</label><input className="field" type="number" inputMode="numeric" placeholder="1000" value={pAgua} onChange={e=>{const v=e.target.value;setPAgua(v);setPAgit(tempoAgitacaoSugerido(v,picking.type))}} style={{marginBottom:0}}/></div>
             <div><label className="lbl">Temp (°C)</label><input className="field" type="number" inputMode="numeric" placeholder="25" value={pTemp} onChange={e=>setPTemp(e.target.value)} style={{marginBottom:0}}/></div>
             <div><label className="lbl">Agitar (min)</label><input className="field" type="number" inputMode="numeric" placeholder="5" value={pAgit} onChange={e=>setPAgit(e.target.value)} style={{marginBottom:0}}/></div>
             <div>
@@ -876,7 +890,7 @@ function ProductPicker({onAdd}){
               </div>
             </div>
           </div>
-          {pAgua&&<div style={{marginTop:6,fontSize:10,color:'#5a6b2a'}}>💡 Sugestão: {pAgua} L ÷ {VAZAO_BOMBA} L/min ≈ {tempoAgitacaoSugerido(pAgua)} min (editável)</div>}
+          {pAgua&&<div style={{marginTop:6,fontSize:10,color:'#5a6b2a'}}>💡 Sugestão: {pAgua} L ÷ {VAZAO_BOMBA} L/min{MULT_AGITACAO[picking.type]?` × ${MULT_AGITACAO[picking.type]} (${picking.type})`:''} ≈ {tempoAgitacaoSugerido(pAgua,picking.type)} min (editável)</div>}
           {(parseFloat(pAgua)||0)>TANQUE_PREPARO_CAP&&<div style={{marginTop:8,fontSize:11,fontWeight:700,color:'#c62828'}}>⚠️ Acima de {TANQUE_PREPARO_CAP} L — excede a capacidade do tanque de preparo</div>}
 
           {/* Kow e óleo */}
@@ -1378,8 +1392,8 @@ function DilutionConfigScreen({lot,onBack,onDone}){
     return ''
   })
   const[esperaAgit,setEsperaAgit]=useState(()=>{
-    if(lot.dilution_config){try{return JSON.parse(lot.dilution_config).espera_agitacao||'5'}catch{}}
-    return '5'
+    if(lot.dilution_config){try{const d=JSON.parse(lot.dilution_config);if(d.espera_agitacao)return d.espera_agitacao}catch{}}
+    return (tempoAgitacaoEsperaSugerido(lot.volume_liters)||'5')+''
   })
   const[saving,setSaving]=useState(false)
   const[err,setErr]=useState('')
@@ -1490,6 +1504,7 @@ function DilutionConfigScreen({lot,onBack,onDone}){
           </div>
           <label className="lbl">Tempo de agitação final (min)</label>
           <input className="field" type="number" inputMode="numeric" placeholder="5" value={esperaAgit} onChange={e=>setEsperaAgit(e.target.value)}/>
+          {volumeCalda>0&&<div style={{fontSize:10,color:'#006E85',marginTop:4}}>💡 Sugestão: ({volumeCalda.toLocaleString('pt-BR')} L × 2) ÷ {VAZAO_BOMBA_ESPERA} L/min ≈ {tempoAgitacaoEsperaSugerido(volumeCalda)} min — circula a calda 2× (editável)</div>}
         </div>
 
         {err&&<div style={{background:'#ffebee',color:'#c62828',padding:'8px 12px',borderRadius:8,fontSize:13,fontWeight:700,marginTop:8}}>⚠️ {err}</div>}
@@ -1863,7 +1878,7 @@ function LotDetailScreen({lot:initLot,op,onBack,onNav,onLotUpdate}){
                   <div style={{padding:'4px 10px 12px',borderTop:'1px solid #ececec'}}>
                     <div style={{fontSize:10,fontWeight:800,color:'#5a6b2a',textTransform:'uppercase',margin:'8px 0 6px'}}>Parâmetros de preparo (receita)</div>
                     <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-                      <div><label className="lbl">Água (L)</label><input className="field" type="number" inputMode="numeric" placeholder="1000" value={p.agua} onChange={e=>{const v=e.target.value;updP(i,'agua',v);if(!p.agitacao||p.agitacao===tempoAgitacaoSugerido(p.agua))updP(i,'agitacao',tempoAgitacaoSugerido(v))}} style={{marginBottom:0}}/></div>
+                      <div><label className="lbl">Água (L)</label><input className="field" type="number" inputMode="numeric" placeholder="1000" value={p.agua} onChange={e=>{const v=e.target.value;updP(i,'agua',v);if(!p.agitacao||p.agitacao===tempoAgitacaoSugerido(p.agua,p.type))updP(i,'agitacao',tempoAgitacaoSugerido(v,p.type))}} style={{marginBottom:0}}/></div>
                       <div><label className="lbl">Temp (°C)</label><input className="field" type="number" inputMode="numeric" placeholder="25" value={p.temp} onChange={e=>updP(i,'temp',e.target.value)} style={{marginBottom:0}}/></div>
                       <div><label className="lbl">Agitar (min)</label><input className="field" type="number" inputMode="numeric" placeholder="5" value={p.agitacao} onChange={e=>updP(i,'agitacao',e.target.value)} style={{marginBottom:0}}/></div>
                       <div>
